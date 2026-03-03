@@ -24,10 +24,10 @@ const AVATAR_EMOJIS = [
 ];
 
 const PROFICIENCY_LABELS = [
-  { value: 'emerging', label: 'Just starting', emoji: '🌱' },
-  { value: 'developing', label: 'Getting better', emoji: '🌿' },
-  { value: 'proficient', label: 'Pretty good', emoji: '🌳' },
-  { value: 'advanced', label: 'Really strong', emoji: '🌟' },
+  { value: 'emerging', label: 'Just starting' },
+  { value: 'developing', label: 'Getting better' },
+  { value: 'proficient', label: 'Pretty good' },
+  { value: 'advanced', label: 'Really strong' },
 ];
 
 const T = {
@@ -271,7 +271,7 @@ function PageShell({ children }) {
       `}</style>
 
       {/* Logo */}
-      <div style={{ marginBottom: 24, textAlign: 'center' }}>
+      <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <WayfinderLogoIcon size={28} color={T.fieldGreen} />
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: T.ink, marginTop: 4 }}>
           Wayfinder
@@ -297,7 +297,6 @@ function PageShell({ children }) {
 function WelcomeStep({ inviteData, onNext }) {
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>🧭</div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: T.ink, marginBottom: 8 }}>
         Welcome to Wayfinder
       </h1>
@@ -538,7 +537,7 @@ function SkillsStep({ skillsCatalog, selfAssessment, setSkillRating, gradeBand, 
                           cursor: 'pointer', transition: 'all 150ms',
                         }}
                       >
-                        {p.emoji} {p.label}
+                        {p.label}
                       </button>
                     );
                   })}
@@ -615,14 +614,11 @@ function ConfirmStep({
               Skills ({ratedSkills.length} rated)
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {ratedSkills.slice(0, 8).map(s => {
-                const prof = PROFICIENCY_LABELS.find(p => p.value === selfAssessment[s.id]);
-                return (
-                  <span key={s.id} style={{ padding: '3px 10px', borderRadius: 20, background: T.parchment, color: T.ink, fontSize: 12, fontFamily: 'var(--font-body)' }}>
-                    {prof?.emoji} {s.name}
-                  </span>
-                );
-              })}
+              {ratedSkills.slice(0, 8).map(s => (
+                <span key={s.id} style={{ padding: '3px 10px', borderRadius: 20, background: T.parchment, color: T.ink, fontSize: 12, fontFamily: 'var(--font-body)' }}>
+                  {s.name}
+                </span>
+              ))}
               {ratedSkills.length > 8 && (
                 <span style={{ padding: '3px 10px', fontSize: 12, color: T.graphite, fontFamily: 'var(--font-mono)' }}>
                   +{ratedSkills.length - 8} more
@@ -683,7 +679,6 @@ function SuccessStep({ result }) {
 
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, marginBottom: 8 }}>
         You're all set, {result.student_name}!
       </h2>
