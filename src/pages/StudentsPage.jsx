@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2 } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { invites as invitesApi } from '../lib/api';
