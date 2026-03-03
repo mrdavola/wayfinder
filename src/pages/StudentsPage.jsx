@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, X, Check, ChevronLeft, BookOpen, Users, Upload, Download, AlertCircle, Eye, EyeOff, Copy } from 'lucide-react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { Plus, Search, Edit2, Trash2, X, Check, ChevronLeft, BookOpen, Users, Upload, Download, AlertCircle, Eye, EyeOff, Copy, Link2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { invites as invitesApi } from '../lib/api';
 import TopBar from '../components/layout/TopBar';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -233,6 +234,7 @@ function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete
 }
 
 function ViewRow({ student, activeQuestCount, onEdit, onDelete }) {
+  const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pinVisible, setPinVisible] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -260,12 +262,27 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete }) {
         <div style={styles.studentInfo}>
           {/* Name row */}
           <div style={styles.nameRow}>
-            <span style={styles.studentName}>{student.name}</span>
+            {student.avatar_emoji && <span style={{ fontSize: 16 }}>{student.avatar_emoji}</span>}
+            <span
+              style={{ ...styles.studentName, cursor: 'pointer', textDecoration: 'none' }}
+              onClick={() => navigate(`/students/${student.id}`)}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--lab-blue)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--ink)'; }}
+              role="link"
+              tabIndex={0}
+            >
+              {student.name}
+            </span>
             {student.grade_band && (
               <span style={styles.gradeBadge}>{student.grade_band}</span>
             )}
             {student.age && (
               <span style={styles.ageText}>(age {student.age})</span>
+            )}
+            {student.onboarded_at && (
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(45,106,79,0.08)', padding: '1px 6px', borderRadius: 4 }}>
+                Onboarded
+              </span>
             )}
           </div>
 
@@ -500,6 +517,184 @@ function EditingRow({ student, onCancel, onSave }) {
           )}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Invite Link Section ──────────────────────────────────────────────────────
+
+function InviteLinkSection({ guideId, schoolId }) {
+  const [invitesList, setInvitesList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [label, setLabel] = useState('');
+  const [maxUses, setMaxUses] = useState('');
+  const [expDays, setExpDays] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
+
+  useEffect(() => { loadInvites(); }, []);
+
+  async function loadInvites() {
+    setLoading(true);
+    const { data } = await invitesApi.list(guideId);
+    setInvitesList(data || []);
+    setLoading(false);
+  }
+
+  async function handleCreate() {
+    setCreating(true);
+    const expiresAt = expDays ? new Date(Date.now() + parseInt(expDays) * 86400000).toISOString() : null;
+    const { data, error } = await invitesApi.create({
+      guideId, schoolId,
+      label: label.trim() || null,
+      maxUses: maxUses ? parseInt(maxUses) : null,
+      expiresAt,
+    });
+    if (data) {
+      setInvitesList(prev => [data, ...prev]);
+      setShowCreate(false);
+      setLabel('');
+      setMaxUses('');
+      setExpDays('');
+    }
+    setCreating(false);
+  }
+
+  async function handleDeactivate(id) {
+    await invitesApi.deactivate(id);
+    setInvitesList(prev => prev.map(inv => inv.id === id ? { ...inv, active: false } : inv));
+  }
+
+  function copyLink(invite) {
+    const url = `${window.location.origin}/join/${invite.code}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(invite.id);
+      setTimeout(() => setCopiedId(null), 2500);
+    });
+  }
+
+  const active = invitesList.filter(i => i.active);
+
+  if (loading) {
+    return (
+      <div style={{ background: '#EFF8F1', border: '1px solid #A7D7B8', borderRadius: 12, padding: '14px 18px', marginBottom: 20, textAlign: 'center' }}>
+        <Loader2 size={16} color="var(--field-green)" style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: '#EFF8F1', border: '1px solid #A7D7B8', borderRadius: 12,
+      padding: '16px 18px', marginBottom: 20,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: active.length > 0 || showCreate ? 12 : 0 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--field-green)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Link2 size={14} /> Invite Links
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--graphite)', marginTop: 2 }}>
+            Share a link so students can fill out their learner profile and join your class.
+          </div>
+        </div>
+        <button
+          onClick={() => setShowCreate(s => !s)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '6px 14px', borderRadius: 8,
+            border: '1px solid var(--field-green)', background: showCreate ? 'var(--field-green)' : 'var(--chalk)',
+            color: showCreate ? 'var(--chalk)' : 'var(--field-green)',
+            fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)',
+            cursor: 'pointer', transition: 'all 150ms', whiteSpace: 'nowrap',
+          }}
+        >
+          {showCreate ? <X size={13} /> : <Plus size={13} />}
+          {showCreate ? 'Cancel' : 'Create Link'}
+        </button>
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <div style={{ background: 'var(--chalk)', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #C3E6CF' }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div style={{ flex: 2, minWidth: 140 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)', display: 'block', marginBottom: 3 }}>Label</label>
+              <input className="input" type="text" placeholder="e.g. Fall 2026 intake" value={label} onChange={e => setLabel(e.target.value)} style={{ fontSize: 12 }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 80 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)', display: 'block', marginBottom: 3 }}>Max uses</label>
+              <input className="input" type="number" min={1} placeholder="Unlimited" value={maxUses} onChange={e => setMaxUses(e.target.value)} style={{ fontSize: 12 }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 80 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)', display: 'block', marginBottom: 3 }}>Expires in</label>
+              <select className="input" value={expDays} onChange={e => setExpDays(e.target.value)} style={{ fontSize: 12, cursor: 'pointer' }}>
+                <option value="">Never</option>
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+              </select>
+            </div>
+          </div>
+          <button onClick={handleCreate} disabled={creating} className="btn btn-primary" style={{ fontSize: 12, padding: '6px 16px' }}>
+            {creating ? 'Creating...' : 'Create Invite Link'}
+          </button>
+        </div>
+      )}
+
+      {/* Active invites list */}
+      {active.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {active.map(inv => (
+            <div
+              key={inv.id}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 12px', borderRadius: 8, background: 'var(--chalk)',
+                border: '1px solid #C3E6CF', gap: 8, flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {window.location.origin}/join/{inv.code}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginTop: 1 }}>
+                  {inv.label || 'No label'} · {inv.use_count} use{inv.use_count !== 1 ? 's' : ''}
+                  {inv.max_uses && ` / ${inv.max_uses} max`}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                <button
+                  onClick={() => copyLink(inv)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '4px 10px', borderRadius: 6,
+                    border: `1px solid ${copiedId === inv.id ? 'var(--field-green)' : 'var(--pencil)'}`,
+                    background: copiedId === inv.id ? 'rgba(45,106,79,0.08)' : 'transparent',
+                    color: copiedId === inv.id ? 'var(--field-green)' : 'var(--graphite)',
+                    fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)',
+                    cursor: 'pointer', transition: 'all 150ms',
+                  }}
+                >
+                  {copiedId === inv.id ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+                </button>
+                <button
+                  onClick={() => handleDeactivate(inv.id)}
+                  title="Deactivate"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', padding: '4px 6px',
+                    borderRadius: 6, border: '1px solid var(--pencil)',
+                    background: 'transparent', color: 'var(--graphite)',
+                    cursor: 'pointer', fontSize: 11,
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -917,6 +1112,14 @@ export default function StudentsPage() {
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               <button
                 className="btn btn-secondary"
+                onClick={() => navigate('/students/groups')}
+                title="AI Group Builder"
+              >
+                <Users size={15} />
+                Groups
+              </button>
+              <button
+                className="btn btn-secondary"
                 onClick={() => setShowBulkModal(true)}
                 title="Import students from CSV"
               >
@@ -965,6 +1168,11 @@ export default function StudentsPage() {
                 {codeCopied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy code</>}
               </button>
             </div>
+          )}
+
+          {/* Invite links */}
+          {user && (
+            <InviteLinkSection guideId={user.id} schoolId={profile?.school_id} />
           )}
 
           {/* Search bar */}

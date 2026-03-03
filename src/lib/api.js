@@ -448,4 +448,239 @@ Guiding questions the student has: ${guidingQuestions.join(', ')}`,
   chat: async (messages, systemPrompt) => {
     return callAI({ systemPrompt, messages });
   },
+
+  recommendSkills: async ({ name, age, gradeBand, interests, passions, selfAssessment }) => {
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's learner profiling engine. Given a student's profile, recommend skills they should focus on and quest pathways that would engage them.
+
+You MUST respond with ONLY valid JSON matching this structure:
+{
+  "core_focus": [{"skill": "skill name", "reason": "1 sentence why"}],
+  "interest_skills": [{"skill": "skill name", "reason": "1 sentence why"}],
+  "quest_pathways": [{"title": "quest idea title", "description": "1-2 sentences", "career_connection": "career field"}]
+}
+
+Rules:
+- core_focus: 2-3 core academic skills most important for this student
+- interest_skills: 2-4 interest-based skills that align with their passions
+- quest_pathways: 2-3 quest ideas that would excite this specific student
+- Be specific to the student's interests, not generic
+- Language should be encouraging and age-appropriate`,
+      userMessage: `Student profile:
+- Name: ${name}
+- Age: ${age || 'unknown'}
+- Grade band: ${gradeBand || 'unknown'}
+- Interests: ${(interests || []).join(', ') || 'none listed'}
+- Passions: ${(passions || []).join(', ') || 'none listed'}
+- Self-assessment: ${JSON.stringify(selfAssessment || {})}
+
+Generate skill recommendations and quest pathway ideas.`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+
+  suggestGroups: async ({ students, questContext, groupSize }) => {
+    const studentSummaries = students.map(s =>
+      `- ${s.name} (${s.grade_band || '?'}, interests: ${(s.interests || []).join(', ')}, skills: ${(s.skills || []).map(sk => sk.name).join(', ') || 'none tracked'})`
+    ).join('\n');
+
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's group formation engine. Given a list of students and optional quest context, suggest optimal group pairings that balance skills, interests, and roles.
+
+You MUST respond with ONLY valid JSON matching this structure:
+{
+  "groups": [
+    {
+      "name": "Group name",
+      "members": [
+        {"name": "Student Name", "role": "specific role in group", "reason": "why this role fits them"}
+      ],
+      "group_strength": "1 sentence about what makes this group work well together"
+    }
+  ],
+  "reasoning": "2-3 sentences about overall grouping strategy"
+}
+
+Rules:
+- Target group size: ${groupSize || 3} students per group
+- Every student must be in exactly one group
+- Roles should be specific and meaningful (e.g. "Lead Researcher", "Data Analyst", "Presenter", "Designer")
+- Balance complementary skills and shared interests within each group
+- Give each group a creative, project-relevant name`,
+      userMessage: `Students:\n${studentSummaries}\n\n${questContext ? `Quest context: ${questContext}` : 'No specific quest — general grouping.'}\n\nSuggest optimal groups.`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+};
+
+// ===================== INVITES =====================
+export const invites = {
+  create: async ({ guideId, schoolId, label, maxUses, expiresAt }) => {
+    // Generate unique code via RPC
+    const { data: code, error: codeErr } = await supabase.rpc('generate_invite_code');
+    if (codeErr) return { error: codeErr };
+
+    return supabase
+      .from('guide_invites')
+      .insert({
+        guide_id: guideId,
+        school_id: schoolId || null,
+        code,
+        label: label || '',
+        max_uses: maxUses || null,
+        expires_at: expiresAt || null,
+      })
+      .select()
+      .single();
+  },
+
+  list: async (guideId) => {
+    return supabase
+      .from('guide_invites')
+      .select('*')
+      .eq('guide_id', guideId)
+      .order('created_at', { ascending: false });
+  },
+
+  deactivate: async (id) => {
+    return supabase
+      .from('guide_invites')
+      .update({ active: false })
+      .eq('id', id);
+  },
+
+  validate: async (code) => {
+    const { data, error } = await supabase.rpc('validate_invite', { p_code: code });
+    if (error) return { data: { valid: false, error: error.message } };
+    return { data };
+  },
+
+  submitIntake: async ({
+    code, name, age, gradeBand, email,
+    interests, passions, aboutMe, avatarEmoji, selfAssessment,
+  }) => {
+    const { data, error } = await supabase.rpc('student_intake', {
+      p_code: code,
+      p_name: name,
+      p_age: age || null,
+      p_grade_band: gradeBand || null,
+      p_email: email || null,
+      p_interests: interests || [],
+      p_passions: passions || [],
+      p_about_me: aboutMe || '',
+      p_avatar_emoji: avatarEmoji || '',
+      p_self_assessment: selfAssessment || {},
+    });
+    if (error) return { data: { success: false, error: error.message } };
+    return { data };
+  },
+};
+
+// ===================== SKILLS =====================
+export const skills = {
+  listCatalog: async (gradeBand) => {
+    let query = supabase
+      .from('skills')
+      .select('*')
+      .order('sort_order');
+    if (gradeBand) {
+      query = query.contains('grade_bands', [gradeBand]);
+    }
+    return query;
+  },
+
+  getStudentSkills: async (studentId) => {
+    return supabase.rpc('get_student_skills', { p_student_id: studentId });
+  },
+
+  upsertStudentSkill: async ({ studentId, skillId, proficiency, source }) => {
+    return supabase
+      .from('student_skills')
+      .upsert(
+        { student_id: studentId, skill_id: skillId, proficiency, source, updated_at: new Date().toISOString() },
+        { onConflict: 'student_id,skill_id' }
+      )
+      .select()
+      .single();
+  },
+
+  bulkUpsert: async (entries) => {
+    // entries: [{ studentId, skillId, proficiency, source }]
+    const rows = entries.map(e => ({
+      student_id: e.studentId,
+      skill_id: e.skillId,
+      proficiency: e.proficiency,
+      source: e.source || 'self',
+      updated_at: new Date().toISOString(),
+    }));
+    return supabase
+      .from('student_skills')
+      .upsert(rows, { onConflict: 'student_id,skill_id' })
+      .select();
+  },
+};
+
+// ===================== QUEST GROUPS =====================
+export const questGroups = {
+  create: async ({ questId, name, createdBy, members }) => {
+    const { data: group, error: groupErr } = await supabase
+      .from('quest_groups')
+      .insert({ quest_id: questId || null, name, created_by: createdBy })
+      .select()
+      .single();
+    if (groupErr) return { error: groupErr };
+
+    if (members?.length) {
+      const rows = members.map(m => ({
+        group_id: group.id,
+        student_id: m.studentId,
+        role: m.role || '',
+      }));
+      const { error: memErr } = await supabase.from('quest_group_members').insert(rows);
+      if (memErr) return { error: memErr };
+    }
+
+    return { data: group };
+  },
+
+  listForQuest: async (questId) => {
+    return supabase
+      .from('quest_groups')
+      .select('*, quest_group_members(*, students(id, name, interests, avatar_emoji))')
+      .eq('quest_id', questId);
+  },
+
+  delete: async (id) => {
+    return supabase.from('quest_groups').delete().eq('id', id);
+  },
+};
+
+// ===================== AI RECOMMENDATIONS (DB) =====================
+export const recommendations = {
+  list: async (studentId) => {
+    return supabase
+      .from('ai_recommendations')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+  },
+
+  create: async ({ studentId, type, content }) => {
+    return supabase
+      .from('ai_recommendations')
+      .insert({ student_id: studentId, type, content })
+      .select()
+      .single();
+  },
+
+  updateStatus: async (id, status) => {
+    return supabase
+      .from('ai_recommendations')
+      .update({ status })
+      .eq('id', id);
+  },
 };

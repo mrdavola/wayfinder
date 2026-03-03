@@ -55,11 +55,12 @@ import {
   Globe,
   Wind,
   Search,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai } from '../lib/api';
+import { ai, questGroups as questGroupsApi } from '../lib/api';
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -702,6 +703,85 @@ function InterestChipInput({ interests, onChange }) {
   );
 }
 
+// ── AI Group Suggestion (inline in Step 1) ────────────────────────────────────
+function AiGroupSuggestion({ students, selectedIds }) {
+  const [loading, setLoading] = useState(false);
+  const [groups, setGroups] = useState(null);
+  const [reasoning, setReasoning] = useState('');
+
+  async function handleSuggest() {
+    setLoading(true);
+    setGroups(null);
+    setReasoning('');
+    try {
+      const sel = students.filter(s => selectedIds.includes(s.id)).map(s => ({
+        name: s.name, grade_band: s.grade_band, interests: s.interests || [], skills: [],
+      }));
+      const result = await ai.suggestGroups({ students: sel, groupSize: Math.min(3, Math.ceil(sel.length / 2)) });
+      setGroups(result.groups || []);
+      setReasoning(result.reasoning || '');
+    } catch (err) {
+      console.error('AI group suggestion error:', err);
+    }
+    setLoading(false);
+  }
+
+  const colors = [
+    { bg: '#DBEAFE', text: '#1E40AF' }, { bg: '#D1FAE5', text: '#065F46' },
+    { bg: '#FEF3C7', text: '#92400E' }, { bg: '#E0E7FF', text: '#3730A3' },
+  ];
+
+  return (
+    <div style={{ marginBottom: 20, padding: '12px 14px', background: `${T.compassGold}08`, borderRadius: 10, border: `1px solid ${T.compassGold}30` }}>
+      <button
+        onClick={handleSuggest}
+        disabled={loading}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '7px 16px', borderRadius: 8,
+          background: T.compassGold, color: '#fff',
+          border: 'none', fontSize: 12, fontWeight: 600,
+          fontFamily: 'var(--font-body)', cursor: loading ? 'default' : 'pointer',
+          opacity: loading ? 0.6 : 1, transition: 'opacity 150ms',
+        }}
+      >
+        {loading ? (
+          <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Suggesting groups...</>
+        ) : (
+          <><Sparkles size={13} /> AI Suggest Groups</>
+        )}
+      </button>
+
+      {groups && groups.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          {reasoning && (
+            <p style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', marginBottom: 8, fontStyle: 'italic' }}>
+              {reasoning}
+            </p>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {groups.map((g, gi) => {
+              const c = colors[gi % colors.length];
+              return (
+                <div key={gi} style={{ flex: '1 1 180px', padding: '10px 12px', borderRadius: 8, background: c.bg }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: c.text, marginBottom: 4 }}>
+                    {g.name}
+                  </div>
+                  {g.members.map((m, mi) => (
+                    <div key={mi} style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: T.ink }}>
+                      {m.name} {m.role && <span style={{ fontSize: 10, color: c.text }}>({m.role})</span>}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Step 1: Students ───────────────────────────────────────────────────────────
 function Step1Students({
   students,
@@ -980,6 +1060,11 @@ function Step1Students({
                 </div>
               )}
             </div>
+          )}
+
+          {/* AI Group Suggestions */}
+          {questType === 'group' && selectedStudentIds.length >= 2 && (
+            <AiGroupSuggestion students={students} selectedIds={selectedStudentIds} />
           )}
 
           {/* Interest override */}
