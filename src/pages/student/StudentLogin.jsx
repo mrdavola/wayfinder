@@ -253,16 +253,6 @@ export default function StudentLogin() {
           Don't have a code yet? Ask your guide — they'll find it in the Students page.
         </p>
 
-        {/* Sign up link */}
-        <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--graphite)' }}>
-            New student?{' '}
-          </span>
-          <Link to="/student/signup" style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--field-green)', textDecoration: 'none', fontWeight: 600 }}>
-            Create an account
-          </Link>
-        </div>
-
         {/* Guide login link */}
         <div style={{ textAlign: 'center', marginTop: 8 }}>
           <Link

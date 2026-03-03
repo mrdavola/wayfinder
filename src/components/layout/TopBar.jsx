@@ -23,6 +23,10 @@ export default function TopBar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  const navLinks = profile?.role === 'superadmin'
+    ? [...NAV_LINKS, { label: 'Admin', to: '/admin' }]
+    : NAV_LINKS;
+
   useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -66,7 +70,7 @@ export default function TopBar() {
         display: 'flex', alignItems: 'center', gap: 'var(--space-6)',
         position: 'absolute', left: '50%', transform: 'translateX(-50%)',
       }}>
-        {NAV_LINKS.map(({ label, to }) => {
+        {navLinks.map(({ label, to }) => {
           const active = pathname === to;
           return (
             <Link

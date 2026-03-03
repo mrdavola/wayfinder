@@ -19,7 +19,6 @@ import AdminDashboard from './pages/AdminDashboard';
 import StudentQuestPage from './pages/student/StudentQuestPage';
 import StudentLogin from './pages/student/StudentLogin';
 import StudentHome from './pages/student/StudentHome';
-import StudentSignup from './pages/student/StudentSignup';
 import LearnerIntakeForm from './pages/student/LearnerIntakeForm';
 import StudentProfilePage from './pages/StudentProfilePage';
 import GroupBuilderPage from './pages/GroupBuilderPage';
@@ -41,7 +40,6 @@ export default function App() {
           <Route path="/q/:id" element={<StudentQuestPage />} />
           <Route path="/join/:code" element={<LearnerIntakeForm />} />
           <Route path="/student/login" element={<StudentLogin />} />
-          <Route path="/student/signup" element={<StudentSignup />} />
           <Route path="/student" element={<StudentHome />} />
 
           {/* Parent portal */}

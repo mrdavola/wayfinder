@@ -81,6 +81,8 @@ function roleBadge(role) {
     superadmin: { color: '#7C3AED', bg: '#EDE9FE' },
     school_admin: { color: '#1B4965', bg: '#DBE9F2' },
     guide: { color: '#2D6A4F', bg: '#D1EAE0' },
+    student: { color: '#B8860B', bg: '#FDF6E3' },
+    parent: { color: '#92400E', bg: '#FEF3E2' },
   };
   const s = map[role] || {};
   return <Badge label={role?.replace('_', ' ') || 'unknown'} color={s.color} bg={s.bg} />;
@@ -378,6 +380,8 @@ export default function AdminDashboard() {
                           <option value="guide">Guide</option>
                           <option value="school_admin">School Admin</option>
                           <option value="superadmin">Superadmin</option>
+                          <option value="student">Student</option>
+                          <option value="parent">Parent</option>
                         </select>
                       </td>
                       <td style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)' }}>{u.schools?.name || '—'}</td>

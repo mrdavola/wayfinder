@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  BookOpen, CheckCircle, Clock, ChevronRight,
+  CheckCircle, Clock, ChevronRight,
   LogOut, Loader2, AlertCircle, Lock,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -163,50 +163,20 @@ export default function StudentHome() {
   const [quests, setQuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [authStudent, setAuthStudent] = useState(null); // for Supabase-auth students
 
-  // Check for Supabase auth session (self-registered students)
+  // PIN-only auth: redirect if no session
   useEffect(() => {
-    async function checkAuth() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Fetch their profile to get name + linked_student_id
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('full_name, role, linked_student_id')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (prof?.role === 'student' && prof?.linked_student_id) {
-          setAuthStudent({ studentId: prof.linked_student_id, studentName: prof.full_name });
-          return;
-        }
-        if (prof?.role === 'student') {
-          // Joined but no linked student yet — show empty state
-          setAuthStudent({ studentId: null, studentName: prof.full_name });
-          setLoading(false);
-          return;
-        }
-      }
-      // Fall back to PIN session
-      if (!session?.studentId) {
-        navigate('/student/login', { replace: true });
-      }
+    if (!session?.studentId) {
+      navigate('/student/login', { replace: true });
     }
-    checkAuth();
   }, []);
 
-  const activeSession = authStudent || session;
-
   useEffect(() => {
-    if (activeSession?.studentId) loadQuests();
-  }, [authStudent]);
-
-  useEffect(() => {
-    if (!authStudent && session?.studentId) loadQuests();
+    if (session?.studentId) loadQuests();
   }, []);
 
   async function loadQuests() {
-    const studentId = authStudent?.studentId || session?.studentId;
+    const studentId = session?.studentId;
     if (!studentId) return;
     setLoading(true);
     setError('');
@@ -229,7 +199,7 @@ export default function StudentHome() {
     navigate('/student/login', { replace: true });
   }
 
-  const displayName = activeSession?.studentName || session?.studentName || '...';
+  const displayName = session?.studentName || '...';
 
   const active = quests.filter((q) => q.status === 'active');
   const completed = quests.filter((q) => q.status === 'completed');
