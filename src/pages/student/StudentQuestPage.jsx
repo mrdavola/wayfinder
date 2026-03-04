@@ -154,14 +154,39 @@ function ConfettiBurst({ active }) {
 // ===================== WELCOME SCREEN =====================
 function WelcomeScreen({ quest, assignedStudents, onEnter }) {
   const [name, setName] = useState('');
-  const [selected, setSelected] = useState(null); // { name, id } | null
+  const [selected, setSelected] = useState(null); // { name, id, pin } | null
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
   const inputRef = useRef(null);
+  const pinRef = useRef(null);
+
+  const needsPin = selected?.pin; // only require code if student has a pin
 
   const handleStart = () => {
     const finalName = selected?.name || name.trim();
     if (!finalName) return;
+
+    // Verify PIN for assigned students
+    if (needsPin) {
+      if (pinInput.trim() !== selected.pin) {
+        setPinError('That code doesn\u2019t match. Try again.');
+        return;
+      }
+    }
+
     onEnter(finalName, selected?.id || null);
   };
+
+  // Focus pin input when student is selected
+  useEffect(() => {
+    if (selected?.pin && pinRef.current) {
+      setTimeout(() => pinRef.current?.focus(), 100);
+    }
+  }, [selected]);
+
+  const canStart = needsPin
+    ? (selected?.name && pinInput.trim())
+    : (selected?.name || name.trim());
 
   return (
     <div style={{
@@ -219,7 +244,7 @@ function WelcomeScreen({ quest, assignedStudents, onEnter }) {
               {assignedStudents.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => { setSelected({ name: s.name, id: s.id }); setName(''); }}
+                  onClick={() => { setSelected({ name: s.name, id: s.id, pin: s.pin }); setName(''); setPinInput(''); setPinError(''); }}
                   className="sq-pop"
                   style={{
                     padding: '8px 16px', borderRadius: 100,
@@ -236,8 +261,42 @@ function WelcomeScreen({ quest, assignedStudents, onEnter }) {
             </div>
           )}
 
-          {/* Custom name input */}
-          {assignedStudents.length > 0 && (
+          {/* PIN verification for assigned students */}
+          {needsPin && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
+                Enter your student code
+              </label>
+              <p style={{ fontSize: 12, color: 'var(--graphite)', margin: '0 0 8px' }}>
+                Your guide gave you a 4-digit code.
+              </p>
+              <input
+                ref={pinRef}
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinInput}
+                onChange={(e) => { setPinInput(e.target.value.replace(/\D/g, '')); setPinError(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && handleStart()}
+                placeholder="0000"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '12px 14px', borderRadius: 8,
+                  border: `1.5px solid ${pinError ? 'var(--specimen-red)' : 'var(--pencil)'}`,
+                  fontSize: 20, fontFamily: 'var(--font-mono)',
+                  color: 'var(--ink)', background: 'var(--chalk)',
+                  textAlign: 'center', letterSpacing: '0.3em',
+                  transition: 'border-color 150ms, box-shadow 150ms',
+                }}
+              />
+              {pinError && (
+                <p style={{ fontSize: 12, color: 'var(--specimen-red)', margin: '6px 0 0' }}>{pinError}</p>
+              )}
+            </div>
+          )}
+
+          {/* Custom name input — only show if no assigned student selected */}
+          {!selected && assignedStudents.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ flex: 1, height: 1, background: 'var(--pencil)' }} />
               <span style={{ fontSize: 11, color: 'var(--pencil)', fontFamily: 'var(--font-mono)' }}>or type your name</span>
@@ -245,35 +304,37 @@ function WelcomeScreen({ quest, assignedStudents, onEnter }) {
             </div>
           )}
 
-          <input
-            ref={inputRef}
-            type="text"
-            value={name}
-            onChange={(e) => { setName(e.target.value); setSelected(null); setError?.(''); }}
-            placeholder="Type your name..."
-            onKeyDown={(e) => e.key === 'Enter' && handleStart()}
-            className="sq-name-input"
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              padding: '11px 14px', borderRadius: 8,
-              border: '1.5px solid var(--pencil)',
-              fontSize: 14, fontFamily: 'var(--font-body)',
-              color: 'var(--ink)', background: 'var(--chalk)',
-              transition: 'border-color 150ms, box-shadow 150ms',
-              marginBottom: 16,
-            }}
-          />
+          {!selected && (
+            <input
+              ref={inputRef}
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setSelected(null); }}
+              placeholder="Type your name..."
+              onKeyDown={(e) => e.key === 'Enter' && handleStart()}
+              className="sq-name-input"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '11px 14px', borderRadius: 8,
+                border: '1.5px solid var(--pencil)',
+                fontSize: 14, fontFamily: 'var(--font-body)',
+                color: 'var(--ink)', background: 'var(--chalk)',
+                transition: 'border-color 150ms, box-shadow 150ms',
+                marginBottom: 16,
+              }}
+            />
+          )}
 
           <button
             onClick={handleStart}
-            disabled={!selected?.name && !name.trim()}
+            disabled={!canStart}
             style={{
               width: '100%', padding: '13px',
               borderRadius: 10, border: 'none',
-              background: (!selected?.name && !name.trim()) ? 'var(--pencil)' : 'var(--compass-gold)',
-              color: (!selected?.name && !name.trim()) ? 'var(--graphite)' : 'var(--ink)',
+              background: !canStart ? 'var(--pencil)' : 'var(--compass-gold)',
+              color: !canStart ? 'var(--graphite)' : 'var(--ink)',
               fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-body)',
-              cursor: (!selected?.name && !name.trim()) ? 'not-allowed' : 'pointer',
+              cursor: !canStart ? 'not-allowed' : 'pointer',
               transition: 'all 150ms',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
@@ -1519,7 +1580,7 @@ export default function StudentQuestPage() {
       setLoading(true);
       const { data, error: err } = await supabase
         .from('quests')
-        .select(`*, quest_stages(*), quest_students(student_id, students(id, name)), career_simulations(*), reflection_entries(*)`)
+        .select(`*, quest_stages(*), quest_students(student_id, students(id, name, pin)), career_simulations(*), reflection_entries(*)`)
         .eq('id', id)
         .single();
 

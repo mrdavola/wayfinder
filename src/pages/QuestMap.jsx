@@ -1246,16 +1246,17 @@ export default function QuestMap() {
           onClick={copyStudentLink}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 14px', borderRadius: 6,
-            border: `1px solid ${shareCopied ? 'var(--field-green)' : 'var(--pencil)'}`,
-            background: shareCopied ? 'rgba(45,106,79,0.08)' : 'transparent',
+            padding: '8px 16px', borderRadius: 8,
+            border: shareCopied ? '1.5px solid var(--field-green)' : '1.5px solid var(--compass-gold)',
+            background: shareCopied ? 'rgba(45,106,79,0.08)' : 'rgba(184,134,11,0.10)',
             fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)',
-            color: shareCopied ? 'var(--field-green)' : 'var(--graphite)',
+            fontWeight: 600,
+            color: shareCopied ? 'var(--field-green)' : 'var(--compass-gold)',
             cursor: 'pointer', flexShrink: 0, transition: 'all 150ms',
           }}
         >
           <Share2 size={14} />
-          {shareCopied ? 'Copied!' : 'Share'}
+          {shareCopied ? 'Link Copied!' : 'Share with Learners'}
         </button>
 
         {/* Stages toggle — mobile only */}

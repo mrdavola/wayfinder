@@ -54,7 +54,7 @@ AS $$
 DECLARE
   v_pa parent_access%ROWTYPE;
 BEGIN
-  SELECT * INTO v_pa FROM public.parent_access WHERE token = p_token;
+  SELECT * INTO v_pa FROM public.parent_access WHERE access_token = p_token;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Invalid token');
   END IF;
@@ -66,7 +66,7 @@ BEGIN
     child_loves = p_child_loves,
     core_skill_priorities = COALESCE(p_priorities, '{}'),
     onboarded_at = now()
-  WHERE token = p_token;
+  WHERE access_token = p_token;
 
   RETURN jsonb_build_object('success', true);
 END;
@@ -84,7 +84,7 @@ DECLARE
   v_skills jsonb;
   v_snapshots jsonb;
 BEGIN
-  SELECT * INTO v_pa FROM public.parent_access WHERE token = p_token;
+  SELECT * INTO v_pa FROM public.parent_access WHERE access_token = p_token;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('error', 'Invalid token');
   END IF;

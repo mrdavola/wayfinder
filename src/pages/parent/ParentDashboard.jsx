@@ -136,6 +136,7 @@ function OnboardingForm({ onComplete, saving }) {
 
 // ── Dashboard View ──
 function DashboardView({ data }) {
+  if (!data) return null;
   const { parent, student, quests, skills, snapshots } = data;
 
   return (

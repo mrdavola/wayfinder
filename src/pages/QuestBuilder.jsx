@@ -2363,7 +2363,7 @@ function Step6Launch({ selectedStudents, questId }) {
           to { stroke-dashoffset: 0; }
         }
       `}</style>
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
         <AnimatedCheck />
       </div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '0 0 8px' }}>
