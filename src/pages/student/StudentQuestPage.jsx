@@ -47,6 +47,10 @@ const injectStyles = () => {
     .sq-pop { animation: sq-pop 280ms ease; }
     .sq-spin { animation: sq-spin 1s linear infinite; }
     .sq-pulse { animation: sq-pulse 2s ease-in-out infinite; }
+    @keyframes sq-gentle-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.08); opacity: 1; }
+    }
     .sq-confetti-piece { animation: sq-confetti 700ms ease forwards; }
     .sq-journal-input:focus { border-color: var(--compass-gold) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(184,134,11,0.12) !important; }
     .sq-name-input:focus { border-color: var(--compass-gold) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(184,134,11,0.15) !important; }
@@ -553,7 +557,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         mimeType = uploadSource.type;
       }
 
-      const { data: result } = await supabase.rpc('submit_stage_work', {
+      const { data: result, error: rpcError } = await supabase.rpc('submit_stage_work', {
         p_quest_id: questId,
         p_stage_id: stageId,
         p_student_name: studentName,
@@ -564,7 +568,8 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         p_file_size: fileSize,
         p_mime_type: mimeType,
       });
-      if (result?.error) throw new Error(result.error);
+      if (rpcError) throw new Error(rpcError.message || 'Submission failed');
+      if (result?.success === false) throw new Error(result.error || 'Submission failed');
 
       onSubmitComplete(stageId, type === 'text' ? textContent : `[${type} submission: ${fileName || 'recording'}]`);
     } catch (err) {
@@ -1716,10 +1721,15 @@ export default function StudentQuestPage() {
       }
 
       setQuest(data);
-      setStages([...(data.quest_stages || [])].sort((a, b) => a.stage_number - b.stage_number));
+      const sortedStages = [...(data.quest_stages || [])].sort((a, b) => a.stage_number - b.stage_number);
+      setStages(sortedStages);
       setReflections([...(data.reflection_entries || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
       const names = (data.quest_students || []).map(qs => qs.students).filter(Boolean);
       setAssignedStudents(names);
+
+      // Auto-select the current active stage so students see it immediately
+      const currentActive = sortedStages.find(s => s.status === 'active');
+      if (currentActive) setActiveCard(currentActive.id);
 
       // Auto-enter if student is logged in and assigned to this quest
       const session = getStudentSession();
@@ -1820,7 +1830,9 @@ export default function StudentQuestPage() {
 
     await loadSubmissions();
 
-    setActiveCard(null);
+    // Auto-select next active stage after completion
+    const nextActive = (updated || []).find(s => s.status === 'active');
+    setActiveCard(nextActive ? nextActive.id : null);
     setConfetti(true);
     setTimeout(() => setConfetti(false), 800);
   }, [id, stages, studentName, loadSubmissions]);
@@ -2055,13 +2067,37 @@ export default function StudentQuestPage() {
                 />
               ) : (
                 <div style={{
-                  background: 'var(--parchment)', border: '1px dashed var(--pencil)',
-                  borderRadius: 12, padding: '24px', textAlign: 'center',
+                  background: 'var(--parchment)', border: '1.5px dashed var(--compass-gold)',
+                  borderRadius: 12, padding: '28px 24px', textAlign: 'center',
                 }}>
-                  <ChevronRight size={20} color="var(--pencil)" style={{ marginBottom: 8 }} />
-                  <p style={{ fontSize: 13, color: 'var(--graphite)', margin: 0 }}>
-                    {stages.length > 0 ? 'Tap a circle on the map to view that stage.' : 'Your guide is setting up the stages — check back soon!'}
-                  </p>
+                  {stages.length > 0 ? (
+                    <>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: '50%',
+                        background: 'rgba(196,167,103,0.12)', border: '2px solid var(--compass-gold)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 10px',
+                        animation: 'sq-gentle-pulse 2s ease-in-out infinite',
+                      }}>
+                        <ChevronLeft size={18} color="var(--compass-gold)" />
+                      </div>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: '0 0 4px' }}>
+                        Tap a stage on the map to get started
+                      </p>
+                      <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0 }}>
+                        Each circle is a step in your project.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: '0 0 4px' }}>
+                        Your guide is setting up the stages
+                      </p>
+                      <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0 }}>
+                        Check back soon!
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
