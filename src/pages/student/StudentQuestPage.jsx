@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   CheckCircle, BookOpen, Search, Wrench, FlaskConical, Mic,
   Megaphone, X, Send, Zap, ArrowRight, Loader2, AlertCircle,
-  Volume2, VolumeX, ChevronRight, Star, Lock, MessageCircle,
-  Paperclip, Video, Download,
+  Volume2, VolumeX, ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
+  Paperclip, Video, Download, LogOut,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi } from '../../lib/api';
-import { getStudentSession, setStudentSession } from '../../lib/studentSession';
+import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
 // ===================== STYLES =====================
@@ -1306,7 +1306,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
           letterSpacing: '0.06em', marginBottom: 6, marginTop: 8,
         }}>
-          Your teammates submitted — add yours too!
+          You haven't submitted work yet — add yours below!
         </div>
       )}
       {(isActive || (isDone && !existingSubmission && !revising)) && (
@@ -1938,10 +1938,31 @@ export default function StudentQuestPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Who am I indicator */}
+          {/* Who am I + switch */}
           <span style={{ fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>
             {studentName}
           </span>
+          <button
+            onClick={() => {
+              clearStudentSession();
+              sessionStorage.removeItem(`wayfinder_student_${id}`);
+              setStudentName('');
+              setSubmissions({});
+              setStudentProfile(null);
+              setGroupRole(null);
+              setActiveCard(null);
+            }}
+            title="Switch student"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 26, height: 26, borderRadius: '50%',
+              border: '1px solid var(--pencil)', background: 'transparent',
+              color: 'var(--graphite)', cursor: 'pointer',
+              transition: 'all 150ms',
+            }}
+          >
+            <LogOut size={12} />
+          </button>
           <button
             onClick={() => setJournalOpen(v => !v)}
             style={{
