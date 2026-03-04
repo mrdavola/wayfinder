@@ -911,18 +911,70 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
     setGenerating(false);
   };
 
+  // Strip "Day N:" prefix if the AI included it in the title
+  const cleanTitle = (d) => {
+    const t = d.title || '';
+    return t.replace(/^day\s*\d+\s*[:–—-]\s*/i, '').trim() || t;
+  };
+
   const handlePrint = () => {
     const printWin = window.open('', '_blank');
     const html = days.map((d) => `
-      <div style="page-break-inside:avoid;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid #ddd">
-        <h3 style="margin:0 0 4px;font-size:14px">Day ${d.day_number}: ${d.title}</h3>
-        ${d.prep_tasks?.length ? `<p style="margin:2px 0;font-size:12px"><strong>Prep:</strong> ${d.prep_tasks.join(', ')}</p>` : ''}
-        ${d.materials?.length ? `<p style="margin:2px 0;font-size:12px"><strong>Materials:</strong> ${d.materials.join(', ')}</p>` : ''}
-        ${d.time_blocks?.length ? `<p style="margin:2px 0;font-size:12px"><strong>Schedule:</strong> ${d.time_blocks.map(tb => `${tb.duration_min}min — ${tb.label}`).join('; ')}</p>` : ''}
-        ${d.facilitation_notes ? `<p style="margin:4px 0;font-size:12px;font-style:italic;color:#666">${d.facilitation_notes}</p>` : ''}
+      <div class="day-card">
+        <div class="day-header">
+          <span class="day-badge">Day ${d.day_number}</span>
+          <span class="day-title">${cleanTitle(d)}</span>
+        </div>
+        ${d.prep_tasks?.length ? `
+          <div class="section">
+            <div class="section-label">Prep</div>
+            <ul>${d.prep_tasks.map(t => `<li>${t}</li>`).join('')}</ul>
+          </div>` : ''}
+        ${d.materials?.length ? `
+          <div class="section">
+            <div class="section-label">Materials</div>
+            <div class="materials">${d.materials.map(m => `<span class="pill">${m}</span>`).join('')}</div>
+          </div>` : ''}
+        ${d.time_blocks?.length ? `
+          <div class="section">
+            <div class="section-label">Schedule</div>
+            <table class="schedule">${d.time_blocks.map(tb => `
+              <tr>
+                <td class="time">${tb.duration_min} min</td>
+                <td>${tb.label}${tb.notes ? `<span class="note"> — ${tb.notes}</span>` : ''}</td>
+              </tr>`).join('')}
+            </table>
+          </div>` : ''}
+        ${d.facilitation_notes ? `
+          <div class="facilitation">${d.facilitation_notes}</div>` : ''}
       </div>
     `).join('');
-    printWin.document.write(`<html><head><title>Guide Playbook</title><style>body{font-family:system-ui,sans-serif;max-width:700px;margin:40px auto;padding:0 20px}h2{font-size:18px;margin-bottom:16px}</style></head><body><h2>Guide Playbook</h2>${html}</body></html>`);
+    printWin.document.write(`<html><head><title>Guide Playbook — ${quest?.title || 'Project'}</title>
+    <style>
+      @page { margin: 0.75in; }
+      body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 720px; margin: 0 auto; color: #1a1a2e; line-height: 1.5; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      .subtitle { font-size: 13px; color: #666; margin-bottom: 28px; }
+      .day-card { page-break-inside: avoid; margin-bottom: 24px; padding: 16px 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa; }
+      .day-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+      .day-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 4px; background: #1b4965; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+      .day-title { font-size: 15px; font-weight: 600; }
+      .section { margin-bottom: 10px; }
+      .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 3px; }
+      ul { margin: 0; padding-left: 18px; font-size: 12px; }
+      li { margin-bottom: 2px; }
+      .materials { display: flex; flex-wrap: wrap; gap: 4px; }
+      .pill { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #eee; color: #555; }
+      .schedule { font-size: 12px; border-collapse: collapse; width: 100%; }
+      .schedule td { padding: 3px 8px 3px 0; vertical-align: top; border-bottom: 1px solid #eee; }
+      .time { font-weight: 600; white-space: nowrap; min-width: 55px; }
+      .note { color: #999; font-style: italic; }
+      .facilitation { font-size: 12px; color: #555; font-style: italic; line-height: 1.6; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
+    </style></head><body>
+      <h1>${quest?.title || 'Guide Playbook'}</h1>
+      <div class="subtitle">Guide Playbook — ${days.length} days</div>
+      ${html}
+    </body></html>`);
     printWin.document.close();
     printWin.print();
   };
@@ -987,7 +1039,7 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
                   Day {day.day_number}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
-                  {day.title}
+                  {cleanTitle(day)}
                 </span>
               </div>
               {day.prep_tasks?.length > 0 && (
