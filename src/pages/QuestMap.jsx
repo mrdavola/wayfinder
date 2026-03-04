@@ -4,8 +4,9 @@ import {
   ChevronLeft, BookOpen, Search, Wrench, FlaskConical, Mic,
   Megaphone, X, Send, CheckCircle, HelpCircle,
   Zap, ArrowRight, Loader2, AlertCircle, ChevronRight,
-  Volume2, VolumeX, Share2, List, Download, Calendar, Printer,
+  Share2, List, Download, Calendar, Printer,
 } from 'lucide-react';
+import SpeakButton from '../components/ui/SpeakButton';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ai, guidePlaybook as guidePlaybookApi } from '../lib/api';
@@ -70,60 +71,6 @@ const injectStyles = () => {
   `;
   document.head.appendChild(el);
 };
-
-// ===================== WEB SPEECH TTS =====================
-function useSpeech() {
-  const [speaking, setSpeaking] = useState(false);
-  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-
-  const speak = useCallback((text) => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.05;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      v.name.includes('Samantha') || v.name.includes('Karen') ||
-      v.name.includes('Google US English')
-    ) || voices.find(v => v.lang === 'en-US') || voices[0];
-    if (preferred) utterance.voice = preferred;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, [supported]);
-
-  const stop = useCallback(() => {
-    if (supported) window.speechSynthesis.cancel();
-    setSpeaking(false);
-  }, [supported]);
-
-  return { speak, stop, speaking, supported };
-}
-
-function SpeakButton({ text }) {
-  const { speak, stop, speaking, supported } = useSpeech();
-  if (!supported) return null;
-  return (
-    <button
-      onClick={() => speaking ? stop() : speak(text)}
-      title={speaking ? 'Stop reading' : 'Read aloud'}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 4,
-        padding: '4px 10px', borderRadius: 20,
-        border: `1px solid ${speaking ? 'var(--compass-gold)' : 'var(--pencil)'}`,
-        background: speaking ? 'rgba(184,134,11,0.08)' : 'transparent',
-        color: speaking ? 'var(--compass-gold)' : 'var(--graphite)',
-        fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 500,
-        cursor: 'pointer', transition: 'all 150ms', flexShrink: 0,
-      }}
-    >
-      {speaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
-      {speaking ? 'Stop' : 'Listen'}
-    </button>
-  );
-}
 
 // ===================== ICON MAP =====================
 function StageIcon({ type, size = 20, color = 'currentColor' }) {

@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   CheckCircle, BookOpen, Search, Wrench, FlaskConical, Mic,
   Megaphone, X, Send, Zap, ArrowRight, Loader2, AlertCircle,
-  Volume2, VolumeX, ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
+  ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
   Paperclip, Video, Download, LogOut,
 } from 'lucide-react';
+import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
 import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi } from '../../lib/api';
 import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
@@ -70,69 +71,6 @@ function StageIcon({ type, size = 18, color = 'currentColor' }) {
     case 'present':    return <Megaphone {...p} />;
     default:           return <Zap {...p} />;
   }
-}
-
-// ===================== WEB SPEECH TTS =====================
-function useSpeech() {
-  const [speaking, setSpeaking] = useState(false);
-  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-
-  const speak = useCallback((text) => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.05;
-    // Prefer a natural-sounding voice
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      v.name.includes('Samantha') || v.name.includes('Karen') ||
-      v.name.includes('Moira') || v.name.includes('Google US English')
-    ) || voices.find(v => v.lang === 'en-US') || voices[0];
-    if (preferred) utterance.voice = preferred;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, [supported]);
-
-  const stop = useCallback(() => {
-    if (supported) window.speechSynthesis.cancel();
-    setSpeaking(false);
-  }, [supported]);
-
-  return { speak, stop, speaking, supported };
-}
-
-function SpeakButton({ text, size = 'sm' }) {
-  const { speak, stop, speaking, supported } = useSpeech();
-  if (!supported) return null;
-  const isSmall = size === 'sm';
-  return (
-    <button
-      onClick={() => speaking ? stop() : speak(text)}
-      title={speaking ? 'Stop reading' : 'Read aloud'}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 4,
-        padding: isSmall ? '4px 8px' : '6px 12px',
-        borderRadius: 20,
-        border: `1px solid ${speaking ? 'var(--compass-gold)' : 'var(--pencil)'}`,
-        background: speaking ? 'rgba(184,134,11,0.08)' : 'transparent',
-        color: speaking ? 'var(--compass-gold)' : 'var(--graphite)',
-        fontSize: isSmall ? 11 : 12,
-        fontFamily: 'var(--font-body)',
-        fontWeight: 500,
-        cursor: 'pointer',
-        transition: 'all 150ms',
-        flexShrink: 0,
-      }}
-    >
-      {speaking
-        ? <VolumeX size={isSmall ? 12 : 14} />
-        : <Volume2 size={isSmall ? 12 : 14} />}
-      {speaking ? 'Stop' : 'Listen'}
-    </button>
-  );
 }
 
 // ===================== CONFETTI =====================

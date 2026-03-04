@@ -12,6 +12,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import useSpeech from '../hooks/useSpeech';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ai } from '../lib/api';
@@ -164,38 +165,6 @@ function useTypewriter(text, speed = 30) {
   }, [text, speed]);
 
   return { displayed: state.textKey === text ? state.displayed : '', done: state.textKey === text ? state.done : false };
-}
-
-// ===================== WEB SPEECH TTS =====================
-
-function useSpeech() {
-  const [speaking, setSpeaking] = useState(false);
-  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-
-  const speak = useCallback((text) => {
-    if (!supported || !text) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.05;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      v.name.includes('Samantha') || v.name.includes('Karen') ||
-      v.name.includes('Moira') || v.name.includes('Google US English')
-    ) || voices.find(v => v.lang === 'en-US') || voices[0];
-    if (preferred) utterance.voice = preferred;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, [supported]);
-
-  const stop = useCallback(() => {
-    if (supported) window.speechSynthesis.cancel();
-    setSpeaking(false);
-  }, [supported]);
-
-  return { speak, stop, speaking, supported };
 }
 
 // ===================== SOUND BARS =====================
