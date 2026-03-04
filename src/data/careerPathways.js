@@ -1,0 +1,120 @@
+import {
+  Atom,
+  Activity,
+  FlaskConical,
+  Star,
+  Brain,
+  Waves,
+  Wind,
+  Code2,
+  Bot,
+  Shield,
+  Gamepad2,
+  Cpu,
+  BarChart2,
+  Palette,
+  Zap,
+  Heart,
+  Stethoscope,
+  Dumbbell,
+  Globe,
+  Rocket,
+  Building2,
+  Sun,
+  Lightbulb,
+  TrendingUp,
+  Megaphone,
+  Paintbrush,
+  Film,
+  Music,
+  Newspaper,
+  Sprout,
+  TreePine,
+  ChefHat,
+  GraduationCap,
+  Scale,
+  Users,
+  Dna,
+} from 'lucide-react';
+
+export const PATHWAY_CATEGORIES = [
+  { id: 'all',      label: 'All' },
+  { id: 'science',  label: 'Science' },
+  { id: 'tech',     label: 'Technology' },
+  { id: 'health',   label: 'Health' },
+  { id: 'engineering', label: 'Engineering' },
+  { id: 'business', label: 'Business' },
+  { id: 'arts',     label: 'Arts & Media' },
+  { id: 'earth',    label: 'Earth & Environment' },
+  { id: 'society',  label: 'Society & Law' },
+];
+
+export const CAREER_PATHWAYS = [
+  // ── Science ──
+  { id: 'material_science', label: 'Material Science', tags: 'BATTERIES · NANO-MATERIALS · SMART COMPOSITES', color: '#1B4965', Icon: Atom, category: 'science' },
+  { id: 'biology', label: 'Biology & Life Sciences', tags: 'GENOMICS · DRUG DISCOVERY · ECOLOGY', color: '#2D6A4F', Icon: Activity, category: 'science' },
+  { id: 'chemistry', label: 'Chemistry', tags: 'REACTIONS · POLYMERS · PHARMACEUTICAL SYNTHESIS', color: '#6B3FA0', Icon: FlaskConical, category: 'science' },
+  { id: 'physics', label: 'Physics & Astrophysics', tags: 'MECHANICS · OPTICS · QUANTUM', color: '#1B4965', Icon: Star, category: 'science' },
+  { id: 'neuroscience', label: 'Neuroscience', tags: 'BRAIN MAPPING · COGNITION · NEUROPROSTHETICS', color: '#7C3AED', Icon: Brain, category: 'science' },
+  { id: 'genetics', label: 'Genetics & Genomics', tags: 'DNA SEQUENCING · CRISPR · HEREDITY', color: '#059669', Icon: Dna, category: 'science' },
+  { id: 'marine_biology', label: 'Marine & Ocean Science', tags: 'CORAL REEFS · DEEP SEA · OCEAN TECH', color: '#0369A1', Icon: Waves, category: 'science' },
+  { id: 'environmental_science', label: 'Environmental Science', tags: 'CLIMATE · ECOSYSTEMS · CONSERVATION', color: '#15803D', Icon: Wind, category: 'science' },
+  { id: 'space_science', label: 'Space Science & Astronomy', tags: 'EXOPLANETS · SATELLITES · DEEP SPACE', color: '#312E81', Icon: Rocket, category: 'science' },
+
+  // ── Technology ──
+  { id: 'software_engineering', label: 'Software Engineering', tags: 'APPS · WEB · SYSTEM DESIGN', color: '#1B4965', Icon: Code2, category: 'tech' },
+  { id: 'ai_ml', label: 'AI & Machine Learning', tags: 'NEURAL NETS · NLP · COMPUTER VISION', color: '#7C3AED', Icon: Bot, category: 'tech' },
+  { id: 'cybersecurity', label: 'Cybersecurity', tags: 'ENCRYPTION · THREAT ANALYSIS · ETHICAL HACKING', color: '#B45309', Icon: Shield, category: 'tech' },
+  { id: 'game_design', label: 'Game Design & Development', tags: 'MECHANICS · WORLD-BUILDING · NARRATIVE', color: '#C0392B', Icon: Gamepad2, category: 'tech' },
+  { id: 'robotics', label: 'Robotics & Automation', tags: 'SENSORS · ACTUATORS · CONTROL SYSTEMS', color: '#0369A1', Icon: Cpu, category: 'tech' },
+  { id: 'data_science', label: 'Data Science & Analytics', tags: 'STATISTICS · VISUALIZATION · PREDICTION', color: '#0D9488', Icon: BarChart2, category: 'tech' },
+  { id: 'ux_design', label: 'UX/UI Design & Product', tags: 'USER RESEARCH · PROTOTYPING · ACCESSIBILITY', color: '#7C3AED', Icon: Palette, category: 'tech' },
+  { id: 'hardware', label: 'Hardware & Electronics', tags: 'CIRCUITS · EMBEDDED SYSTEMS · PCB DESIGN', color: '#1B4965', Icon: Zap, category: 'tech' },
+
+  // ── Health ──
+  { id: 'healthcare', label: 'Digital Health & Telemedicine', tags: 'DIAGNOSTIC AI · PATIENT CARE · REMOTE MEDICINE', color: '#C0392B', Icon: Heart, category: 'health' },
+  { id: 'biomedical_engineering', label: 'Biomedical Engineering', tags: 'PROSTHETICS · IMAGING · IMPLANTS', color: '#7C3AED', Icon: Stethoscope, category: 'health' },
+  { id: 'sports_medicine', label: 'Sports Medicine & Performance', tags: 'INJURY PREVENTION · BIOMECHANICS · NUTRITION', color: '#B45309', Icon: Dumbbell, category: 'health' },
+  { id: 'mental_health', label: 'Mental Health & Psychology', tags: 'THERAPY · COGNITION · BEHAVIORAL SCIENCE', color: '#0D9488', Icon: Brain, category: 'health' },
+  { id: 'veterinary', label: 'Veterinary & Animal Science', tags: 'ANIMAL CARE · WILDLIFE MEDICINE · ZOOLOGY', color: '#15803D', Icon: Heart, category: 'health' },
+  { id: 'public_health', label: 'Public Health & Epidemiology', tags: 'DISEASE PREVENTION · GLOBAL HEALTH · POLICY', color: '#C0392B', Icon: Globe, category: 'health' },
+
+  // ── Engineering ──
+  { id: 'aerospace', label: 'Aerospace & Aviation', tags: 'FLIGHT DYNAMICS · PROPULSION · SPACECRAFT', color: '#1B4965', Icon: Rocket, category: 'engineering' },
+  { id: 'civil_engineering', label: 'Civil & Structural Engineering', tags: 'BRIDGES · BUILDINGS · INFRASTRUCTURE', color: '#B45309', Icon: Building2, category: 'engineering' },
+  { id: 'mechanical_engineering', label: 'Mechanical Engineering', tags: 'MACHINES · THERMODYNAMICS · MANUFACTURING', color: '#0369A1', Icon: Cpu, category: 'engineering' },
+  { id: 'electrical_engineering', label: 'Electrical Engineering', tags: 'POWER SYSTEMS · SIGNAL PROCESSING · CIRCUITS', color: '#B45309', Icon: Zap, category: 'engineering' },
+  { id: 'urban_design', label: 'Urban Planning & Architecture', tags: 'CITIES · SUSTAINABILITY · SPACE DESIGN', color: '#0369A1', Icon: Building2, category: 'engineering' },
+  { id: 'chemical_engineering', label: 'Chemical Engineering', tags: 'PROCESS DESIGN · SAFETY · SCALE-UP', color: '#6B3FA0', Icon: FlaskConical, category: 'engineering' },
+  { id: 'renewable_energy_tech', label: 'Renewable Energy Engineering', tags: 'SOLAR · WIND · GRID STORAGE', color: '#15803D', Icon: Sun, category: 'engineering' },
+
+  // ── Business ──
+  { id: 'entrepreneurship', label: 'Entrepreneurship & Startups', tags: 'PITCH DECKS · PRODUCT-MARKET FIT · FUNDING', color: '#B45309', Icon: Lightbulb, category: 'business' },
+  { id: 'finance', label: 'Finance & Investment', tags: 'MARKETS · RISK · PORTFOLIO MANAGEMENT', color: '#1B4965', Icon: TrendingUp, category: 'business' },
+  { id: 'marketing', label: 'Marketing & Brand Strategy', tags: 'CONSUMER INSIGHT · CAMPAIGNS · STORYTELLING', color: '#C0392B', Icon: Megaphone, category: 'business' },
+  { id: 'economics', label: 'Economics & Public Policy', tags: 'MARKETS · INCENTIVES · GLOBAL TRADE', color: '#0369A1', Icon: Globe, category: 'business' },
+  { id: 'supply_chain', label: 'Supply Chain & Logistics', tags: 'OPERATIONS · GLOBAL TRADE · LAST-MILE', color: '#B45309', Icon: TrendingUp, category: 'business' },
+
+  // ── Arts & Media ──
+  { id: 'graphic_design', label: 'Graphic Design & Visual Arts', tags: 'TYPOGRAPHY · COMPOSITION · BRAND IDENTITY', color: '#7C3AED', Icon: Paintbrush, category: 'arts' },
+  { id: 'filmmaking', label: 'Filmmaking & Video Production', tags: 'CINEMATOGRAPHY · EDITING · DOCUMENTARY', color: '#C0392B', Icon: Film, category: 'arts' },
+  { id: 'music_production', label: 'Music Production & Audio', tags: 'MIXING · SOUND DESIGN · ARTIST DEVELOPMENT', color: '#7C3AED', Icon: Music, category: 'arts' },
+  { id: 'journalism', label: 'Journalism & Media', tags: 'INVESTIGATION · STORYTELLING · DIGITAL MEDIA', color: '#0369A1', Icon: Newspaper, category: 'arts' },
+  { id: 'animation', label: 'Animation & Visual Effects', tags: '3D MODELING · MOTION GRAPHICS · GAME ART', color: '#7C3AED', Icon: Palette, category: 'arts' },
+  { id: 'architecture', label: 'Architecture & Interior Design', tags: 'SPACE · MATERIALS · HUMAN EXPERIENCE', color: '#B45309', Icon: Building2, category: 'arts' },
+  { id: 'fashion', label: 'Fashion Design & Textiles', tags: 'PATTERNS · SUSTAINABILITY · WEARABLE TECH', color: '#C0392B', Icon: Star, category: 'arts' },
+
+  // ── Earth & Environment ──
+  { id: 'agriculture', label: 'Agriculture & Food Technology', tags: 'PRECISION FARMING · SOIL SCIENCE · FOOD SYSTEMS', color: '#15803D', Icon: Sprout, category: 'earth' },
+  { id: 'renewable_energy', label: 'Renewable Energy', tags: 'SOLAR · WIND · CLIMATE POLICY', color: '#B45309', Icon: Sun, category: 'earth' },
+  { id: 'conservation', label: 'Wildlife Conservation & Ecology', tags: 'BIODIVERSITY · HABITAT · FIELD RESEARCH', color: '#15803D', Icon: TreePine, category: 'earth' },
+  { id: 'food_science', label: 'Culinary Arts & Food Science', tags: 'CHEMISTRY OF COOKING · NUTRITION · FOOD BUSINESS', color: '#C0392B', Icon: ChefHat, category: 'earth' },
+  { id: 'oceanography', label: 'Oceanography & Climate', tags: 'SEA LEVEL · OCEAN CIRCULATION · MARINE POLICY', color: '#0369A1', Icon: Waves, category: 'earth' },
+
+  // ── Society & Law ──
+  { id: 'education', label: 'Education & Learning Design', tags: 'CURRICULUM · EDTECH · LEARNING SCIENCE', color: '#0D9488', Icon: GraduationCap, category: 'society' },
+  { id: 'law', label: 'Law & Legal Studies', tags: 'JUSTICE · CONTRACTS · CONSTITUTIONAL LAW', color: '#1B4965', Icon: Scale, category: 'society' },
+  { id: 'social_work', label: 'Social Work & Community Dev', tags: 'ADVOCACY · EQUITY · YOUTH PROGRAMS', color: '#0D9488', Icon: Users, category: 'society' },
+  { id: 'archaeology', label: 'History & Archaeology', tags: 'ARTIFACTS · EXCAVATION · CULTURAL HERITAGE', color: '#B45309', Icon: Globe, category: 'society' },
+  { id: 'political_science', label: 'Political Science & Government', tags: 'POLICY · ELECTIONS · DIPLOMACY', color: '#1B4965', Icon: Globe, category: 'society' },
+];

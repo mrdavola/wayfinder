@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Check,
   ChevronDown,
@@ -13,54 +13,21 @@ import {
   Presentation,
   NotebookPen,
   Microscope,
-  Atom,
-  Activity,
-  Heart,
   Trophy,
   Plus,
   RefreshCw,
   ArrowLeft,
   Loader2,
-  // Career pathway icons
-  Brain,
-  Waves,
-  Code2,
-  Shield,
-  Gamepad2,
-  Bot,
-  BarChart2,
-  Cpu,
-  Rocket,
-  Building2,
-  Zap,
-  TrendingUp,
-  Lightbulb,
-  Megaphone,
-  Paintbrush,
-  Film,
-  Music,
-  Newspaper,
-  Palette,
-  Sprout,
-  Sun,
-  TreePine,
-  ChefHat,
-  Star,
-  GraduationCap,
-  Scale,
-  FlaskConical as Flask2,
-  Dna,
-  Stethoscope,
-  Dumbbell,
-  Globe,
-  Wind,
   Search,
   Sparkles,
+  Calendar,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
 import { ai, questGroups as questGroupsApi } from '../lib/api';
+import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
+import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -76,348 +43,8 @@ const T = {
   chalk: '#FFFFFF',
 };
 
-// ── Inline Standards Data ──────────────────────────────────────────────────────
-const STANDARDS_FRAMEWORKS = [
-  // ── MATH K-2 ──
-  {
-    id: 'math_k2', label: 'Common Core Math K–2', subject: 'math', gradeBand: 'K-2',
-    categories: [
-      { id: 'cc', label: 'Counting & Cardinality', standards: [
-        { id: 'CCSS.MATH.K.CC.A.1', label: 'K.CC.A.1', description: 'Count to 100 by ones and tens' },
-        { id: 'CCSS.MATH.K.CC.B.4', label: 'K.CC.B.4', description: 'Understand the relationship between numbers and quantities' },
-        { id: 'CCSS.MATH.1.NBT.B.2', label: '1.NBT.B.2', description: 'Understand two-digit numbers as bundles of tens and ones' },
-        { id: 'CCSS.MATH.2.NBT.B.5', label: '2.NBT.B.5', description: 'Fluently add and subtract within 100' },
-      ]},
-      { id: 'oa', label: 'Operations & Algebraic Thinking', standards: [
-        { id: 'CCSS.MATH.K.OA.A.2', label: 'K.OA.A.2', description: 'Solve addition and subtraction word problems within 10' },
-        { id: 'CCSS.MATH.1.OA.A.1', label: '1.OA.A.1', description: 'Use addition and subtraction within 20 to solve word problems' },
-        { id: 'CCSS.MATH.2.OA.A.1', label: '2.OA.A.1', description: 'Use addition and subtraction within 100 to solve word problems' },
-      ]},
-      { id: 'md', label: 'Measurement & Data', standards: [
-        { id: 'CCSS.MATH.1.MD.C.4', label: '1.MD.C.4', description: 'Organize, represent, and interpret data with up to three categories' },
-        { id: 'CCSS.MATH.2.MD.D.10', label: '2.MD.D.10', description: 'Draw a picture graph and bar graph to represent data' },
-      ]},
-      { id: 'g', label: 'Geometry', standards: [
-        { id: 'CCSS.MATH.K.G.A.1', label: 'K.G.A.1', description: 'Describe objects in the environment using names of shapes' },
-        { id: 'CCSS.MATH.2.G.A.1', label: '2.G.A.1', description: 'Recognize and draw shapes having specified attributes' },
-      ]},
-    ],
-  },
-  // ── MATH 3-5 ──
-  {
-    id: 'math_35', label: 'Common Core Math 3–5', subject: 'math', gradeBand: '3-5',
-    categories: [
-      { id: 'oa', label: 'Operations & Algebraic Thinking', standards: [
-        { id: 'CCSS.MATH.3.OA.A.3', label: '3.OA.A.3', description: 'Use multiplication and division within 100 to solve word problems' },
-        { id: 'CCSS.MATH.4.OA.A.3', label: '4.OA.A.3', description: 'Solve multi-step word problems using the four operations' },
-        { id: 'CCSS.MATH.5.OA.B.3', label: '5.OA.B.3', description: 'Analyze patterns and relationships on a coordinate plane' },
-      ]},
-      { id: 'nf', label: 'Number & Operations — Fractions', standards: [
-        { id: 'CCSS.MATH.3.NF.A.1', label: '3.NF.A.1', description: 'Understand a fraction as a part of a whole' },
-        { id: 'CCSS.MATH.4.NF.B.3', label: '4.NF.B.3', description: 'Add and subtract fractions with like denominators' },
-        { id: 'CCSS.MATH.5.NF.B.5', label: '5.NF.B.5', description: 'Interpret multiplication as scaling (resizing) fractions' },
-      ]},
-      { id: 'md', label: 'Measurement & Data', standards: [
-        { id: 'CCSS.MATH.3.MD.C.5', label: '3.MD.C.5', description: 'Recognize area as an attribute of plane figures' },
-        { id: 'CCSS.MATH.4.MD.A.2', label: '4.MD.A.2', description: 'Solve problems involving measurement units and conversions' },
-        { id: 'CCSS.MATH.5.MD.B.2', label: '5.MD.B.2', description: 'Represent and interpret data using line plots' },
-      ]},
-      { id: 'g', label: 'Geometry', standards: [
-        { id: 'CCSS.MATH.5.G.A.1', label: '5.G.A.1', description: 'Graph coordinates in the first quadrant of a coordinate plane' },
-        { id: 'CCSS.MATH.3.G.A.1', label: '3.G.A.1', description: 'Understand that shapes in different categories share attributes' },
-      ]},
-    ],
-  },
-  // ── MATH 6-8 ──
-  {
-    id: 'math_68', label: 'Common Core Math 6–8', subject: 'math', gradeBand: '6-8',
-    categories: [
-      { id: 'rp', label: 'Ratios & Proportional Relationships', standards: [
-        { id: 'CCSS.MATH.6.RP.A.1', label: '6.RP.A.1', description: 'Understand ratio concepts and describe ratio relationships' },
-        { id: 'CCSS.MATH.7.RP.A.2', label: '7.RP.A.2', description: 'Recognize and represent proportional relationships between quantities' },
-      ]},
-      { id: 'ee', label: 'Expressions & Equations', standards: [
-        { id: 'CCSS.MATH.6.EE.A.2', label: '6.EE.A.2', description: 'Write, read, and evaluate expressions with variables' },
-        { id: 'CCSS.MATH.7.EE.B.4', label: '7.EE.B.4', description: 'Use variables to represent quantities and solve real-world problems' },
-        { id: 'CCSS.MATH.8.EE.C.7', label: '8.EE.C.7', description: 'Solve linear equations in one variable' },
-      ]},
-      { id: 'f', label: 'Functions', standards: [
-        { id: 'CCSS.MATH.8.F.A.1', label: '8.F.A.1', description: 'Understand that a function assigns exactly one output to each input' },
-        { id: 'CCSS.MATH.8.F.B.4', label: '8.F.B.4', description: 'Construct a function to model a linear relationship between two quantities' },
-      ]},
-      { id: 'sp', label: 'Statistics & Probability', standards: [
-        { id: 'CCSS.MATH.6.SP.B.4', label: '6.SP.B.4', description: 'Display numerical data in plots on a number line' },
-        { id: 'CCSS.MATH.8.SP.A.1', label: '8.SP.A.1', description: 'Construct and interpret scatter plots for bivariate measurement data' },
-      ]},
-      { id: 'g', label: 'Geometry', standards: [
-        { id: 'CCSS.MATH.7.G.B.4', label: '7.G.B.4', description: 'Understand the formulas for area and circumference of circles' },
-        { id: 'CCSS.MATH.8.G.B.7', label: '8.G.B.7', description: 'Apply the Pythagorean Theorem to determine unknown side lengths' },
-      ]},
-    ],
-  },
-  // ── ELA K-2 ──
-  {
-    id: 'ela_k2', label: 'ELA / Literacy K–2', subject: 'ela', gradeBand: 'K-2',
-    categories: [
-      { id: 'rl', label: 'Reading Literature', standards: [
-        { id: 'CCSS.ELA.K.RL.A.1', label: 'K.RL.A.1', description: 'With prompting, ask and answer questions about key details in a text' },
-        { id: 'CCSS.ELA.1.RL.A.3', label: '1.RL.A.3', description: 'Describe characters, settings, and major events in a story' },
-        { id: 'CCSS.ELA.2.RL.A.5', label: '2.RL.A.5', description: 'Describe the overall structure of a story (beginning, middle, end)' },
-      ]},
-      { id: 'ri', label: 'Reading Informational Text', standards: [
-        { id: 'CCSS.ELA.2.RI.A.1', label: '2.RI.A.1', description: 'Ask and answer questions about key details in an informational text' },
-        { id: 'CCSS.ELA.1.RI.A.7', label: '1.RI.A.7', description: 'Use illustrations and details to describe key ideas in a text' },
-      ]},
-      { id: 'w', label: 'Writing', standards: [
-        { id: 'CCSS.ELA.1.W.A.1', label: '1.W.A.1', description: 'Write opinion pieces about a topic and supply a reason for the opinion' },
-        { id: 'CCSS.ELA.2.W.A.2', label: '2.W.A.2', description: 'Write informative texts to supply facts about a topic' },
-      ]},
-      { id: 'sl', label: 'Speaking & Listening', standards: [
-        { id: 'CCSS.ELA.K.SL.A.1', label: 'K.SL.A.1', description: 'Participate in collaborative conversations with diverse partners' },
-        { id: 'CCSS.ELA.2.SL.A.3', label: '2.SL.A.3', description: 'Ask and answer questions about what a speaker says' },
-      ]},
-    ],
-  },
-  // ── ELA 3-5 ──
-  {
-    id: 'ela_35', label: 'ELA / Literacy 3–5', subject: 'ela', gradeBand: '3-5',
-    categories: [
-      { id: 'w', label: 'Writing', standards: [
-        { id: 'CCSS.ELA-LITERACY.W.4.1', label: 'W.4.1', description: 'Write opinion pieces supporting a point of view with reasons and information' },
-        { id: 'CCSS.ELA-LITERACY.W.4.2', label: 'W.4.2', description: 'Write informative/explanatory texts to examine a topic clearly' },
-        { id: 'CCSS.ELA-LITERACY.W.5.2', label: 'W.5.2', description: 'Write informative texts using facts, definitions, and details' },
-        { id: 'CCSS.ELA-LITERACY.W.5.7', label: 'W.5.7', description: 'Conduct short research projects using several sources' },
-      ]},
-      { id: 'ri', label: 'Reading Informational Text', standards: [
-        { id: 'CCSS.ELA-LITERACY.RI.4.7', label: 'RI.4.7', description: 'Interpret information presented visually, orally, or quantitatively' },
-        { id: 'CCSS.ELA-LITERACY.RI.5.9', label: 'RI.5.9', description: 'Integrate information from several texts on the same topic' },
-        { id: 'CCSS.ELA-LITERACY.RI.5.6', label: 'RI.5.6', description: 'Analyze multiple accounts of the same event or topic' },
-      ]},
-      { id: 'rl', label: 'Reading Literature', standards: [
-        { id: 'CCSS.ELA-LITERACY.RL.4.1', label: 'RL.4.1', description: 'Refer to story details when explaining what the text says explicitly' },
-        { id: 'CCSS.ELA-LITERACY.RL.5.3', label: 'RL.5.3', description: 'Compare and contrast two or more characters, settings, or events in a story' },
-      ]},
-      { id: 'sl', label: 'Speaking & Listening', standards: [
-        { id: 'CCSS.ELA-LITERACY.SL.4.4', label: 'SL.4.4', description: 'Report on a topic using appropriate facts and relevant, descriptive details' },
-        { id: 'CCSS.ELA-LITERACY.SL.5.5', label: 'SL.5.5', description: 'Include multimedia components and visual displays in presentations' },
-      ]},
-    ],
-  },
-  // ── ELA 6-8 ──
-  {
-    id: 'ela_68', label: 'ELA / Literacy 6–8', subject: 'ela', gradeBand: '6-8',
-    categories: [
-      { id: 'w', label: 'Writing', standards: [
-        { id: 'CCSS.ELA-LITERACY.W.6.1', label: 'W.6.1', description: 'Write arguments to support claims with clear reasons and relevant evidence' },
-        { id: 'CCSS.ELA-LITERACY.W.7.2', label: 'W.7.2', description: 'Write explanatory texts to examine complex ideas and information' },
-        { id: 'CCSS.ELA-LITERACY.W.8.7', label: 'W.8.7', description: 'Conduct short research projects to answer a question, drawing on several sources' },
-      ]},
-      { id: 'ri', label: 'Reading Informational Text', standards: [
-        { id: 'CCSS.ELA-LITERACY.RI.6.8', label: 'RI.6.8', description: 'Trace and evaluate the argument and specific claims in a text' },
-        { id: 'CCSS.ELA-LITERACY.RI.7.5', label: 'RI.7.5', description: 'Analyze the structure an author uses to organize a text' },
-        { id: 'CCSS.ELA-LITERACY.RI.8.9', label: 'RI.8.9', description: 'Analyze a case in which texts provide conflicting information on the same topic' },
-      ]},
-      { id: 'sl', label: 'Speaking & Listening', standards: [
-        { id: 'CCSS.ELA-LITERACY.SL.6.4', label: 'SL.6.4', description: 'Present claims and findings, emphasizing salient points' },
-        { id: 'CCSS.ELA-LITERACY.SL.7.5', label: 'SL.7.5', description: 'Include multimedia components and visual displays in presentations to clarify claims' },
-      ]},
-      { id: 'l', label: 'Language', standards: [
-        { id: 'CCSS.ELA-LITERACY.L.6.4', label: 'L.6.4', description: 'Determine or clarify the meaning of unknown and multiple-meaning words' },
-        { id: 'CCSS.ELA-LITERACY.L.8.3', label: 'L.8.3', description: 'Use knowledge of language and its conventions to achieve particular effects' },
-      ]},
-    ],
-  },
-  // ── NGSS K-5 ──
-  {
-    id: 'ngss_k5', label: 'NGSS K–5', subject: 'science', gradeBand: 'K-5',
-    categories: [
-      { id: 'ps', label: 'Physical Sciences', standards: [
-        { id: 'NGSS.K-PS2-1', label: 'K-PS2-1', description: 'Plan and investigate to compare effects of different strengths of pushes and pulls' },
-        { id: 'NGSS.4-PS3-2', label: '4-PS3-2', description: 'Make observations to provide evidence that energy can be transferred from place to place' },
-        { id: 'NGSS.5-PS1-1', label: '5-PS1-1', description: 'Develop a model that matter is made of particles too small to be seen' },
-      ]},
-      { id: 'ls', label: 'Life Sciences', standards: [
-        { id: 'NGSS.K-LS1-1', label: 'K-LS1-1', description: 'Use observations to describe patterns of what plants and animals need to survive' },
-        { id: 'NGSS.3-LS4-3', label: '3-LS4-3', description: 'Construct an argument with evidence that some animals help their habitat' },
-        { id: 'NGSS.4-LS1-1', label: '4-LS1-1', description: 'Construct an argument that organisms have internal and external structures for survival' },
-      ]},
-      { id: 'ess', label: 'Earth & Space Sciences', standards: [
-        { id: 'NGSS.2-ESS2-1', label: '2-ESS2-1', description: 'Compare multiple solutions to slow wind or water from changing the shape of the land' },
-        { id: 'NGSS.5-ESS3-1', label: '5-ESS3-1', description: 'Obtain and combine information about how communities protect Earth\'s resources' },
-      ]},
-    ],
-  },
-  // ── NGSS 6-8 ──
-  {
-    id: 'ngss_68', label: 'NGSS 6–8', subject: 'science', gradeBand: '6-8',
-    categories: [
-      { id: 'ps', label: 'Physical Sciences', standards: [
-        { id: 'NGSS.MS-PS1-1', label: 'MS-PS1-1', description: 'Develop models to describe the atomic composition of simple molecules and extended structures' },
-        { id: 'NGSS.MS-PS1-2', label: 'MS-PS1-2', description: 'Analyze and interpret data on properties of substances before and after reactions' },
-        { id: 'NGSS.MS-PS3-1', label: 'MS-PS3-1', description: 'Construct and interpret graphical displays to describe relationships of kinetic energy' },
-      ]},
-      { id: 'ls', label: 'Life Sciences', standards: [
-        { id: 'NGSS.MS-LS1-1', label: 'MS-LS1-1', description: 'Conduct an investigation to provide evidence that living things are made of cells' },
-        { id: 'NGSS.MS-LS1-6', label: 'MS-LS1-6', description: 'Construct a scientific explanation based on evidence for the role of photosynthesis' },
-        { id: 'NGSS.MS-LS2-1', label: 'MS-LS2-1', description: 'Analyze and interpret data to provide evidence for effects of resource availability on organisms' },
-      ]},
-      { id: 'ess', label: 'Earth & Space Sciences', standards: [
-        { id: 'NGSS.MS-ESS2-1', label: 'MS-ESS2-1', description: 'Develop a model to describe the cycling of Earth\'s materials and the flow of energy' },
-      ]},
-      { id: 'ets', label: 'Engineering Design', standards: [
-        { id: 'NGSS.MS-ETS1-1', label: 'MS-ETS1-1', description: 'Define the criteria and constraints of a design problem with sufficient precision' },
-        { id: 'NGSS.MS-ETS1-2', label: 'MS-ETS1-2', description: 'Evaluate competing design solutions using a systematic process to determine how well they meet criteria' },
-      ]},
-    ],
-  },
-  // ── NGSS 9-12 ──
-  {
-    id: 'ngss_912', label: 'NGSS 9–12', subject: 'science', gradeBand: '9-12',
-    categories: [
-      { id: 'ps', label: 'Physical Sciences', standards: [
-        { id: 'NGSS.HS-PS1-2', label: 'HS-PS1-2', description: 'Construct and revise an explanation for the outcome of a simple chemical reaction' },
-        { id: 'NGSS.HS-PS3-1', label: 'HS-PS3-1', description: 'Create a computational model to calculate the change in energy of one component in a system' },
-      ]},
-      { id: 'ls', label: 'Life Sciences', standards: [
-        { id: 'NGSS.HS-LS1-1', label: 'HS-LS1-1', description: 'Construct an explanation for how the structure of DNA determines the structure of proteins' },
-        { id: 'NGSS.HS-LS4-2', label: 'HS-LS4-2', description: 'Construct an explanation based on evidence that the process of evolution primarily results from four factors' },
-      ]},
-      { id: 'ess', label: 'Earth & Space Sciences', standards: [
-        { id: 'NGSS.HS-ESS1-4', label: 'HS-ESS1-4', description: 'Use mathematical representations to predict the motion of orbiting objects' },
-        { id: 'NGSS.HS-ESS3-4', label: 'HS-ESS3-4', description: 'Evaluate or refine a technological solution that reduces impacts of human activities on natural systems' },
-      ]},
-      { id: 'ets', label: 'Engineering Design', standards: [
-        { id: 'NGSS.HS-ETS1-2', label: 'HS-ETS1-2', description: 'Design a solution to a complex real-world problem by breaking it into smaller, more manageable problems' },
-        { id: 'NGSS.HS-ETS1-3', label: 'HS-ETS1-3', description: 'Evaluate a solution to a complex real-world problem based on prioritized criteria and trade-offs' },
-      ]},
-    ],
-  },
-  // ── Math Practices ──
-  {
-    id: 'math_practices', label: 'Standards for Mathematical Practice', subject: 'practices', gradeBand: 'All',
-    categories: [
-      { id: 'mp', label: 'Mathematical Practice Standards', standards: [
-        { id: 'CCSS.MATH.PRACTICE.MP1', label: 'MP1', description: 'Make sense of problems and persevere in solving them' },
-        { id: 'CCSS.MATH.PRACTICE.MP2', label: 'MP2', description: 'Reason abstractly and quantitatively' },
-        { id: 'CCSS.MATH.PRACTICE.MP3', label: 'MP3', description: 'Construct viable arguments and critique the reasoning of others' },
-        { id: 'CCSS.MATH.PRACTICE.MP4', label: 'MP4', description: 'Model with mathematics' },
-        { id: 'CCSS.MATH.PRACTICE.MP5', label: 'MP5', description: 'Use appropriate tools strategically' },
-        { id: 'CCSS.MATH.PRACTICE.MP6', label: 'MP6', description: 'Attend to precision' },
-        { id: 'CCSS.MATH.PRACTICE.MP7', label: 'MP7', description: 'Look for and make use of structure' },
-        { id: 'CCSS.MATH.PRACTICE.MP8', label: 'MP8', description: 'Look for and express regularity in repeated reasoning' },
-      ]},
-    ],
-  },
-  // ── C3 Social Studies ──
-  {
-    id: 'c3_ss', label: 'C3 Social Studies Framework', subject: 'ss', gradeBand: 'All',
-    categories: [
-      { id: 'civ', label: 'Civics', standards: [
-        { id: 'C3.D2.Civ.1', label: 'D2.Civ.1', description: 'Distinguish the powers and responsibilities of local, state, and national civic institutions' },
-        { id: 'C3.D2.Civ.5', label: 'D2.Civ.5', description: 'Explain the origins, functions, and structure of government with focus on protecting rights and freedoms' },
-        { id: 'C3.D2.Civ.10', label: 'D2.Civ.10', description: 'Explain how people can work together to influence or change laws and public policy' },
-      ]},
-      { id: 'eco', label: 'Economics', standards: [
-        { id: 'C3.D2.Eco.1', label: 'D2.Eco.1', description: 'Explain how economic decisions affect the well-being of individuals, businesses, and society' },
-        { id: 'C3.D2.Eco.4', label: 'D2.Eco.4', description: 'Describe the role of buyers and sellers in product, capital, and labor markets' },
-        { id: 'C3.D2.Eco.13', label: 'D2.Eco.13', description: 'Explain why advancements in technology and investments in capital goods increase economic growth' },
-      ]},
-      { id: 'his', label: 'History', standards: [
-        { id: 'C3.D2.His.1', label: 'D2.His.1', description: 'Analyze connections among events and developments in broader historical contexts' },
-        { id: 'C3.D2.His.5', label: 'D2.His.5', description: 'Explain how and why perspectives of people have changed over time' },
-        { id: 'C3.D2.His.14', label: 'D2.His.14', description: 'Explain multiple causes and effects of events and developments in the past' },
-      ]},
-      { id: 'geo', label: 'Geography', standards: [
-        { id: 'C3.D2.Geo.1', label: 'D2.Geo.1', description: 'Construct maps to represent and explain the spatial patterns of cultural and environmental characteristics' },
-        { id: 'C3.D2.Geo.6', label: 'D2.Geo.6', description: 'Explain how the movement of goods, capital, people, and ideas affects cultural and natural environments' },
-        { id: 'C3.D2.Geo.12', label: 'D2.Geo.12', description: 'Explain patterns of human settlement and the causes and effects of migration' },
-      ]},
-    ],
-  },
-];
 
-// Career pathway categories with many options
-const PATHWAY_CATEGORIES = [
-  { id: 'all',      label: 'All' },
-  { id: 'science',  label: 'Science' },
-  { id: 'tech',     label: 'Technology' },
-  { id: 'health',   label: 'Health' },
-  { id: 'engineering', label: 'Engineering' },
-  { id: 'business', label: 'Business' },
-  { id: 'arts',     label: 'Arts & Media' },
-  { id: 'earth',    label: 'Earth & Environment' },
-  { id: 'society',  label: 'Society & Law' },
-];
 
-const CAREER_PATHWAYS = [
-  // ── Science ──
-  { id: 'material_science', label: 'Material Science', tags: 'BATTERIES · NANO-MATERIALS · SMART COMPOSITES', color: '#1B4965', Icon: Atom, category: 'science' },
-  { id: 'biology', label: 'Biology & Life Sciences', tags: 'GENOMICS · DRUG DISCOVERY · ECOLOGY', color: '#2D6A4F', Icon: Activity, category: 'science' },
-  { id: 'chemistry', label: 'Chemistry', tags: 'REACTIONS · POLYMERS · PHARMACEUTICAL SYNTHESIS', color: '#6B3FA0', Icon: FlaskConical, category: 'science' },
-  { id: 'physics', label: 'Physics & Astrophysics', tags: 'MECHANICS · OPTICS · QUANTUM', color: '#1B4965', Icon: Star, category: 'science' },
-  { id: 'neuroscience', label: 'Neuroscience', tags: 'BRAIN MAPPING · COGNITION · NEUROPROSTHETICS', color: '#7C3AED', Icon: Brain, category: 'science' },
-  { id: 'genetics', label: 'Genetics & Genomics', tags: 'DNA SEQUENCING · CRISPR · HEREDITY', color: '#059669', Icon: Dna, category: 'science' },
-  { id: 'marine_biology', label: 'Marine & Ocean Science', tags: 'CORAL REEFS · DEEP SEA · OCEAN TECH', color: '#0369A1', Icon: Waves, category: 'science' },
-  { id: 'environmental_science', label: 'Environmental Science', tags: 'CLIMATE · ECOSYSTEMS · CONSERVATION', color: '#15803D', Icon: Wind, category: 'science' },
-  { id: 'space_science', label: 'Space Science & Astronomy', tags: 'EXOPLANETS · SATELLITES · DEEP SPACE', color: '#312E81', Icon: Rocket, category: 'science' },
-
-  // ── Technology ──
-  { id: 'software_engineering', label: 'Software Engineering', tags: 'APPS · WEB · SYSTEM DESIGN', color: '#1B4965', Icon: Code2, category: 'tech' },
-  { id: 'ai_ml', label: 'AI & Machine Learning', tags: 'NEURAL NETS · NLP · COMPUTER VISION', color: '#7C3AED', Icon: Bot, category: 'tech' },
-  { id: 'cybersecurity', label: 'Cybersecurity', tags: 'ENCRYPTION · THREAT ANALYSIS · ETHICAL HACKING', color: '#B45309', Icon: Shield, category: 'tech' },
-  { id: 'game_design', label: 'Game Design & Development', tags: 'MECHANICS · WORLD-BUILDING · NARRATIVE', color: '#C0392B', Icon: Gamepad2, category: 'tech' },
-  { id: 'robotics', label: 'Robotics & Automation', tags: 'SENSORS · ACTUATORS · CONTROL SYSTEMS', color: '#0369A1', Icon: Cpu, category: 'tech' },
-  { id: 'data_science', label: 'Data Science & Analytics', tags: 'STATISTICS · VISUALIZATION · PREDICTION', color: '#0D9488', Icon: BarChart2, category: 'tech' },
-  { id: 'ux_design', label: 'UX/UI Design & Product', tags: 'USER RESEARCH · PROTOTYPING · ACCESSIBILITY', color: '#7C3AED', Icon: Palette, category: 'tech' },
-  { id: 'hardware', label: 'Hardware & Electronics', tags: 'CIRCUITS · EMBEDDED SYSTEMS · PCB DESIGN', color: '#1B4965', Icon: Zap, category: 'tech' },
-
-  // ── Health ──
-  { id: 'healthcare', label: 'Digital Health & Telemedicine', tags: 'DIAGNOSTIC AI · PATIENT CARE · REMOTE MEDICINE', color: '#C0392B', Icon: Heart, category: 'health' },
-  { id: 'biomedical_engineering', label: 'Biomedical Engineering', tags: 'PROSTHETICS · IMAGING · IMPLANTS', color: '#7C3AED', Icon: Stethoscope, category: 'health' },
-  { id: 'sports_medicine', label: 'Sports Medicine & Performance', tags: 'INJURY PREVENTION · BIOMECHANICS · NUTRITION', color: '#B45309', Icon: Dumbbell, category: 'health' },
-  { id: 'mental_health', label: 'Mental Health & Psychology', tags: 'THERAPY · COGNITION · BEHAVIORAL SCIENCE', color: '#0D9488', Icon: Brain, category: 'health' },
-  { id: 'veterinary', label: 'Veterinary & Animal Science', tags: 'ANIMAL CARE · WILDLIFE MEDICINE · ZOOLOGY', color: '#15803D', Icon: Heart, category: 'health' },
-  { id: 'public_health', label: 'Public Health & Epidemiology', tags: 'DISEASE PREVENTION · GLOBAL HEALTH · POLICY', color: '#C0392B', Icon: Globe, category: 'health' },
-
-  // ── Engineering ──
-  { id: 'aerospace', label: 'Aerospace & Aviation', tags: 'FLIGHT DYNAMICS · PROPULSION · SPACECRAFT', color: '#1B4965', Icon: Rocket, category: 'engineering' },
-  { id: 'civil_engineering', label: 'Civil & Structural Engineering', tags: 'BRIDGES · BUILDINGS · INFRASTRUCTURE', color: '#B45309', Icon: Building2, category: 'engineering' },
-  { id: 'mechanical_engineering', label: 'Mechanical Engineering', tags: 'MACHINES · THERMODYNAMICS · MANUFACTURING', color: '#0369A1', Icon: Cpu, category: 'engineering' },
-  { id: 'electrical_engineering', label: 'Electrical Engineering', tags: 'POWER SYSTEMS · SIGNAL PROCESSING · CIRCUITS', color: '#B45309', Icon: Zap, category: 'engineering' },
-  { id: 'urban_design', label: 'Urban Planning & Architecture', tags: 'CITIES · SUSTAINABILITY · SPACE DESIGN', color: '#0369A1', Icon: Building2, category: 'engineering' },
-  { id: 'chemical_engineering', label: 'Chemical Engineering', tags: 'PROCESS DESIGN · SAFETY · SCALE-UP', color: '#6B3FA0', Icon: FlaskConical, category: 'engineering' },
-  { id: 'renewable_energy_tech', label: 'Renewable Energy Engineering', tags: 'SOLAR · WIND · GRID STORAGE', color: '#15803D', Icon: Sun, category: 'engineering' },
-
-  // ── Business ──
-  { id: 'entrepreneurship', label: 'Entrepreneurship & Startups', tags: 'PITCH DECKS · PRODUCT-MARKET FIT · FUNDING', color: '#B45309', Icon: Lightbulb, category: 'business' },
-  { id: 'finance', label: 'Finance & Investment', tags: 'MARKETS · RISK · PORTFOLIO MANAGEMENT', color: '#1B4965', Icon: TrendingUp, category: 'business' },
-  { id: 'marketing', label: 'Marketing & Brand Strategy', tags: 'CONSUMER INSIGHT · CAMPAIGNS · STORYTELLING', color: '#C0392B', Icon: Megaphone, category: 'business' },
-  { id: 'economics', label: 'Economics & Public Policy', tags: 'MARKETS · INCENTIVES · GLOBAL TRADE', color: '#0369A1', Icon: Globe, category: 'business' },
-  { id: 'supply_chain', label: 'Supply Chain & Logistics', tags: 'OPERATIONS · GLOBAL TRADE · LAST-MILE', color: '#B45309', Icon: TrendingUp, category: 'business' },
-
-  // ── Arts & Media ──
-  { id: 'graphic_design', label: 'Graphic Design & Visual Arts', tags: 'TYPOGRAPHY · COMPOSITION · BRAND IDENTITY', color: '#7C3AED', Icon: Paintbrush, category: 'arts' },
-  { id: 'filmmaking', label: 'Filmmaking & Video Production', tags: 'CINEMATOGRAPHY · EDITING · DOCUMENTARY', color: '#C0392B', Icon: Film, category: 'arts' },
-  { id: 'music_production', label: 'Music Production & Audio', tags: 'MIXING · SOUND DESIGN · ARTIST DEVELOPMENT', color: '#7C3AED', Icon: Music, category: 'arts' },
-  { id: 'journalism', label: 'Journalism & Media', tags: 'INVESTIGATION · STORYTELLING · DIGITAL MEDIA', color: '#0369A1', Icon: Newspaper, category: 'arts' },
-  { id: 'animation', label: 'Animation & Visual Effects', tags: '3D MODELING · MOTION GRAPHICS · GAME ART', color: '#7C3AED', Icon: Palette, category: 'arts' },
-  { id: 'architecture', label: 'Architecture & Interior Design', tags: 'SPACE · MATERIALS · HUMAN EXPERIENCE', color: '#B45309', Icon: Building2, category: 'arts' },
-  { id: 'fashion', label: 'Fashion Design & Textiles', tags: 'PATTERNS · SUSTAINABILITY · WEARABLE TECH', color: '#C0392B', Icon: Star, category: 'arts' },
-
-  // ── Earth & Environment ──
-  { id: 'agriculture', label: 'Agriculture & Food Technology', tags: 'PRECISION FARMING · SOIL SCIENCE · FOOD SYSTEMS', color: '#15803D', Icon: Sprout, category: 'earth' },
-  { id: 'renewable_energy', label: 'Renewable Energy', tags: 'SOLAR · WIND · CLIMATE POLICY', color: '#B45309', Icon: Sun, category: 'earth' },
-  { id: 'conservation', label: 'Wildlife Conservation & Ecology', tags: 'BIODIVERSITY · HABITAT · FIELD RESEARCH', color: '#15803D', Icon: TreePine, category: 'earth' },
-  { id: 'food_science', label: 'Culinary Arts & Food Science', tags: 'CHEMISTRY OF COOKING · NUTRITION · FOOD BUSINESS', color: '#C0392B', Icon: ChefHat, category: 'earth' },
-  { id: 'oceanography', label: 'Oceanography & Climate', tags: 'SEA LEVEL · OCEAN CIRCULATION · MARINE POLICY', color: '#0369A1', Icon: Waves, category: 'earth' },
-
-  // ── Society & Law ──
-  { id: 'education', label: 'Education & Learning Design', tags: 'CURRICULUM · EDTECH · LEARNING SCIENCE', color: '#0D9488', Icon: GraduationCap, category: 'society' },
-  { id: 'law', label: 'Law & Legal Studies', tags: 'JUSTICE · CONTRACTS · CONSTITUTIONAL LAW', color: '#1B4965', Icon: Scale, category: 'society' },
-  { id: 'social_work', label: 'Social Work & Community Dev', tags: 'ADVOCACY · EQUITY · YOUTH PROGRAMS', color: '#0D9488', Icon: Users, category: 'society' },
-  { id: 'archaeology', label: 'History & Archaeology', tags: 'ARTIFACTS · EXCAVATION · CULTURAL HERITAGE', color: '#B45309', Icon: Globe, category: 'society' },
-  { id: 'political_science', label: 'Political Science & Government', tags: 'POLICY · ELECTIONS · DIPLOMACY', color: '#1B4965', Icon: Globe, category: 'society' },
-];
 
 const STEP_LABELS = ['Students', 'Skills', 'Pathway', 'Generating', 'Review', 'Launch'];
 
@@ -444,16 +71,6 @@ const AI_SUGGESTIONS_BY_GRADE = {
   '9-12': ['CCSS.MATH.8.F.B.4',         'CCSS.ELA-LITERACY.W.8.7',    'NGSS.HS-ETS1-2'],
 };
 
-// Find a standard object by id across all frameworks
-function findStandardById(id) {
-  for (const fw of STANDARDS_FRAMEWORKS) {
-    for (const cat of fw.categories) {
-      const found = cat.standards.find((s) => s.id === id);
-      if (found) return found;
-    }
-  }
-  return null;
-}
 
 // Intersection of arrays (for shared interests)
 function arrayIntersection(arrays) {
@@ -1113,6 +730,30 @@ function Step2Skills({
   const [activeGradeBand, setActiveGradeBand] = useState('all');
   const [search, setSearch] = useState('');
   const [openCategories, setOpenCategories] = useState({});
+  const [studentProfileStds, setStudentProfileStds] = useState([]);
+  const [profileStdsLoading, setProfileStdsLoading] = useState(false);
+  const profileStdsLoaded = useRef(false);
+
+  // Load student standards profiles on mount
+  useEffect(() => {
+    if (profileStdsLoaded.current || !selectedStudents?.length) return;
+    profileStdsLoaded.current = true;
+    setProfileStdsLoading(true);
+
+    Promise.all(
+      selectedStudents.map(s =>
+        supabase
+          .from('student_standards')
+          .select('*')
+          .eq('student_id', s.id)
+          .eq('status', 'active')
+          .then(({ data }) => ({ studentId: s.id, studentName: s.name, standards: data || [] }))
+      )
+    ).then(results => {
+      setStudentProfileStds(results);
+      setProfileStdsLoading(false);
+    });
+  }, [selectedStudents]);
 
   // Grade bands available for the current subject
   const gradeBands = ['all', ...new Set(
@@ -1175,6 +816,137 @@ function Step2Skills({
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.graphite, margin: '0 0 20px' }}>
         Select 2–6 standards, or describe a custom topic below.
       </p>
+
+      {/* From Student Profile card */}
+      {(() => {
+        const allProfileStds = studentProfileStds.flatMap(sp => sp.standards);
+        const hasProfileStds = allProfileStds.length > 0;
+        if (!hasProfileStds && !profileStdsLoading) return null;
+
+        const coreStds = allProfileStds.filter(s => s.priority === 'core');
+        const recStds = allProfileStds.filter(s => s.priority === 'recommended');
+        const suppStds = allProfileStds.filter(s => s.priority === 'supplementary');
+        const studentLabel = selectedStudents?.length === 1
+          ? `${selectedStudents[0].name?.split(' ')[0]}'s`
+          : `${selectedStudents?.length} students'`;
+
+        // For groups: count how many students share each standard
+        const stdCounts = {};
+        studentProfileStds.forEach(sp => {
+          sp.standards.forEach(s => {
+            stdCounts[s.standard_code] = (stdCounts[s.standard_code] || 0) + 1;
+          });
+        });
+
+        function addProfileStandard(std) {
+          if (selectedStandards.find(s => s.id === std.standard_code)) return;
+          setSelectedStandards(prev => [...prev, { id: std.standard_code, label: std.standard_label, description: std.standard_description }]);
+        }
+
+        function addAllCore() {
+          const uniqueCore = [];
+          const seen = new Set(selectedStandards.map(s => s.id));
+          coreStds.forEach(std => {
+            if (!seen.has(std.standard_code)) {
+              seen.add(std.standard_code);
+              uniqueCore.push({ id: std.standard_code, label: std.standard_label, description: std.standard_description });
+            }
+          });
+          setSelectedStandards(prev => [...prev, ...uniqueCore]);
+        }
+
+        return (
+          <div style={{ marginBottom: 20, padding: 14, border: `2px solid ${T.labBlue}`, borderRadius: 12, background: `${T.labBlue}08` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <BookOpen size={14} color={T.labBlue} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)' }}>
+                  From {studentLabel} profile
+                </span>
+              </div>
+              {coreStds.length > 0 && (
+                <button
+                  onClick={addAllCore}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.labBlue}`,
+                    background: T.labBlue, color: T.chalk, fontSize: 11, fontWeight: 600,
+                    fontFamily: 'var(--font-body)', cursor: 'pointer',
+                  }}
+                >
+                  Use All Core ({coreStds.length})
+                </button>
+              )}
+            </div>
+
+            {profileStdsLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0' }}>
+                <Loader2 size={12} color={T.graphite} style={{ animation: 'spin 1s linear infinite' }} />
+                <span style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)' }}>Loading standards profile...</span>
+              </div>
+            )}
+
+            {!profileStdsLoading && [
+              { label: 'Core', items: coreStds, color: T.fieldGreen },
+              { label: 'Recommended', items: recStds, color: T.labBlue },
+              { label: 'Supplementary', items: suppStds, color: T.compassGold },
+            ].map(group => {
+              if (group.items.length === 0) return null;
+              // Deduplicate by standard_code
+              const unique = [...new Map(group.items.map(s => [s.standard_code, s])).values()];
+              return (
+                <div key={group.label} style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: group.color, fontFamily: 'var(--font-body)', marginBottom: 4 }}>{group.label}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {unique.map(std => {
+                      const alreadySelected = selectedStandards.some(s => s.id === std.standard_code);
+                      const sharedCount = selectedStudents.length > 1 ? stdCounts[std.standard_code] : null;
+                      return (
+                        <button
+                          key={std.standard_code}
+                          onClick={() => !alreadySelected && addProfileStandard(std)}
+                          disabled={alreadySelected}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '3px 10px', borderRadius: 6,
+                            border: `1px solid ${alreadySelected ? T.fieldGreen : T.pencil}`,
+                            background: alreadySelected ? `${T.fieldGreen}15` : T.chalk,
+                            color: alreadySelected ? T.fieldGreen : T.ink,
+                            fontSize: 11, fontFamily: 'var(--font-mono)',
+                            cursor: alreadySelected ? 'default' : 'pointer',
+                            opacity: alreadySelected ? 0.7 : 1,
+                          }}
+                        >
+                          {alreadySelected && <Check size={10} />}
+                          {std.standard_label}
+                          {sharedCount && sharedCount > 1 && (
+                            <span style={{ fontSize: 9, color: T.compassGold, fontWeight: 600 }}>
+                              {sharedCount}/{selectedStudents.length}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', marginTop: 6 }}>
+              {coreStds.length} core, {recStds.length} recommended
+              {suppStds.length > 0 && `, ${suppStds.length} supplementary`}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Divider when profile card is shown */}
+      {studentProfileStds.some(sp => sp.standards.length > 0) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 16px' }}>
+          <div style={{ flex: 1, height: 1, background: T.parchment }} />
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: T.pencil, whiteSpace: 'nowrap' }}>Or select additional standards</span>
+          <div style={{ flex: 1, height: 1, background: T.parchment }} />
+        </div>
+      )}
 
       {/* Subject tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -1473,11 +1245,53 @@ function Step2Skills({
 }
 
 // ── Step 3: Pathway ────────────────────────────────────────────────────────────
-function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, setCustomCareer, onBack, onNext, onSkip }) {
+function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, setCustomCareer, onBack, onNext, onSkip, selectedStudents, selectedStandards }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
+  const [pathwaySuggestions, setPathwaySuggestions] = useState(null);
+  const [pathwaySuggestionsLoading, setPathwaySuggestionsLoading] = useState(false);
+  const suggestionsRequested = useRef(false);
 
   const MAX_SELECT = 3;
+
+  // Auto-fetch AI pathway suggestions on mount
+  useEffect(() => {
+    if (suggestionsRequested.current) return;
+    if (!selectedStudents?.length) return;
+    suggestionsRequested.current = true;
+    setPathwaySuggestionsLoading(true);
+
+    // Fetch quest history for selected students
+    const studentIds = selectedStudents.map(s => s.id);
+    supabase
+      .from('quest_students')
+      .select('quest_id, quests(title, career_pathway, status)')
+      .in('student_id', studentIds)
+      .then(({ data: qsData }) => {
+        const history = (qsData || [])
+          .filter(qs => qs.quests)
+          .map(qs => ({ title: qs.quests.title, career_pathway: qs.quests.career_pathway, status: qs.quests.status }));
+
+        const allInterests = [...new Set(selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]))];
+        const standardsText = (selectedStandards || []).join(', ');
+
+        return ai.suggestPathways({
+          students: selectedStudents,
+          questHistory: history,
+          interests: allInterests,
+          standards: standardsText,
+        });
+      })
+      .then(result => {
+        setPathwaySuggestions(result.suggestions || []);
+      })
+      .catch(() => {
+        setPathwaySuggestions(null);
+      })
+      .finally(() => {
+        setPathwaySuggestionsLoading(false);
+      });
+  }, [selectedStudents, selectedStandards]);
 
   function togglePathway(id) {
     setSelectedPathways((prev) => {
@@ -1494,6 +1308,10 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
     return matchCat && matchSearch;
   });
 
+  const studentLabel = selectedStudents?.length === 1
+    ? selectedStudents[0].name?.split(' ')[0] || 'this student'
+    : `${selectedStudents?.length || 0} students`;
+
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 6px' }}>
@@ -1503,9 +1321,90 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
         Optional — choose up to {MAX_SELECT}. The AI will weave them into a real-world simulation.
       </p>
 
-      <button onClick={onSkip} style={{ ...btnGhost, width: '100%', marginBottom: 12, color: T.graphite, border: `1px dashed ${T.pencil}`, borderRadius: 8 }}>
+      <button onClick={onSkip} style={{ ...btnGhost, width: '100%', marginBottom: 16, color: T.graphite, border: `1px dashed ${T.pencil}`, borderRadius: 8 }}>
         Skip for now
       </button>
+
+      {/* AI Suggested Pathways */}
+      {selectedStudents?.length > 0 && (
+        <div style={{
+          border: `2px solid ${T.compassGold}`,
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 20,
+          background: `${T.compassGold}08`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Sparkles size={16} color={T.compassGold} />
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: T.ink }}>
+              Suggested for {studentLabel}
+            </span>
+          </div>
+
+          {pathwaySuggestionsLoading && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+              <Loader2 size={14} color={T.graphite} style={{ animation: 'spin 1s linear infinite' }} />
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.graphite }}>
+                Finding pathways that fit...
+              </span>
+            </div>
+          )}
+
+          {!pathwaySuggestionsLoading && pathwaySuggestions && pathwaySuggestions.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pathwaySuggestions.map((sug) => {
+                const pathway = CAREER_PATHWAYS.find(p => p.id === sug.pathway_id);
+                if (!pathway) return null;
+                const isSelected = selectedPathways.includes(pathway.id);
+                const { Icon } = pathway;
+                return (
+                  <button
+                    key={sug.pathway_id}
+                    onClick={() => togglePathway(pathway.id)}
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 12,
+                      padding: '10px 14px',
+                      border: `1.5px solid ${isSelected ? pathway.color : T.pencil}`,
+                      borderRadius: 10,
+                      backgroundColor: isSelected ? `${pathway.color}10` : T.chalk,
+                      cursor: selectedPathways.length >= MAX_SELECT && !isSelected ? 'not-allowed' : 'pointer',
+                      textAlign: 'left', transition: 'all 0.12s',
+                      opacity: selectedPathways.length >= MAX_SELECT && !isSelected ? 0.45 : 1,
+                      width: '100%',
+                    }}
+                  >
+                    <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: `${pathway.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={16} color={pathway.color} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)' }}>
+                          {pathway.label}
+                        </span>
+                        {isSelected && <Check size={14} color={pathway.color} strokeWidth={2.5} />}
+                      </div>
+                      <div style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)', lineHeight: 1.4, marginTop: 2 }}>
+                        {sug.reasoning}
+                      </div>
+                      {sug.connection_to_interests && (
+                        <div style={{ fontSize: 11, color: T.compassGold, fontFamily: 'var(--font-mono)', marginTop: 4 }}>
+                          Why this fits: {sug.connection_to_interests}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!pathwaySuggestionsLoading && !pathwaySuggestions && (
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: T.graphite, margin: 0 }}>
+              Couldn't load suggestions — browse the catalog below.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Selected chips */}
       {selectedPathways.length > 0 && (
@@ -1534,6 +1433,15 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
               </span>
             );
           })}
+        </div>
+      )}
+
+      {/* Divider */}
+      {selectedStudents?.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 14px' }}>
+          <div style={{ flex: 1, height: 1, background: T.parchment }} />
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: T.pencil, whiteSpace: 'nowrap' }}>Or browse all pathways</span>
+          <div style={{ flex: 1, height: 1, background: T.parchment }} />
         </div>
       )}
 
@@ -1760,6 +1668,27 @@ function Step5Review({
   saveError,
 }) {
   const [openStage, setOpenStage] = useState(null);
+  const [playbookDays, setPlaybookDays] = useState(null);
+  const [playbookLoading, setPlaybookLoading] = useState(false);
+  const [playbookOpen, setPlaybookOpen] = useState(false);
+
+  async function handleGeneratePlaybook() {
+    if (!generatedQuest) return;
+    setPlaybookLoading(true);
+    setPlaybookOpen(true);
+    try {
+      const result = await ai.generatePlaybook({
+        questTitle: generatedQuest.quest_title,
+        stages: generatedQuest.stages || [],
+        totalDays: generatedQuest.total_duration || 10,
+        studentProfile: selectedStudents?.[0],
+      });
+      setPlaybookDays(result.days || []);
+    } catch (err) {
+      console.error('Playbook generation error:', err);
+    }
+    setPlaybookLoading(false);
+  }
 
   if (!generatedQuest) return null;
 
@@ -2170,6 +2099,109 @@ function Step5Review({
       )}
 
       {/* Action buttons */}
+      {/* ── Guide Playbook ─────────────────────────────────────── */}
+      <div style={{ marginBottom: 20, border: `1px solid ${T.parchment}`, borderRadius: 12, overflow: 'hidden' }}>
+        <button
+          onClick={playbookDays ? () => setPlaybookOpen(!playbookOpen) : handleGeneratePlaybook}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+            padding: '14px 16px', background: T.chalk, border: 'none', cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={16} color={T.labBlue} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)' }}>
+              Guide Playbook
+            </span>
+          </div>
+          {!playbookDays && !playbookLoading && (
+            <span style={{ fontSize: 12, color: T.labBlue, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+              Generate Plan
+            </span>
+          )}
+          {playbookLoading && <Loader2 size={14} color={T.graphite} style={{ animation: 'spin 1s linear infinite' }} />}
+          {playbookDays && (playbookOpen ? <ChevronUp size={14} color={T.graphite} /> : <ChevronDown size={14} color={T.graphite} />)}
+        </button>
+
+        {playbookOpen && playbookLoading && (
+          <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+            <Loader2 size={20} color={T.graphite} style={{ animation: 'spin 1s linear infinite' }} />
+            <p style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)', marginTop: 8 }}>Generating day-by-day plan...</p>
+          </div>
+        )}
+
+        {playbookOpen && playbookDays && playbookDays.length > 0 && (
+          <div style={{ padding: '0 16px 16px' }}>
+            {playbookDays.map((day) => (
+              <div
+                key={day.day_number}
+                style={{
+                  padding: '12px 0',
+                  borderBottom: `1px solid ${T.parchment}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4,
+                    background: T.labBlue, color: T.chalk, fontFamily: 'var(--font-mono)',
+                  }}>
+                    Day {day.day_number}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, fontFamily: 'var(--font-body)' }}>
+                    {day.title}
+                  </span>
+                </div>
+
+                {/* Prep tasks */}
+                {day.prep_tasks?.length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Prep</span>
+                    <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
+                      {day.prep_tasks.map((t, i) => <li key={i}>{t}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Materials */}
+                {day.materials?.length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Materials</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      {day.materials.map((m, i) => (
+                        <span key={i} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: T.parchment, color: T.graphite, fontFamily: 'var(--font-body)' }}>{m}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Time blocks */}
+                {day.time_blocks?.length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Schedule</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 }}>
+                      {day.time_blocks.map((tb, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 11, fontFamily: 'var(--font-body)' }}>
+                          <span style={{ fontWeight: 600, color: T.ink, minWidth: 40 }}>{tb.duration_min}min</span>
+                          <span style={{ color: T.ink }}>{tb.label}</span>
+                          {tb.notes && <span style={{ color: T.pencil, fontStyle: 'italic' }}> — {tb.notes}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Facilitation notes */}
+                {day.facilitation_notes && (
+                  <p style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', fontStyle: 'italic', lineHeight: 1.5, margin: '4px 0 0' }}>
+                    {day.facilitation_notes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button
           onClick={onLaunch}
@@ -2259,6 +2291,7 @@ function Step6Launch({ selectedStudents, questId }) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function QuestBuilder() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
 
   function getInitials(n) { if (!n) return '?'; const p = n.trim().split(/\s+/); return p.length === 1 ? p[0][0].toUpperCase() : (p[0][0] + p[p.length-1][0]).toUpperCase(); }
@@ -2324,6 +2357,45 @@ export default function QuestBuilder() {
       });
   }, [user]);
 
+  // Pre-populate from suggestion URL params
+  const suggestionPrefilled = useRef(false);
+  useEffect(() => {
+    if (suggestionPrefilled.current || studentsLoading || !students.length) return;
+    const fromType = searchParams.get('from');
+    const suggestionId = searchParams.get('id');
+    if (fromType !== 'suggestion' || !suggestionId) return;
+    suggestionPrefilled.current = true;
+
+    supabase
+      .from('project_suggestions')
+      .select('*')
+      .eq('id', suggestionId)
+      .single()
+      .then(({ data: sug }) => {
+        if (!sug) return;
+        // Select student
+        const student = students.find(s => s.id === sug.student_id);
+        if (student) {
+          setQuestType('individual');
+          setSelectedStudentId(student.id);
+          setSelectedInterests(student.interests || []);
+        }
+        // Set custom topic from description
+        if (sug.description) setCustomTopic(sug.description);
+        // Set career pathway from career_connection
+        if (sug.career_connection) {
+          const pathwayMatch = CAREER_PATHWAYS.find(p =>
+            p.label.toLowerCase().includes(sug.career_connection.toLowerCase()) ||
+            sug.career_connection.toLowerCase().includes(p.label.toLowerCase())
+          );
+          if (pathwayMatch) setSelectedPathways([pathwayMatch.id]);
+          else setCustomCareer(sug.career_connection);
+        }
+        // Mark as converted
+        supabase.from('project_suggestions').update({ status: 'converted' }).eq('id', sug.id);
+      });
+  }, [searchParams, students, studentsLoading]);
+
   // Derived: selected students array
   const selectedStudents =
     questType === 'individual'
@@ -2373,12 +2445,33 @@ export default function QuestBuilder() {
         ? selectedStandards.map((s) => `${s.id}: ${s.description}`).join('; ')
         : customTopic.trim() || 'general inquiry skills';
 
+      // Fetch student standards profiles if available
+      let studentStandardsProfiles = null;
+      try {
+        const stdResults = await Promise.all(
+          selectedStudents.map(s =>
+            supabase
+              .from('student_standards')
+              .select('*')
+              .eq('student_id', s.id)
+              .eq('status', 'active')
+              .then(({ data }) => ({ studentName: s.name, standards: data || [] }))
+          )
+        );
+        if (stdResults.some(r => r.standards.length > 0)) {
+          studentStandardsProfiles = stdResults;
+        }
+      } catch (e) {
+        // Non-critical — continue without profiles
+      }
+
       const questData = await ai.generateQuest({
         students: selectedStudents,
         standards: standardsStr,
         pathway: pathwayLabels.length > 0 ? pathwayLabels.join(', ') : 'none',
         type: questType,
         count: selectedStudents.length,
+        studentStandardsProfiles,
       });
 
       cancelAnimationFrame(progressRef.current);
@@ -2682,6 +2775,8 @@ export default function QuestBuilder() {
                 onBack={() => setStep(2)}
                 onNext={() => setStep(4)}
                 onSkip={handleSkipPathway}
+                selectedStudents={selectedStudents}
+                selectedStandards={selectedStandards}
               />
             )}
 

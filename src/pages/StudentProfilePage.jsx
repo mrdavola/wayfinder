@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi } from '../lib/api';
+import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi } from '../lib/api';
+import { STANDARDS_FRAMEWORKS, getStandardsByGradeBand } from '../data/standardsFrameworks';
 import TopBar from '../components/layout/TopBar';
 
 const T = {
@@ -38,6 +39,13 @@ export default function StudentProfilePage() {
   const [masteryOpen, setMasteryOpen] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
   const [parentInfo, setParentInfo] = useState(null);
+  const [standards, setStandards] = useState([]);
+  const [standardsOpen, setStandardsOpen] = useState({ core: true, recommended: false, supplementary: false });
+  const [stdAiLoading, setStdAiLoading] = useState(false);
+  const [stdAiResults, setStdAiResults] = useState(null);
+  const [stdInitLoading, setStdInitLoading] = useState(false);
+  const [projectIdeas, setProjectIdeas] = useState([]);
+  const [ideasLoading, setIdeasLoading] = useState(false);
 
   useEffect(() => {
     if (id && user) loadAll();
@@ -90,6 +98,14 @@ export default function StudentProfilePage() {
       .maybeSingle();
     if (parentData) setParentInfo(parentData);
 
+    // Load student standards
+    const { data: stds } = await stdApi.list(id);
+    if (stds) setStandards(stds);
+
+    // Load project ideas
+    const { data: ideas } = await suggestionsApi.list(id);
+    if (ideas) setProjectIdeas(ideas);
+
     setLoading(false);
   }
 
@@ -130,6 +146,112 @@ export default function StudentProfilePage() {
   async function handleDismissRec(rec) {
     await recsApi.updateStatus(rec.id, 'dismissed');
     setRecs(prev => prev.map(r => r.id === rec.id ? { ...r, status: 'dismissed' } : r));
+  }
+
+  async function handleInitStandards() {
+    if (!student?.grade_band) return;
+    setStdInitLoading(true);
+    try {
+      const available = getStandardsByGradeBand(student.grade_band);
+      const { data } = await stdApi.initFromSchool(student.id, student.grade_band, available);
+      if (data) setStandards(data);
+    } catch (err) {
+      console.error('Init standards error:', err);
+    }
+    setStdInitLoading(false);
+  }
+
+  async function handleAiRecommendStandards() {
+    if (!student) return;
+    setStdAiLoading(true);
+    try {
+      const available = getStandardsByGradeBand(student.grade_band || '3-5');
+      const result = await ai.recommendStandards({
+        student,
+        currentStandards: standards,
+        availableStandards: available,
+      });
+      setStdAiResults(result.recommendations || []);
+    } catch (err) {
+      console.error('AI recommend standards error:', err);
+    }
+    setStdAiLoading(false);
+  }
+
+  async function handleAcceptStdRec(rec) {
+    const std = {
+      standard_code: rec.standard_code,
+      standard_label: rec.standard_code.split('.').slice(-2).join('.'),
+      standard_description: '',
+      subject: null,
+      grade_band: student?.grade_band || null,
+      source: 'ai',
+      priority: rec.priority || 'recommended',
+    };
+    // Try to find label/description from frameworks
+    for (const fw of STANDARDS_FRAMEWORKS) {
+      for (const cat of fw.categories) {
+        const found = cat.standards.find(s => s.id === rec.standard_code);
+        if (found) {
+          std.standard_label = found.label;
+          std.standard_description = found.description;
+          std.subject = fw.subject;
+          break;
+        }
+      }
+    }
+    const { data } = await stdApi.bulkUpsert(student.id, [std]);
+    if (data?.length) setStandards(prev => [...prev.filter(s => s.standard_code !== rec.standard_code), ...data]);
+    setStdAiResults(prev => prev.filter(r => r.standard_code !== rec.standard_code));
+  }
+
+  async function handleRemoveStandard(stdId) {
+    await stdApi.delete(stdId);
+    setStandards(prev => prev.filter(s => s.id !== stdId));
+  }
+
+  async function handleToggleStdStatus(std) {
+    const next = std.status === 'active' ? 'completed' : 'active';
+    await stdApi.updateStatus(std.id, next);
+    setStandards(prev => prev.map(s => s.id === std.id ? { ...s, status: next } : s));
+  }
+
+  async function handleGenerateIdeas() {
+    if (!student) return;
+    setIdeasLoading(true);
+    try {
+      const historyItems = quests.map(q => ({
+        title: q.title, career_pathway: q.career_pathway, status: q.status,
+      }));
+      const result = await ai.suggestProjects({
+        student,
+        standards: standards.filter(s => s.status === 'active'),
+        questHistory: historyItems,
+      });
+      const batchId = crypto.randomUUID();
+      const rows = (result.suggestions || []).map(s => ({
+        student_id: student.id,
+        guide_id: user.id,
+        title: s.title,
+        description: s.description,
+        standards_addressed: s.standards_addressed || [],
+        career_connection: s.career_connection || null,
+        real_world_problem: s.real_world_problem || {},
+        estimated_duration_days: s.estimated_duration_days || 10,
+        difficulty: s.difficulty || 'intermediate',
+        batch_id: batchId,
+      }));
+      const { data: created } = await suggestionsApi.create(rows);
+      if (created) setProjectIdeas(prev => [...created, ...prev]);
+    } catch (err) {
+      console.error('Generate ideas error:', err);
+    }
+    setIdeasLoading(false);
+  }
+
+  async function handleDismissIdea(ideaId) {
+    await suggestionsApi.updateStatus(ideaId, 'dismissed');
+    setProjectIdeas(prev => prev.filter(i => i.id !== ideaId));
   }
 
   function copyPin() {
@@ -278,6 +400,155 @@ export default function StudentProfilePage() {
             )}
           </section>
 
+          {/* ── Standards Profile ──────────────────────────────────── */}
+          <section style={styles.section}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ ...styles.sectionTitle, marginBottom: 0 }}>
+                <BookOpen size={16} style={{ marginRight: 6, color: T.labBlue }} />
+                Standards Profile
+              </h2>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={handleAiRecommendStandards}
+                  disabled={stdAiLoading}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '6px 12px', borderRadius: 8,
+                    border: `1px solid ${T.compassGold}`, background: `${T.compassGold}10`,
+                    color: T.compassGold, fontSize: 11, fontWeight: 600,
+                    fontFamily: 'var(--font-body)', cursor: stdAiLoading ? 'default' : 'pointer',
+                    opacity: stdAiLoading ? 0.6 : 1,
+                  }}
+                >
+                  {stdAiLoading ? <Loader2 size={12} style={{ animation: 'sp-spin 1s linear infinite' }} /> : <Sparkles size={12} />}
+                  AI Suggest
+                </button>
+              </div>
+            </div>
+
+            {/* Badge count */}
+            {standards.length > 0 && (
+              <div style={{ marginBottom: 12, fontFamily: 'var(--font-body)', fontSize: 12, color: T.graphite }}>
+                {standards.filter(s => s.status === 'active').length} active
+                {standards.filter(s => s.status === 'completed').length > 0 && `, ${standards.filter(s => s.status === 'completed').length} completed`}
+              </div>
+            )}
+
+            {/* AI Recommendations inline */}
+            {stdAiResults && stdAiResults.length > 0 && (
+              <div style={{ marginBottom: 16, padding: 12, border: `2px solid ${T.compassGold}`, borderRadius: 10, background: `${T.compassGold}08` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)', marginBottom: 8 }}>
+                  AI-Recommended Standards
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {stdAiResults.map((rec, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: T.chalk, borderRadius: 8, border: `1px solid ${T.parchment}` }}>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: T.ink, fontFamily: 'var(--font-mono)' }}>{rec.standard_code}</span>
+                        <span style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', marginLeft: 6 }}>{rec.reasoning}</span>
+                        <span style={{
+                          marginLeft: 6, fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                          background: rec.priority === 'core' ? '#D1FAE5' : rec.priority === 'recommended' ? '#DBEAFE' : '#FEF3C7',
+                          color: rec.priority === 'core' ? '#065F46' : rec.priority === 'recommended' ? '#1E40AF' : '#92400E',
+                          fontFamily: 'var(--font-body)', fontWeight: 500,
+                        }}>{rec.priority}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        <button onClick={() => handleAcceptStdRec(rec)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: T.fieldGreen }}>
+                          <Check size={14} />
+                        </button>
+                        <button onClick={() => setStdAiResults(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: T.pencil }}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Collapsible priority groups */}
+            {['core', 'recommended', 'supplementary'].map(priority => {
+              const items = standards.filter(s => s.priority === priority);
+              if (items.length === 0 && standards.length > 0) return null;
+              const borderColor = priority === 'core' ? T.fieldGreen : priority === 'recommended' ? T.labBlue : T.compassGold;
+              const label = priority.charAt(0).toUpperCase() + priority.slice(1);
+              const isOpen = standardsOpen[priority];
+              return (
+                <div key={priority} style={{ marginBottom: 10, borderLeft: `3px solid ${borderColor}`, borderRadius: 8, background: T.chalk, border: `1px solid ${T.parchment}`, borderLeftWidth: 3, borderLeftColor: borderColor }}>
+                  <button
+                    onClick={() => setStandardsOpen(prev => ({ ...prev, [priority]: !prev[priority] }))}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)' }}>
+                      {label} <span style={{ fontWeight: 400, color: T.graphite }}>({items.length})</span>
+                    </span>
+                    {isOpen ? <ChevronUp size={14} color={T.graphite} /> : <ChevronDown size={14} color={T.graphite} />}
+                  </button>
+                  {isOpen && items.length > 0 && (
+                    <div style={{ padding: '0 14px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {items.map(std => (
+                        <div key={std.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                          <button
+                            onClick={() => handleToggleStdStatus(std)}
+                            style={{
+                              width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                              border: `1.5px solid ${std.status === 'completed' ? T.fieldGreen : T.pencil}`,
+                              background: std.status === 'completed' ? T.fieldGreen : 'transparent',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                            }}
+                          >
+                            {std.status === 'completed' && <Check size={10} color={T.chalk} strokeWidth={3} />}
+                          </button>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-mono)', color: std.status === 'completed' ? T.pencil : T.ink, textDecoration: std.status === 'completed' ? 'line-through' : 'none' }}>
+                              {std.standard_label}
+                            </span>
+                            <span style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', marginLeft: 6 }}>
+                              {std.standard_description}
+                            </span>
+                          </div>
+                          <span style={{
+                            fontSize: 9, padding: '1px 5px', borderRadius: 4, fontFamily: 'var(--font-mono)',
+                            background: T.parchment, color: T.graphite, flexShrink: 0,
+                          }}>{std.source}</span>
+                          <button onClick={() => handleRemoveStandard(std.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: T.pencil, flexShrink: 0 }}>
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Empty state with Initialize button */}
+            {standards.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <p style={{ color: T.pencil, fontSize: 13, fontFamily: 'var(--font-body)', fontStyle: 'italic', marginBottom: 12 }}>
+                  No standards assigned yet.
+                </p>
+                {student?.grade_band && (
+                  <button
+                    onClick={handleInitStandards}
+                    disabled={stdInitLoading}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '8px 16px', borderRadius: 8,
+                      border: `1px solid ${T.labBlue}`, background: `${T.labBlue}10`,
+                      color: T.labBlue, fontSize: 13, fontWeight: 600,
+                      fontFamily: 'var(--font-body)', cursor: stdInitLoading ? 'default' : 'pointer',
+                    }}
+                  >
+                    {stdInitLoading ? <Loader2 size={14} style={{ animation: 'sp-spin 1s linear infinite' }} /> : <Plus size={14} />}
+                    Initialize from School ({student.grade_band})
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+
           {/* ── AI Recommendations ──────────────────────────────────── */}
           <section style={styles.section}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -314,6 +585,114 @@ export default function StudentProfilePage() {
             ) : (
               <p style={{ color: T.pencil, fontSize: 13, fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
                 No recommendations yet. Click "Refresh" to generate skill and project pathway recommendations.
+              </p>
+            )}
+          </section>
+
+          {/* ── Project Ideas ──────────────────────────────────────── */}
+          <section style={styles.section}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ ...styles.sectionTitle, marginBottom: 0 }}>
+                <Lightbulb size={16} style={{ marginRight: 6, color: T.compassGold }} />
+                Project Ideas
+              </h2>
+              <button
+                onClick={handleGenerateIdeas}
+                disabled={ideasLoading}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 14px', borderRadius: 8,
+                  border: `1px solid ${T.compassGold}`, background: `${T.compassGold}15`,
+                  color: T.compassGold, fontSize: 12, fontWeight: 600,
+                  fontFamily: 'var(--font-body)', cursor: ideasLoading ? 'default' : 'pointer',
+                  opacity: ideasLoading ? 0.6 : 1,
+                }}
+              >
+                {ideasLoading ? <Loader2 size={12} style={{ animation: 'sp-spin 1s linear infinite' }} /> : <Sparkles size={12} />}
+                Generate Ideas
+              </button>
+            </div>
+
+            {projectIdeas.filter(i => i.status === 'suggested').length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {projectIdeas.filter(i => i.status === 'suggested').map(idea => {
+                  const rwp = idea.real_world_problem || {};
+                  return (
+                    <div key={idea.id} style={{ padding: 14, border: `1px solid ${T.parchment}`, borderRadius: 10, background: T.chalk }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)', marginBottom: 4 }}>
+                        {idea.title}
+                      </div>
+                      <p style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)', lineHeight: 1.5, margin: '0 0 8px' }}>
+                        {idea.description}
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                        {idea.estimated_duration_days && (
+                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: T.parchment, color: T.graphite, fontFamily: 'var(--font-mono)' }}>
+                            {idea.estimated_duration_days} days
+                          </span>
+                        )}
+                        {idea.difficulty && (
+                          <span style={{
+                            fontSize: 10, padding: '2px 8px', borderRadius: 4, fontFamily: 'var(--font-mono)',
+                            background: idea.difficulty === 'introductory' ? '#D1FAE5' : idea.difficulty === 'advanced' ? '#E0E7FF' : '#FEF3C7',
+                            color: idea.difficulty === 'introductory' ? '#065F46' : idea.difficulty === 'advanced' ? '#3730A3' : '#92400E',
+                          }}>
+                            {idea.difficulty}
+                          </span>
+                        )}
+                        {idea.career_connection && (
+                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: `${T.labBlue}15`, color: T.labBlue, fontFamily: 'var(--font-mono)' }}>
+                            {idea.career_connection}
+                          </span>
+                        )}
+                        {(idea.standards_addressed || []).slice(0, 3).map(std => (
+                          <span key={std} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: T.parchment, color: T.graphite, fontFamily: 'var(--font-mono)' }}>
+                            {std}
+                          </span>
+                        ))}
+                      </div>
+                      {rwp.description && (
+                        <div style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', padding: '6px 10px', borderRadius: 6, background: `${T.fieldGreen}08`, marginBottom: 8 }}>
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, marginRight: 6,
+                            background: rwp.source_type === 'real' ? '#D1FAE5' : '#FEF3C7',
+                            color: rwp.source_type === 'real' ? '#065F46' : '#92400E',
+                          }}>
+                            {rwp.source_type === 'real' ? 'Real' : 'Inspired'}
+                          </span>
+                          {rwp.stakeholder && <strong>{rwp.stakeholder}: </strong>}
+                          {rwp.description}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => navigate(`/quest/new?from=suggestion&id=${idea.id}`)}
+                          style={{
+                            padding: '6px 14px', borderRadius: 6,
+                            background: T.ink, color: T.chalk, border: 'none',
+                            fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer',
+                          }}
+                        >
+                          Use This
+                        </button>
+                        <button
+                          onClick={() => handleDismissIdea(idea.id)}
+                          style={{
+                            padding: '6px 14px', borderRadius: 6,
+                            background: 'transparent', color: T.graphite, border: `1px solid ${T.pencil}`,
+                            fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-body)', cursor: 'pointer',
+                          }}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ color: T.pencil, fontSize: 13, fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
+                AI can suggest projects based on {student?.name?.split(' ')[0] || 'this student'}'s interests and standards.
               </p>
             )}
           </section>

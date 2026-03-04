@@ -364,7 +364,7 @@ async function callAI(params) {
 }
 
 export const ai = {
-  generateQuest: async ({ students, standards, pathway, type, count }) => {
+  generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles }) => {
     // Build rich student profiles for the prompt
     const studentProfiles = (students || []).map(s => {
       const parts = [`- ${s.name} (age ${s.age || '10'}, ${s.grade_band || 'unknown grade'})`];
@@ -382,6 +382,17 @@ export const ai = {
 
     const allInterests = [...new Set((students || []).flatMap(s => [...(s.interests || []), ...(s.passions || [])]))];
 
+    // Build per-student standards profile text if available
+    let standardsProfileText = '';
+    if (studentStandardsProfiles?.length) {
+      standardsProfileText = '\n\nPer-student standards profiles (prioritize "core" over "recommended" over "supplementary"):\n' +
+        studentStandardsProfiles.map(sp =>
+          `${sp.studentName}:\n` + sp.standards.map(s =>
+            `  [${s.priority}] ${s.standard_label}: ${s.standard_description}`
+          ).join('\n')
+        ).join('\n');
+    }
+
     const systemPrompt = `You are Wayfinder's curriculum engine. You design project-based learning quests for students in learner-driven schools.
 
 You MUST respond with ONLY valid JSON matching this exact structure. No other text.
@@ -390,7 +401,7 @@ Given:
 - Student profiles:
 ${studentProfiles || 'No detailed profiles available'}
 - Combined interests: ${allInterests.join(', ') || 'general'}
-- Academic standards: ${standards}
+- Academic standards: ${standards}${standardsProfileText}
 - Career pathway: ${pathway || 'none'}
 - Quest type: ${type}
 - Student count: ${count || (students || []).length || 1}
@@ -617,6 +628,224 @@ Rules:
 - Self-assessment: ${JSON.stringify(selfAssessment || {})}
 
 Generate skill recommendations and quest pathway ideas.`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+
+  recommendStandards: async ({ student, currentStandards, availableStandards }) => {
+    const currentList = (currentStandards || []).map(s =>
+      `- ${s.standard_code}: ${s.standard_description} (${s.priority})`
+    ).join('\n') || 'None assigned yet';
+
+    const availableList = (availableStandards || []).slice(0, 60).map(s =>
+      `- ${s.id}: [${s.label}] ${s.description} (${s.subject}, ${s.gradeBand})`
+    ).join('\n');
+
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's standards recommendation engine. Given a student profile and available academic standards, recommend standards that align with the student's interests, passions, and learning needs.
+
+You MUST respond with ONLY valid JSON matching this structure:
+{
+  "recommendations": [
+    {
+      "standard_code": "exact_id_from_available_list",
+      "priority": "core|recommended|supplementary",
+      "reasoning": "1 sentence why this standard fits this student"
+    }
+  ]
+}
+
+Rules:
+- Recommend 5-10 standards
+- Weight toward student passions and interests
+- Do NOT recommend standards already assigned to the student
+- Use only standard_codes from the available list
+- "core" = essential for grade level, "recommended" = aligned with interests, "supplementary" = stretch/enrichment
+- Explain WHY each fits this specific student`,
+      userMessage: `Student profile:
+- Name: ${student.name}
+- Age: ${student.age || 'unknown'}
+- Grade band: ${student.grade_band || 'unknown'}
+- Interests: ${(student.interests || []).join(', ') || 'none listed'}
+- Passions: ${(student.passions || []).join(', ') || 'none listed'}
+- About: ${student.about_me || 'no description'}
+
+Currently assigned standards:
+${currentList}
+
+Available standards to recommend from:
+${availableList}
+
+Suggest standards for this student.`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+
+  suggestPathways: async ({ students, questHistory, interests, standards }) => {
+    const studentSummaries = (students || []).map(s => {
+      const parts = [`- ${s.name} (age ${s.age || '?'}, ${s.grade_band || 'unknown grade'})`];
+      if (s.interests?.length) parts.push(`  Interests: ${s.interests.join(', ')}`);
+      if (s.passions?.length) parts.push(`  Passions: ${s.passions.join(', ')}`);
+      if (s.about_me) parts.push(`  About: ${s.about_me}`);
+      return parts.join('\n');
+    }).join('\n');
+
+    const historyText = (questHistory || []).map(q =>
+      `- "${q.title}" (pathway: ${q.career_pathway || 'none'}, status: ${q.status})`
+    ).join('\n') || 'No past projects';
+
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's career pathway recommendation engine. Given student profiles, their project history, and academic context, suggest career pathways that feel like discovery — not a forced selection.
+
+You MUST respond with ONLY valid JSON matching this structure:
+{
+  "suggestions": [
+    {
+      "pathway_id": "exact_id_from_catalog",
+      "reasoning": "1-2 sentences about why this pathway fits",
+      "connection_to_interests": "specific interest/passion this connects to"
+    }
+  ]
+}
+
+Available pathway IDs: material_science, biology, chemistry, physics, neuroscience, genetics, marine_biology, environmental_science, space_science, software_engineering, ai_ml, cybersecurity, game_design, robotics, data_science, ux_design, hardware, healthcare, biomedical_engineering, sports_medicine, mental_health, veterinary, public_health, aerospace, civil_engineering, mechanical_engineering, electrical_engineering, urban_design, chemical_engineering, renewable_energy_tech, entrepreneurship, finance, marketing, economics, supply_chain, graphic_design, filmmaking, music_production, journalism, animation, architecture, fashion, agriculture, renewable_energy, conservation, food_science, oceanography, education, law, social_work, archaeology, political_science
+
+Rules:
+- Suggest 3-5 pathways ranked by relevance
+- For groups, find pathways that intersect multiple members' interests
+- If past projects show a pattern, suggest both continuations AND new explorations
+- connection_to_interests must reference specific student interests or passions
+- Only use pathway_ids from the catalog above`,
+      userMessage: `Student profiles:
+${studentSummaries}
+
+Combined interests: ${(interests || []).join(', ') || 'none listed'}
+
+Project history:
+${historyText}
+
+Selected standards context: ${standards || 'none selected'}
+
+Suggest career pathways.`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+
+  suggestProjects: async ({ student, standards, questHistory, timeConstraints }) => {
+    const profileText = [
+      `- Name: ${student.name}`,
+      `- Age: ${student.age || 'unknown'}`,
+      `- Grade: ${student.grade_band || 'unknown'}`,
+      student.interests?.length ? `- Interests: ${student.interests.join(', ')}` : '',
+      student.passions?.length ? `- Passions: ${student.passions.join(', ')}` : '',
+      student.about_me ? `- About: ${student.about_me}` : '',
+    ].filter(Boolean).join('\n');
+
+    const standardsText = (standards || []).map(s =>
+      `- [${s.priority}] ${s.standard_label}: ${s.standard_description}`
+    ).join('\n') || 'No standards assigned';
+
+    const historyText = (questHistory || []).map(q =>
+      `- "${q.title}" (pathway: ${q.career_pathway || 'none'}, status: ${q.status})`
+    ).join('\n') || 'No past projects';
+
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's project idea generator. Given a student profile, their standards, and project history, suggest creative project ideas that connect their interests to academics.
+
+You MUST respond with ONLY valid JSON matching this structure:
+{
+  "suggestions": [
+    {
+      "title": "compelling project title",
+      "description": "2-3 sentences describing the project and what the student would do",
+      "standards_addressed": ["standard_code1", "standard_code2"],
+      "career_connection": "career field this connects to",
+      "real_world_problem": {
+        "description": "the real-world problem or challenge this addresses",
+        "stakeholder": "who cares about this problem (organization, community, etc)",
+        "source_type": "real or inspired"
+      },
+      "estimated_duration_days": 10,
+      "difficulty": "introductory|intermediate|advanced"
+    }
+  ]
+}
+
+Rules:
+- Generate 5-7 ideas
+- Each connects to 2+ student standards (prioritize core)
+- At least 2 reference real organizations or current events (source_type: "real")
+- Tag source_type "real" only if stakeholder/problem is verifiable, else "inspired"
+- Don't repeat themes from past projects
+- Mix of difficulties (at least 1 introductory, 1 advanced)
+- Connect to student interests naturally, not forced
+- Each project should be completable by a student, not just theoretical`,
+      userMessage: `Student profile:
+${profileText}
+
+Standards:
+${standardsText}
+
+Project history:
+${historyText}
+
+${timeConstraints ? `Time constraint: ${timeConstraints}` : ''}
+
+Suggest project ideas.`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+
+  generatePlaybook: async ({ questTitle, stages, totalDays, studentProfile }) => {
+    const stagesText = (stages || []).map((s, i) =>
+      `Stage ${i + 1}: "${s.stage_title}" (${s.stage_type}, ${s.duration} days) — ${s.description?.slice(0, 100)}...`
+    ).join('\n');
+
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's guide facilitation planner. Given a project's stages, create a day-by-day playbook for the GUIDE (teacher/facilitator), not the student.
+
+You MUST respond with ONLY valid JSON matching this structure:
+{
+  "days": [
+    {
+      "day_number": 1,
+      "title": "Day title",
+      "prep_tasks": ["what to prepare before class"],
+      "materials": ["materials needed"],
+      "facilitation_notes": "2-3 sentences on how to facilitate this day",
+      "time_blocks": [
+        { "label": "Opening Circle", "duration_min": 10, "notes": "brief notes" },
+        { "label": "Work Time", "duration_min": 60, "notes": "what to monitor" }
+      ]
+    }
+  ]
+}
+
+Rules:
+- One entry per day (total: ${totalDays || 10} days)
+- Map stages to days based on duration
+- Include opening/closing rituals
+- Time blocks ~60-90 min structured time per day
+- Focus on what the GUIDE does, not what students do
+- Include specific prompts, questions, and check-in strategies
+- Prep tasks should be actionable and specific`,
+      userMessage: `Project: "${questTitle}"
+
+Stages:
+${stagesText}
+
+Total days: ${totalDays || 10}
+${studentProfile ? `Student context: ${studentProfile.name}, ${studentProfile.grade_band}, interests: ${(studentProfile.interests || []).join(', ')}` : ''}
+
+Generate the day-by-day guide playbook.`,
     });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in AI response');
@@ -893,5 +1122,140 @@ export const recommendations = {
       .from('ai_recommendations')
       .update({ status })
       .eq('id', id);
+  },
+};
+
+// ===================== STUDENT STANDARDS =====================
+export const studentStandards = {
+  list: async (studentId) => {
+    return supabase
+      .from('student_standards')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('priority')
+      .order('subject')
+      .order('standard_label');
+  },
+
+  bulkUpsert: async (studentId, standards) => {
+    const rows = standards.map(s => ({
+      student_id: studentId,
+      standard_code: s.standard_code,
+      standard_label: s.standard_label,
+      standard_description: s.standard_description,
+      subject: s.subject || null,
+      grade_band: s.grade_band || null,
+      source: s.source || 'guide',
+      priority: s.priority || 'core',
+      status: s.status || 'active',
+      notes: s.notes || '',
+      updated_at: new Date().toISOString(),
+    }));
+    return supabase
+      .from('student_standards')
+      .upsert(rows, { onConflict: 'student_id,standard_code' })
+      .select();
+  },
+
+  updateStatus: async (id, status) => {
+    return supabase
+      .from('student_standards')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+  },
+
+  updatePriority: async (id, priority) => {
+    return supabase
+      .from('student_standards')
+      .update({ priority, updated_at: new Date().toISOString() })
+      .eq('id', id);
+  },
+
+  delete: async (id) => {
+    return supabase.from('student_standards').delete().eq('id', id);
+  },
+
+  initFromSchool: async (studentId, gradeBand, availableStandards) => {
+    // availableStandards: array of { id, label, description, subject, gradeBand }
+    const rows = availableStandards.map(s => ({
+      student_id: studentId,
+      standard_code: s.id,
+      standard_label: s.label,
+      standard_description: s.description,
+      subject: s.subject || null,
+      grade_band: s.gradeBand || gradeBand || null,
+      source: 'school',
+      priority: 'core',
+      status: 'active',
+    }));
+    return supabase
+      .from('student_standards')
+      .upsert(rows, { onConflict: 'student_id,standard_code' })
+      .select();
+  },
+};
+
+// ===================== PROJECT SUGGESTIONS =====================
+export const projectSuggestions = {
+  list: async (studentId, status) => {
+    let query = supabase
+      .from('project_suggestions')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+    return query;
+  },
+
+  listForGuide: async (guideId) => {
+    return supabase
+      .from('project_suggestions')
+      .select('*, students(id, name, avatar_emoji, interests)')
+      .eq('guide_id', guideId)
+      .eq('status', 'suggested')
+      .order('created_at', { ascending: false });
+  },
+
+  updateStatus: async (id, status, convertedQuestId) => {
+    const updates = { status };
+    if (convertedQuestId) updates.converted_quest_id = convertedQuestId;
+    return supabase
+      .from('project_suggestions')
+      .update(updates)
+      .eq('id', id);
+  },
+
+  create: async (suggestions) => {
+    return supabase
+      .from('project_suggestions')
+      .insert(suggestions)
+      .select();
+  },
+};
+
+// ===================== GUIDE PLAYBOOK =====================
+export const guidePlaybook = {
+  list: async (questId) => {
+    return supabase
+      .from('guide_playbook')
+      .select('*')
+      .eq('quest_id', questId)
+      .order('day_number');
+  },
+
+  bulkUpsert: async (questId, days) => {
+    const rows = days.map(d => ({
+      quest_id: questId,
+      day_number: d.day_number,
+      title: d.title,
+      prep_tasks: d.prep_tasks || [],
+      materials: d.materials || [],
+      facilitation_notes: d.facilitation_notes || '',
+      time_blocks: d.time_blocks || [],
+    }));
+    return supabase
+      .from('guide_playbook')
+      .upsert(rows, { onConflict: 'quest_id,day_number' })
+      .select();
   },
 };

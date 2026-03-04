@@ -16,9 +16,12 @@ import {
   Archive,
   Trash2,
   Copy,
+  Lightbulb,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { projectSuggestions as suggestionsApi } from '../lib/api';
 import TopBar from '../components/layout/TopBar';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1555,6 +1558,8 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [projectIdeas, setProjectIdeas] = useState([]);
+  const [ideasLoading, setIdeasLoading] = useState(true);
 
   const handleArchive = async (questId) => {
     await supabase.from('quests').update({ status: 'archived' }).eq('id', questId);
@@ -1593,6 +1598,22 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
 
     fetchQuests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Fetch project ideas
+  useEffect(() => {
+    if (!user?.id) return;
+    async function fetchIdeas() {
+      setIdeasLoading(true);
+      try {
+        const { data } = await suggestionsApi.listForGuide(user.id);
+        setProjectIdeas(data || []);
+      } catch {
+        // Silently fail — not critical
+      }
+      setIdeasLoading(false);
+    }
+    fetchIdeas();
   }, [user?.id]);
 
   return (
@@ -1649,6 +1670,87 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
       {!loading && !error && activeQuests.map((q) => (
         <QuestCard key={q.id} quest={q} onArchive={handleArchive} onDelete={handleDelete} />
       ))}
+
+      {/* Project Ideas section */}
+      {!ideasLoading && projectIdeas.length > 0 && (
+        <div style={{ marginTop: 'var(--space-8)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+            <Lightbulb size={15} color="var(--compass-gold)" />
+            <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--ink)' }}>
+              Project Ideas
+            </h2>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--compass-gold)', background: 'rgba(184,134,11,0.08)', border: '1px solid rgba(184,134,11,0.2)', borderRadius: 100, padding: '2px 8px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+              {projectIdeas.length}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {projectIdeas.slice(0, 3).map((idea) => (
+              <div
+                key={idea.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  background: 'var(--chalk)',
+                  border: '1px solid var(--pencil)',
+                  borderLeft: '3px solid var(--compass-gold)',
+                  borderRadius: 10,
+                  padding: '12px 16px',
+                }}
+              >
+                {/* Student avatar */}
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: 'var(--parchment)', border: '1px solid var(--pencil)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+                  color: 'var(--graphite)', flexShrink: 0,
+                }}>
+                  {idea.students?.name ? getInitials(idea.students.name) : '?'}
+                </div>
+                {/* Title + student name */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {idea.title}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--graphite)' }}>
+                      {idea.students?.name || 'Student'}
+                    </span>
+                    {idea.career_connection && (
+                      <span style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--compass-gold)',
+                        background: 'rgba(184,134,11,0.08)', border: '1px solid rgba(184,134,11,0.2)',
+                        borderRadius: 100, padding: '1px 6px', fontWeight: 600,
+                      }}>
+                        {idea.career_connection}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Use button */}
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => navigate(`/quest/new?from=suggestion&id=${idea.id}`)}
+                  style={{ fontSize: 12, padding: '6px 12px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  Use <ArrowRight size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+          {projectIdeas.length > 3 && (
+            <div style={{ textAlign: 'center', marginTop: 10 }}>
+              <Link
+                to="/students"
+                style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--compass-gold)', fontWeight: 600, textDecoration: 'none' }}
+              >
+                See all {projectIdeas.length} ideas →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Completed quests section */}
       {!loading && !error && completedQuests.length > 0 && (
