@@ -38,8 +38,8 @@ BEGIN
   END IF;
 
   -- Create new parent_access row
-  INSERT INTO public.parent_access (student_id)
-  VALUES (v_student.id)
+  INSERT INTO public.parent_access (student_id, parent_email)
+  VALUES (v_student.id, '')
   RETURNING * INTO v_pa;
 
   RETURN jsonb_build_object(
