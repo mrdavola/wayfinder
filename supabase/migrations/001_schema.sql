@@ -70,7 +70,7 @@ create table public.quests (
   title text not null,
   subtitle text,
   narrative_hook text,
-  career_pathway text check (career_pathway in ('material_science', 'biology', 'healthcare')),
+  career_pathway text,
   quest_type text default 'individual' check (quest_type in ('individual', 'group')),
   status text default 'draft' check (status in ('draft', 'active', 'completed', 'archived')),
   total_duration_days integer default 10,

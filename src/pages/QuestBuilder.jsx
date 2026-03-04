@@ -2302,10 +2302,21 @@ export default function QuestBuilder() {
     setStudentsLoading(true);
     supabase
       .from('students')
-      .select('*')
+      .select('*, parent_access(parent_name, expectations, child_loves, core_skill_priorities)')
       .eq('guide_id', user.id)
       .then(({ data, error }) => {
-        if (!error && data) setStudents(data);
+        if (!error && data) {
+          // Flatten parent data onto student for AI prompt
+          const enriched = data.map(s => {
+            const pa = Array.isArray(s.parent_access) ? s.parent_access[0] : s.parent_access;
+            return {
+              ...s,
+              parent_expectations: pa?.expectations || null,
+              parent_child_loves: pa?.child_loves || null,
+            };
+          });
+          setStudents(enriched);
+        }
         setStudentsLoading(false);
       });
   }, [user]);
@@ -2360,8 +2371,7 @@ export default function QuestBuilder() {
         : customTopic.trim() || 'general inquiry skills';
 
       const questData = await ai.generateQuest({
-        interests: selectedInterests.join(', '),
-        ageGrade: selectedStudents.map((s) => `${s.name} age ${s.age || '10'}`).join(', '),
+        students: selectedStudents,
         standards: standardsStr,
         pathway: pathwayLabels.length > 0 ? pathwayLabels.join(', ') : 'none',
         type: questType,
@@ -2452,6 +2462,7 @@ export default function QuestBuilder() {
             deliverable: s.deliverable || null,
             guiding_questions: Array.isArray(s.guiding_questions) ? s.guiding_questions : [],
             resources: Array.isArray(s.resources_needed) ? s.resources_needed : [],
+            stretch_challenge: s.stretch_challenge || null,
             status: i === 0 ? 'active' : 'locked',
           }))
         );

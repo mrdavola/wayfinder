@@ -67,7 +67,7 @@ export const GUIDES = [
 export const SCHOOLS = [
   {
     id: 'school1',
-    name: 'Acton Academy Austin',
+    name: 'Compass Learning Community',
     location: 'Austin, TX',
     standards_framework: 'common_core',
     guide_ids: ['g1'],

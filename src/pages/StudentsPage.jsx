@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { invites as invitesApi } from '../lib/api';
@@ -51,11 +51,15 @@ function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete
   );
 }
 
-function ViewRow({ student, activeQuestCount, onEdit, onDelete }) {
+function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent }) {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pinVisible, setPinVisible] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showParentShare, setShowParentShare] = useState(false);
+  const [parentEmail, setParentEmail] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [parentLink, setParentLink] = useState(null);
   const interests = Array.isArray(student.interests) ? student.interests : [];
   const visibleInterests = interests.slice(0, 4);
   const extraCount = interests.length - 4;
@@ -184,6 +188,16 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete }) {
           <div style={styles.actionBtns}>
             <button
               style={styles.rowIconBtn}
+              aria-label={`Share with parent`}
+              title="Share with parent"
+              onClick={() => setShowParentShare(s => !s)}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--field-green)'; e.currentTarget.style.background = 'rgba(45,106,79,0.07)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--graphite)'; e.currentTarget.style.background = 'transparent'; }}
+            >
+              <Share2 size={16} />
+            </button>
+            <button
+              style={styles.rowIconBtn}
               aria-label={`Edit ${student.name}`}
               title="Edit student"
               onClick={() => onEdit(student.id)}
@@ -205,6 +219,59 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete }) {
           </div>
         )}
       </div>
+
+      {/* Parent share inline */}
+      {showParentShare && (
+        <div style={{
+          gridColumn: '1 / -1', background: 'rgba(45,106,79,0.04)',
+          border: '1px solid rgba(45,106,79,0.15)', borderRadius: 8,
+          padding: '10px 14px', marginTop: 8,
+        }}>
+          {parentLink ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: 'var(--field-green)', fontWeight: 600 }}>Parent link created!</span>
+              <code style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--ink)', background: 'var(--parchment)', padding: '2px 8px', borderRadius: 4, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {parentLink}
+              </code>
+              <button
+                onClick={() => { navigator.clipboard.writeText(parentLink); }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--field-green)', background: 'transparent', color: 'var(--field-green)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+              >
+                <Copy size={11} /> Copy
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="email" value={parentEmail}
+                onChange={e => setParentEmail(e.target.value)}
+                placeholder="Parent email (optional)"
+                className="input"
+                style={{ flex: 1, fontSize: 12, padding: '6px 10px' }}
+              />
+              <button
+                onClick={async () => {
+                  setSharing(true);
+                  const { data, error } = await supabase
+                    .from('parent_access')
+                    .insert({ student_id: student.id, parent_email: parentEmail || null })
+                    .select()
+                    .single();
+                  if (data) {
+                    setParentLink(`${window.location.origin}/parent/${data.token}`);
+                  }
+                  setSharing(false);
+                }}
+                disabled={sharing}
+                className="btn btn-primary"
+                style={{ fontSize: 11, padding: '6px 14px', whiteSpace: 'nowrap' }}
+              >
+                {sharing ? 'Creating...' : 'Create Parent Link'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

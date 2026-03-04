@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { skills as skillsApi, ai, recommendations as recsApi } from '../lib/api';
+import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi } from '../lib/api';
 import TopBar from '../components/layout/TopBar';
 
 const T = {
@@ -36,6 +36,8 @@ export default function StudentProfilePage() {
   const [pinVisible, setPinVisible] = useState(false);
   const [pinCopied, setPinCopied] = useState(false);
   const [masteryOpen, setMasteryOpen] = useState(false);
+  const [snapshots, setSnapshots] = useState([]);
+  const [parentInfo, setParentInfo] = useState(null);
 
   useEffect(() => {
     if (id && user) loadAll();
@@ -75,6 +77,18 @@ export default function StudentProfilePage() {
     // Load recommendations
     const { data: r } = await recsApi.list(id);
     if (r) setRecs(r);
+
+    // Load skill snapshots
+    const { data: snaps } = await snapshotsApi.listForStudent(id);
+    if (snaps) setSnapshots(snaps);
+
+    // Load parent info
+    const { data: parentData } = await supabase
+      .from('parent_access')
+      .select('parent_name, relationship, expectations, child_loves, core_skill_priorities, onboarded_at')
+      .eq('student_id', id)
+      .maybeSingle();
+    if (parentData) setParentInfo(parentData);
 
     setLoading(false);
   }
@@ -376,7 +390,54 @@ export default function StudentProfilePage() {
             </section>
           )}
 
-          {/* ── Mastery Dashboard Placeholder ──────────────────────── */}
+          {/* ── Parent Info ──────────────────────────────────────────── */}
+          {parentInfo?.onboarded_at && (
+            <section style={styles.section}>
+              <h2 style={styles.sectionTitle}>Parent Input</h2>
+              <div style={{ background: T.paper, borderRadius: 10, padding: '14px 16px', border: `1px solid ${T.parchment}` }}>
+                {parentInfo.parent_name && (
+                  <div style={{ fontSize: 13, color: T.ink, fontFamily: 'var(--font-body)', marginBottom: 8 }}>
+                    <strong>{parentInfo.parent_name}</strong>
+                    {parentInfo.relationship && <span style={{ color: T.graphite }}> ({parentInfo.relationship})</span>}
+                  </div>
+                )}
+                {parentInfo.child_loves && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: T.compassGold, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>
+                      What their child loves
+                    </div>
+                    <p style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, margin: 0 }}>{parentInfo.child_loves}</p>
+                  </div>
+                )}
+                {parentInfo.expectations && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: T.labBlue, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>
+                      Learning expectations
+                    </div>
+                    <p style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, margin: 0 }}>{parentInfo.expectations}</p>
+                  </div>
+                )}
+                {parentInfo.core_skill_priorities?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: T.fieldGreen, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+                      Priority skills
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {parentInfo.core_skill_priorities.map(s => (
+                        <span key={s} style={{
+                          padding: '3px 10px', borderRadius: 20,
+                          background: 'rgba(45,106,79,0.08)', color: T.fieldGreen,
+                          fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-body)',
+                        }}>{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* ── Mastery Dashboard ──────────────────────────────────── */}
           <section style={{ ...styles.section, borderBottom: 'none' }}>
             <button
               onClick={() => setMasteryOpen(o => !o)}
@@ -389,12 +450,50 @@ export default function StudentProfilePage() {
               {masteryOpen ? <ChevronUp size={16} color={T.graphite} /> : <ChevronDown size={16} color={T.graphite} />}
             </button>
             {masteryOpen && (
-              <div style={{ marginTop: 16, padding: '24px 20px', background: T.parchment, borderRadius: 10, textAlign: 'center' }}>
-                <Clock size={28} color={T.pencil} style={{ marginBottom: 8 }} />
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: T.ink, marginBottom: 4 }}>Coming Soon</p>
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.graphite }}>
-                  Track how skills evolve across quests and over time.
-                </p>
+              <div style={{ marginTop: 16 }}>
+                {snapshots.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {snapshots.map((snap, i) => {
+                      const prof = PROFICIENCY_COLORS[snap.proficiency] || PROFICIENCY_COLORS.none;
+                      const skillName = snap.skills?.name || snap.skill_name || 'Skill';
+                      return (
+                        <div key={snap.id || i} style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '8px 12px', background: T.chalk,
+                          border: `1px solid ${T.parchment}`, borderRadius: 8,
+                        }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: prof.text, flexShrink: 0 }} />
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, fontFamily: 'var(--font-body)' }}>
+                              {skillName}
+                            </span>
+                            <span style={{ fontSize: 11, color: prof.text, fontWeight: 500, marginLeft: 6 }}>
+                              {prof.label}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 10, color: T.pencil, fontFamily: 'var(--font-mono)' }}>
+                            {new Date(snap.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                          <div style={{
+                            fontSize: 9, padding: '1px 6px', borderRadius: 4,
+                            background: snap.source === 'ai' ? 'rgba(27,73,101,0.08)' : T.parchment,
+                            color: snap.source === 'ai' ? T.labBlue : T.graphite,
+                            fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                          }}>
+                            {snap.source || 'manual'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px 20px', background: T.parchment, borderRadius: 10, textAlign: 'center' }}>
+                    <Clock size={28} color={T.pencil} style={{ marginBottom: 8 }} />
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.graphite }}>
+                      No skill updates recorded yet. Growth data will appear as students complete quests and receive AI feedback.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </section>

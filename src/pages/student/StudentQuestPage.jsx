@@ -7,7 +7,7 @@ import {
   Paperclip, Video, Download,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { ai } from '../../lib/api';
+import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi } from '../../lib/api';
 import { getStudentSession, setStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
@@ -495,7 +495,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
       });
       if (result?.error) throw new Error(result.error);
 
-      onSubmitComplete(stageId);
+      onSubmitComplete(stageId, type === 'text' ? textContent : `[${type} submission: ${fileName || 'recording'}]`);
     } catch (err) {
       setError(err.message || 'Submission failed. Please try again.');
       setUploading(false);
@@ -753,8 +753,142 @@ function SubmissionView({ submission }) {
   );
 }
 
+// ===================== FEEDBACK CARD =====================
+function FeedbackCard({ feedback }) {
+  if (!feedback) return null;
+  return (
+    <div className="sq-card" style={{
+      background: 'rgba(45,106,79,0.04)', border: '1px solid rgba(45,106,79,0.2)',
+      borderRadius: 10, padding: '14px 16px', marginTop: 12,
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Star size={11} fill="var(--field-green)" color="var(--field-green)" /> Field Guide Feedback
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px' }}>
+        {feedback.feedback_text || feedback.feedback}
+      </p>
+      {(feedback.skills_demonstrated?.length > 0) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+          {feedback.skills_demonstrated.map((s, i) => (
+            <span key={i} style={{
+              display: 'inline-block', padding: '2px 10px', borderRadius: 100,
+              background: 'rgba(45,106,79,0.1)', color: 'var(--field-green)',
+              fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+            }}>{s}</span>
+          ))}
+        </div>
+      )}
+      {feedback.encouragement && (
+        <p style={{ fontSize: 11, color: 'var(--field-green)', fontWeight: 600, margin: '0 0 6px', lineHeight: 1.5 }}>
+          {feedback.encouragement}
+        </p>
+      )}
+      {(feedback.next_steps) && (
+        <div style={{ background: 'rgba(184,134,11,0.06)', borderRadius: 6, padding: '8px 10px', borderLeft: '2px solid var(--compass-gold)' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>What to explore next</div>
+          <p style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}>{feedback.next_steps}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== STRETCH CHALLENGE =====================
+function StretchChallenge({ text }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{
+      background: 'rgba(27,73,101,0.04)', border: '1px solid rgba(27,73,101,0.15)',
+      borderRadius: 8, padding: '10px 14px', marginBottom: 14,
+    }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          color: 'var(--lab-blue)', fontSize: 12, fontWeight: 600,
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        <Zap size={12} />
+        Ready for more?
+        <span style={{ marginLeft: 'auto', fontSize: 10 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, margin: '8px 0 0', paddingTop: 8, borderTop: '1px solid rgba(27,73,101,0.1)' }}>
+          {text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ===================== CHALLENGER CARD =====================
+function ChallengerCard({ challenge, questId, stageId, studentName, studentId, onRespond }) {
+  const [response, setResponse] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = () => {
+    if (!response.trim()) return;
+    // Persist challenger response
+    guideMessagesApi.add({
+      questId, stageId, studentId, studentName,
+      role: 'user', content: response.trim(),
+      messageType: 'devil_advocate',
+    });
+    setSubmitted(true);
+    if (onRespond) onRespond();
+  };
+
+  if (submitted) return null;
+
+  return (
+    <div className="sq-pop" style={{
+      background: 'rgba(192,57,43,0.04)', border: '1px solid rgba(192,57,43,0.25)',
+      borderRadius: 10, padding: '14px 16px', marginTop: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <Zap size={13} color="var(--specimen-red)" fill="var(--specimen-red)" />
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--specimen-red)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          The Challenger
+        </span>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px', fontStyle: 'italic' }}>
+        {challenge}
+      </p>
+      <textarea
+        value={response}
+        onChange={(e) => setResponse(e.target.value)}
+        placeholder="Defend your thinking..."
+        rows={2}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          padding: '8px 10px', borderRadius: 6,
+          border: '1px solid rgba(192,57,43,0.2)', background: 'var(--chalk)',
+          fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+          resize: 'vertical', lineHeight: 1.5, marginBottom: 8,
+        }}
+      />
+      <button
+        onClick={handleSubmit}
+        disabled={!response.trim()}
+        style={{
+          padding: '6px 14px', borderRadius: 6, border: 'none',
+          background: !response.trim() ? 'var(--pencil)' : 'var(--specimen-red)',
+          color: !response.trim() ? 'var(--graphite)' : 'var(--chalk)',
+          fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)',
+          cursor: !response.trim() ? 'not-allowed' : 'pointer',
+          display: 'flex', alignItems: 'center', gap: 5,
+        }}
+      >
+        <Zap size={11} /> Respond to Challenge
+      </button>
+    </div>
+  );
+}
+
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
 
@@ -762,11 +896,35 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   const [guideMessages, setGuideMessages] = useState([]);
   const [guideInput, setGuideInput] = useState('');
   const [guideSending, setGuideSending] = useState(false);
+  const [guideLoaded, setGuideLoaded] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [challengerText, setChallengerText] = useState(null);
   const guideBottomRef = useRef(null);
 
   useEffect(() => {
     guideBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [guideMessages]);
+
+  // Load persisted messages on mount
+  useEffect(() => {
+    if (!questId || !stage.id || !studentName || guideLoaded) return;
+    guideMessagesApi.list(questId, stage.id, studentName).then(({ data }) => {
+      if (data?.length) {
+        setGuideMessages(data.filter(m => m.message_type === 'field_guide').map(m => ({ role: m.role, content: m.content })));
+      }
+      setGuideLoaded(true);
+    });
+  }, [questId, stage.id, studentName, guideLoaded]);
+
+  // Load existing feedback for completed stages
+  useEffect(() => {
+    if (!isDone || !questId || !studentName) return;
+    feedbackApi.listForQuest(questId, studentName).then(({ data }) => {
+      const match = (data || []).find(f => f.stage_id === stage.id);
+      if (match) setFeedback(match);
+    });
+  }, [isDone, questId, studentName, stage.id]);
 
   const handleSendToGuide = async () => {
     const trimmed = guideInput.trim();
@@ -775,12 +933,29 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
     setGuideSending(true);
     const updated = [...guideMessages, { role: 'user', content: trimmed }];
     setGuideMessages(updated);
-    const systemPrompt = `You are a Field Guide helping a student explore the learning stage: "${stage.title}". Use Socratic questioning — never give direct answers. Ask 1-2 follow-up questions to help the student think deeper. Keep replies under 3 sentences. Context: ${stage.description || ''}`;
+    // Persist user message
+    const studentId = studentProfile?.id || null;
+    guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'user', content: trimmed });
     try {
-      const reply = await ai.chat(updated, systemPrompt);
+      const reply = await ai.questHelp({
+        stageTitle: stage.title,
+        stageDescription: stage.description || '',
+        guidingQuestions: stage.guiding_questions || [],
+        deliverable: stage.deliverable || '',
+        studentProfile: {
+          ...(studentProfile || {}),
+          name: studentName,
+          groupRole: groupRole || null,
+        },
+        messages: updated,
+      });
       setGuideMessages([...updated, { role: 'assistant', content: reply }]);
+      // Persist assistant message
+      guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'assistant', content: reply });
     } catch {
-      setGuideMessages([...updated, { role: 'assistant', content: "That's a great observation! What evidence from the stage supports that? What might challenge your thinking?" }]);
+      const fallback = "That's a great observation! What evidence from the stage supports that? What might challenge your thinking?";
+      setGuideMessages([...updated, { role: 'assistant', content: fallback }]);
+      guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'assistant', content: fallback });
     }
     setGuideSending(false);
   };
@@ -952,19 +1127,122 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
+      {/* Stretch challenge */}
+      {stage.stretch_challenge && isActive && (
+        <StretchChallenge text={stage.stretch_challenge} />
+      )}
+
       {/* Work submission */}
       {isActive && (
         <SubmissionPanel
           stageId={stage.id}
           questId={questId}
           studentName={studentName}
-          onSubmitComplete={onComplete}
+          onSubmitComplete={async (stageId, submissionContent) => {
+            // Trigger AI feedback non-blocking
+            setFeedbackLoading(true);
+            onComplete(stageId);
+            try {
+              const result = await ai.reviewSubmission({
+                stageTitle: stage.title,
+                stageDescription: stage.description || '',
+                deliverable: stage.deliverable || '',
+                submissionContent: submissionContent || '',
+                studentProfile: studentProfile || { name: studentName },
+              });
+              setFeedback(result);
+              // Persist feedback
+              feedbackApi.add({
+                questId, stageId: stage.id, studentName,
+                feedbackText: result.feedback,
+                skillsDemonstrated: result.skills_demonstrated,
+                encouragement: result.encouragement,
+                nextSteps: result.next_steps,
+              });
+              // Chain mastery assessment (non-blocking)
+              if (result.skills_demonstrated?.length && studentProfile?.id) {
+                try {
+                  const studentSkillsData = await skillsApi.getStudentSkills(studentProfile.id);
+                  const mastery = await ai.assessMastery({
+                    stageTitle: stage.title,
+                    submissionContent: submissionContent || '',
+                    skillsDemonstrated: result.skills_demonstrated,
+                    studentSkills: studentSkillsData?.data || [],
+                  });
+                  if (mastery.updates?.length) {
+                    for (const update of mastery.updates) {
+                      // Find matching skill by name
+                      const allSkills = studentSkillsData?.data || [];
+                      const match = allSkills.find(s => s.skill_name?.toLowerCase() === update.skill_name?.toLowerCase());
+                      if (match) {
+                        await skillsApi.upsertStudentSkill({
+                          studentId: studentProfile.id,
+                          skillId: match.skill_id,
+                          proficiency: update.new_proficiency,
+                          source: 'ai',
+                        });
+                        await snapshotsApi.add({
+                          studentId: studentProfile.id,
+                          skillId: match.skill_id,
+                          proficiency: update.new_proficiency,
+                          source: 'ai',
+                          questId,
+                        });
+                      }
+                    }
+                  }
+                } catch { /* mastery assessment is best-effort */ }
+              }
+              // Trigger Devil's Advocate at checkpoints
+              const isShortResponse = (submissionContent || '').length < 100;
+              const isCheckpoint = stage.stage_number % 2 === 0;
+              if (isShortResponse || isCheckpoint) {
+                try {
+                  const challenge = await ai.devilsAdvocate({
+                    stageTitle: stage.title,
+                    stageDescription: stage.description || '',
+                    studentWork: submissionContent || '',
+                    studentProfile: studentProfile || { name: studentName },
+                  });
+                  setChallengerText(challenge);
+                  // Persist challenger message
+                  guideMessagesApi.add({
+                    questId, stageId: stage.id,
+                    studentId: studentProfile?.id || null, studentName,
+                    role: 'challenger', content: challenge,
+                    messageType: 'devil_advocate',
+                  });
+                } catch { /* challenger is optional */ }
+              }
+            } catch { /* feedback is non-blocking */ }
+            setFeedbackLoading(false);
+          }}
         />
       )}
 
       {/* Read-only submission for completed stages */}
       {isDone && existingSubmission && (
         <SubmissionView submission={existingSubmission} />
+      )}
+
+      {/* AI Feedback */}
+      {feedbackLoading && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0', fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic' }}>
+          <Loader2 size={12} className="sq-spin" /> Getting feedback from your Field Guide...
+        </div>
+      )}
+      {feedback && <FeedbackCard feedback={feedback} />}
+
+      {/* Devil's Advocate */}
+      {challengerText && (
+        <ChallengerCard
+          challenge={challengerText}
+          questId={questId}
+          stageId={stage.id}
+          studentName={studentName}
+          studentId={studentProfile?.id || null}
+          onRespond={() => setChallengerText(null)}
+        />
       )}
     </div>
   );
@@ -1062,6 +1340,88 @@ function FieldNotesPanel({ reflections, onAdd, onClose, studentName }) {
   );
 }
 
+// ===================== QUEST REFLECTION =====================
+function QuestReflectionSection({ questions, answers, onAnswer, onSave, loading, saved }) {
+  if (!questions?.length) return null;
+
+  const TYPE_LABELS = { growth: 'Growth', connection: 'Connection', challenge: 'Challenge', transfer: 'Transfer' };
+  const TYPE_COLORS = { growth: 'var(--field-green)', connection: 'var(--lab-blue)', challenge: 'var(--specimen-red)', transfer: 'var(--compass-gold)' };
+
+  return (
+    <div className="sq-card" style={{
+      background: 'rgba(184,134,11,0.04)', border: '1px solid rgba(184,134,11,0.25)',
+      borderRadius: 14, padding: '20px 22px', marginTop: 16,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <BookOpen size={16} color="var(--compass-gold)" />
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: 'var(--ink)' }}>Quest Reflection</span>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--graphite)', lineHeight: 1.5, margin: '0 0 16px' }}>
+        Take a moment to think about your journey. There are no wrong answers — this is about what YOU discovered.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {questions.map((q, i) => (
+          <div key={i} style={{
+            background: 'var(--chalk)', border: '1px solid var(--pencil)',
+            borderRadius: 10, padding: '14px 16px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{
+                fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                textTransform: 'uppercase', letterSpacing: '0.05em',
+                color: TYPE_COLORS[q.type] || 'var(--graphite)',
+                background: `${TYPE_COLORS[q.type] || 'var(--graphite)'}12`,
+                padding: '2px 8px', borderRadius: 4,
+              }}>
+                {TYPE_LABELS[q.type] || q.type}
+              </span>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, margin: '0 0 8px', fontWeight: 500 }}>
+              {q.question}
+            </p>
+            <textarea
+              value={answers[i] || ''}
+              onChange={(e) => onAnswer(i, e.target.value)}
+              placeholder="Your reflection..."
+              rows={2}
+              disabled={saved}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '8px 10px', borderRadius: 6,
+                border: '1px solid var(--pencil)', background: saved ? 'var(--parchment)' : 'var(--chalk)',
+                fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+                resize: 'vertical', lineHeight: 1.5,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      {!saved && (
+        <button
+          onClick={onSave}
+          disabled={loading || Object.values(answers).every(a => !a?.trim())}
+          style={{
+            marginTop: 14, width: '100%', padding: '11px',
+            borderRadius: 8, border: 'none',
+            background: loading ? 'var(--pencil)' : 'var(--compass-gold)',
+            color: loading ? 'var(--graphite)' : 'var(--ink)',
+            fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-body)',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}
+        >
+          {loading ? <><Loader2 size={13} className="sq-spin" /> Saving...</> : <><CheckCircle size={13} /> Save Reflections</>}
+        </button>
+      )}
+      {saved && (
+        <div style={{ textAlign: 'center', marginTop: 12, fontSize: 12, color: 'var(--field-green)', fontWeight: 600 }}>
+          Reflections saved! Your guide can see them.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== PROGRESS BAR =====================
 function ProgressBar({ stages }) {
   const done = stages.filter(s => s.status === 'completed').length;
@@ -1098,6 +1458,12 @@ export default function StudentQuestPage() {
   const [journalOpen, setJournalOpen] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const [submissions, setSubmissions] = useState({}); // keyed by stage_id
+  const [studentProfile, setStudentProfile] = useState(null);
+  const [groupRole, setGroupRole] = useState(null);
+  const [reflectionQuestions, setReflectionQuestions] = useState(null);
+  const [reflectionAnswers, setReflectionAnswers] = useState({});
+  const [reflectionLoading, setReflectionLoading] = useState(false);
+  const [reflectionSaved, setReflectionSaved] = useState(false);
 
   // Load quest
   useEffect(() => {
@@ -1154,6 +1520,33 @@ export default function StudentQuestPage() {
     if (studentName) loadSubmissions();
   }, [studentName, loadSubmissions]);
 
+  // Load student profile and group role when student is identified
+  useEffect(() => {
+    if (!studentName || !id) return;
+    const loadProfile = async () => {
+      // Find student by name among assigned students
+      const matched = assignedStudents.find(s => s.name === studentName);
+      if (matched?.id) {
+        const { data: profile } = await supabase
+          .from('students')
+          .select('id, name, age, grade_band, interests, passions, about_me, self_assessment, avatar_emoji')
+          .eq('id', matched.id)
+          .single();
+        if (profile) setStudentProfile(profile);
+
+        // Check for group role
+        const { data: groupMember } = await supabase
+          .from('quest_group_members')
+          .select('role, quest_groups!inner(quest_id)')
+          .eq('student_id', matched.id)
+          .eq('quest_groups.quest_id', id)
+          .maybeSingle();
+        if (groupMember?.role) setGroupRole(groupMember.role);
+      }
+    };
+    loadProfile();
+  }, [studentName, assignedStudents, id]);
+
   const handleEnter = (name, studentId) => {
     sessionStorage.setItem(`wayfinder_student_${id}`, name);
     // Persist to localStorage if student has an account
@@ -1204,6 +1597,51 @@ export default function StudentQuestPage() {
     const { data } = await supabase.from('reflection_entries').select('*').eq('quest_id', id).order('created_at');
     setReflections(data || []);
   }, [id]);
+
+  // Generate reflection questions when quest completes
+  useEffect(() => {
+    if (quest?.status !== 'completed' || reflectionQuestions || reflectionLoading) return;
+    // Check if reflections already exist
+    const existing = reflections.filter(r => r.entry_type === 'student' && r.content?.startsWith('[reflection]'));
+    if (existing.length > 0) {
+      setReflectionSaved(true);
+      return;
+    }
+    setReflectionLoading(true);
+    ai.generateReflectionQuestions({
+      questTitle: quest.title,
+      stages,
+      studentProfile: studentProfile || { name: studentName },
+      submissions: Object.values(submissions),
+    }).then(result => {
+      setReflectionQuestions(result.questions || []);
+    }).catch(() => {
+      // Fallback questions
+      setReflectionQuestions([
+        { type: 'growth', question: 'What did you discover about yourself during this quest?' },
+        { type: 'connection', question: 'How does what you learned connect to something you care about?' },
+        { type: 'challenge', question: 'What was the hardest part, and how did you push through it?' },
+        { type: 'transfer', question: 'Where else in your life could you use what you learned?' },
+      ]);
+    }).finally(() => setReflectionLoading(false));
+  }, [quest?.status, reflectionQuestions, reflectionLoading, stages, studentProfile, studentName, submissions, reflections, quest?.title]);
+
+  const handleSaveReflections = useCallback(async () => {
+    if (!reflectionQuestions?.length) return;
+    setReflectionLoading(true);
+    for (const [i, q] of reflectionQuestions.entries()) {
+      const answer = reflectionAnswers[i]?.trim();
+      if (answer) {
+        await supabase.from('reflection_entries').insert({
+          quest_id: id, content: `[reflection] ${q.question}\n${answer}`, entry_type: 'student',
+        });
+      }
+    }
+    const { data } = await supabase.from('reflection_entries').select('*').eq('quest_id', id).order('created_at');
+    setReflections(data || []);
+    setReflectionSaved(true);
+    setReflectionLoading(false);
+  }, [id, reflectionQuestions, reflectionAnswers]);
 
   const simulation = quest?.career_simulations?.[0] || null;
   const simId = simulation?.id || id;
@@ -1346,6 +1784,31 @@ export default function StudentQuestPage() {
                 </div>
               )}
 
+              {/* Quest reflection */}
+              {quest?.status === 'completed' && reflectionQuestions && (
+                <QuestReflectionSection
+                  questions={reflectionQuestions}
+                  answers={reflectionAnswers}
+                  onAnswer={(i, v) => setReflectionAnswers(prev => ({ ...prev, [i]: v }))}
+                  onSave={handleSaveReflections}
+                  loading={reflectionLoading}
+                  saved={reflectionSaved}
+                />
+              )}
+
+              {/* Group role badge */}
+              {groupRole && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '5px 14px', borderRadius: 100,
+                  background: 'rgba(27,73,101,0.08)', border: '1px solid rgba(27,73,101,0.2)',
+                  fontSize: 12, fontWeight: 600, color: 'var(--lab-blue)',
+                  fontFamily: 'var(--font-body)', alignSelf: 'flex-start',
+                }}>
+                  <Users size={13} /> Your Role: {groupRole}
+                </div>
+              )}
+
               {activeStage ? (
                 <StageCard
                   stage={activeStage}
@@ -1353,6 +1816,8 @@ export default function StudentQuestPage() {
                   questId={id}
                   studentName={studentName}
                   existingSubmission={submissions[activeStage.id] || null}
+                  studentProfile={studentProfile}
+                  groupRole={groupRole}
                 />
               ) : (
                 <div style={{

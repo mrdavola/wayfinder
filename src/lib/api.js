@@ -364,18 +364,36 @@ async function callAI(params) {
 }
 
 export const ai = {
-  generateQuest: async ({ interests, ageGrade, standards, pathway, type, count }) => {
+  generateQuest: async ({ students, standards, pathway, type, count }) => {
+    // Build rich student profiles for the prompt
+    const studentProfiles = (students || []).map(s => {
+      const parts = [`- ${s.name} (age ${s.age || '10'}, ${s.grade_band || 'unknown grade'})`];
+      if (s.interests?.length) parts.push(`  Interests: ${s.interests.join(', ')}`);
+      if (s.passions?.length) parts.push(`  Passions: ${s.passions.join(', ')}`);
+      if (s.about_me) parts.push(`  About: ${s.about_me}`);
+      if (s.self_assessment) {
+        const sa = typeof s.self_assessment === 'string' ? s.self_assessment : JSON.stringify(s.self_assessment);
+        parts.push(`  Self-assessment: ${sa}`);
+      }
+      if (s.parent_expectations) parts.push(`  Parent expectations: ${s.parent_expectations}`);
+      if (s.parent_child_loves) parts.push(`  Parent says child loves: ${s.parent_child_loves}`);
+      return parts.join('\n');
+    }).join('\n');
+
+    const allInterests = [...new Set((students || []).flatMap(s => [...(s.interests || []), ...(s.passions || [])]))];
+
     const systemPrompt = `You are Wayfinder's curriculum engine. You design project-based learning quests for students in learner-driven schools.
 
 You MUST respond with ONLY valid JSON matching this exact structure. No other text.
 
 Given:
-- Student interests: ${interests}
-- Age/grade: ${ageGrade}
+- Student profiles:
+${studentProfiles || 'No detailed profiles available'}
+- Combined interests: ${allInterests.join(', ') || 'general'}
 - Academic standards: ${standards}
 - Career pathway: ${pathway || 'none'}
 - Quest type: ${type}
-- Student count: ${count}
+- Student count: ${count || (students || []).length || 1}
 
 Generate a quest as JSON:
 {
@@ -394,7 +412,8 @@ Generate a quest as JSON:
       "skill_integration_note": "how skill appears naturally",
       "deliverable": "what student produces",
       "guiding_questions": ["Question 1?", "Question 2?"],
-      "resources_needed": ["resource 1"]
+      "resources_needed": ["resource 1"],
+      "stretch_challenge": "optional advanced challenge for stages 4+"
     }
   ],
   "career_simulation": {
@@ -415,7 +434,13 @@ Rules:
 - Career connection feels like discovery
 - Language age-appropriate but never condescending
 - Include 5-7 stages minimum
-- Quest must be multidisciplinary`;
+- Quest must be multidisciplinary
+- Incorporate specific student passions into scenarios and stage contexts
+- For group quests, assign roles that leverage individual strengths
+- If parent expectations are provided, weave them naturally into quest goals
+- Calibrate guiding questions to student proficiency levels when available
+- Include a stretch_challenge for stages 4+ that pushes deeper analysis or synthesis
+- stretch_challenge should be null for early stages (1-3)`;
 
     const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.' });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -427,14 +452,36 @@ Rules:
     return callAI({ systemPrompt, messages });
   },
 
-  questHelp: async ({ stageDescription, guidingQuestions, helpRequest }) => {
-    return callAI({
-      systemPrompt: `You are a Socratic guide in Wayfinder. NEVER give the student the answer. Ask questions that help them find it themselves. You are a curious co-explorer, not a teacher. Keep responses to 2-3 questions maximum.
+  questHelp: async ({ stageTitle, stageDescription, guidingQuestions, deliverable, studentProfile, messages }) => {
+    const profileContext = studentProfile ? [
+      studentProfile.name ? `Student name: ${studentProfile.name}` : '',
+      studentProfile.age ? `Age: ${studentProfile.age}` : '',
+      studentProfile.interests?.length ? `Interests: ${studentProfile.interests.join(', ')}` : '',
+      studentProfile.passions?.length ? `Passions: ${studentProfile.passions.join(', ')}` : '',
+      studentProfile.about_me ? `About: ${studentProfile.about_me}` : '',
+      studentProfile.groupRole ? `Group role: ${studentProfile.groupRole}` : '',
+    ].filter(Boolean).join('\n') : '';
 
-Stage: ${stageDescription}
-Guiding questions the student has: ${guidingQuestions.join(', ')}`,
-      userMessage: helpRequest,
-    });
+    // Adapt questioning depth based on skill levels
+    let depthGuidance = '';
+    if (studentProfile?.skillLevels) {
+      const levels = studentProfile.skillLevels;
+      const avgLevel = levels.length > 0 ? levels.reduce((sum, s) => {
+        const vals = { emerging: 1, developing: 2, proficient: 3, advanced: 4 };
+        return sum + (vals[s.proficiency] || 1);
+      }, 0) / levels.length : 1;
+      if (avgLevel <= 1.5) depthGuidance = '\nAdapt: student is emerging — use scaffolded, concrete questions.';
+      else if (avgLevel >= 3) depthGuidance = '\nAdapt: student is proficient/advanced — push toward analysis, synthesis, and deeper reasoning.';
+    }
+
+    const systemPrompt = `You are a Field Guide helping a student explore the learning stage: "${stageTitle}". Use Socratic questioning — never give direct answers. Ask 1-2 follow-up questions to help the student think deeper. Keep replies under 3 sentences. Reference the student's interests and passions to make connections when relevant.
+
+Stage description: ${stageDescription || ''}
+${guidingQuestions?.length ? `Guiding questions: ${guidingQuestions.join('; ')}` : ''}
+${deliverable ? `Deliverable: ${deliverable}` : ''}
+${profileContext ? `\nStudent profile:\n${profileContext}` : ''}${depthGuidance}`;
+
+    return callAI({ systemPrompt, messages });
   },
 
   debriefSummary: async ({ transcript, skillsAssessed, scenarioContext }) => {
@@ -442,6 +489,101 @@ Guiding questions the student has: ${guidingQuestions.join(', ')}`,
       systemPrompt: `You write brief simulation debrief summaries for students aged 8-14. Write 3-4 sentences summarizing what the student accomplished and connecting it to real career work. Be warm, specific, and encouraging.`,
       userMessage: `Scenario: ${scenarioContext}\n\nSkills assessed: ${skillsAssessed.join(', ')}\n\nTranscript:\n${transcript.map(m => `${m.role}: ${m.content}`).join('\n')}\n\nWrite the debrief summary.`,
     });
+  },
+
+  reviewSubmission: async ({ stageTitle, stageDescription, deliverable, submissionContent, studentProfile }) => {
+    const profileStr = studentProfile ? [
+      studentProfile.name ? `Student: ${studentProfile.name}` : '',
+      studentProfile.age ? `Age: ${studentProfile.age}` : '',
+      studentProfile.interests?.length ? `Interests: ${studentProfile.interests.join(', ')}` : '',
+      studentProfile.passions?.length ? `Passions: ${studentProfile.passions.join(', ')}` : '',
+    ].filter(Boolean).join(', ') : '';
+
+    const text = await callAI({
+      systemPrompt: `You are a Field Guide reviewing student work in Wayfinder. Use warm-cool-warm feedback (start positive, give constructive insight, end encouraging). Identify skills the student demonstrated. Suggest what to explore next as a question, not an instruction.
+
+You MUST respond with ONLY valid JSON:
+{
+  "feedback": "2-3 sentences of warm-cool-warm feedback",
+  "skills_demonstrated": ["skill 1", "skill 2"],
+  "encouragement": "1 sentence of specific encouragement",
+  "next_steps": "1 question about what to explore next"
+}
+
+Stage: ${stageTitle}
+${stageDescription ? `Description: ${stageDescription}` : ''}
+${deliverable ? `Expected deliverable: ${deliverable}` : ''}
+${profileStr ? `Student: ${profileStr}` : ''}`,
+      userMessage: `Student submitted:\n${submissionContent || '(non-text submission)'}`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+
+  assessMastery: async ({ stageTitle, submissionContent, skillsDemonstrated, studentSkills }) => {
+    const currentSkillsStr = (studentSkills || []).map(s => `${s.skill_name}: ${s.proficiency}`).join(', ');
+    const text = await callAI({
+      systemPrompt: `You assess student skill mastery based on their work. Be conservative — only suggest updates when evidence is clear. Never lower a skill level.
+
+You MUST respond with ONLY valid JSON:
+{
+  "updates": [
+    {"skill_name": "name", "new_proficiency": "emerging|developing|proficient|advanced", "evidence": "1 sentence why"}
+  ]
+}
+
+If no updates are warranted, return {"updates": []}.
+
+Current skill levels: ${currentSkillsStr || 'none tracked'}
+Skills demonstrated in this submission: ${(skillsDemonstrated || []).join(', ')}`,
+      userMessage: `Stage: ${stageTitle}\nStudent work: ${submissionContent || '(non-text submission)'}`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { updates: [] };
+    return JSON.parse(jsonMatch[0]);
+  },
+
+  devilsAdvocate: async ({ stageTitle, stageDescription, studentWork, studentProfile }) => {
+    const profileStr = studentProfile ? `Student: ${studentProfile.name || 'student'}${studentProfile.interests?.length ? `, interests: ${studentProfile.interests.join(', ')}` : ''}` : '';
+    return callAI({
+      systemPrompt: `You are "The Challenger" — a brief, provocative character in Wayfinder. Challenge assumptions with a wry, theatrical tone. Ask exactly ONE challenging question that flips an assumption. 2-3 sentences max. Never undermine — challenge to strengthen. Be playful but sharp. Start with something like "Hold on..." or "Wait a moment..." or "Not so fast..."
+
+Stage: ${stageTitle}
+${stageDescription ? `Context: ${stageDescription}` : ''}
+${profileStr}`,
+      userMessage: `The student submitted this work:\n${studentWork || '(brief submission)'}`,
+    });
+  },
+
+  generateReflectionQuestions: async ({ questTitle, stages, studentProfile, submissions }) => {
+    const stagesSummary = (stages || []).map(s => `Stage ${s.stage_number}: ${s.title} (${s.stage_type})`).join('\n');
+    const profileStr = studentProfile ? `Student: ${studentProfile.name || 'student'}${studentProfile.passions?.length ? `, passions: ${studentProfile.passions.join(', ')}` : ''}` : '';
+    const submissionsSummary = (submissions || []).map(s => `Stage ${s.stage_number || '?'}: ${s.content || s.submission_type || 'completed'}`).join('\n');
+
+    const text = await callAI({
+      systemPrompt: `Generate targeted reflection questions for a student who just completed a quest. You MUST respond with ONLY valid JSON:
+{
+  "questions": [
+    {"type": "growth", "question": "What did you learn about yourself?"},
+    {"type": "connection", "question": "How does this connect to your interests?"},
+    {"type": "challenge", "question": "What was hardest?"},
+    {"type": "transfer", "question": "Where else could you use this?"}
+  ]
+}
+
+Types: growth (self-discovery), connection (to interests/life), challenge (difficulty reflection), transfer (application elsewhere).
+Be specific to THIS quest — not generic. 4-5 questions.
+
+Quest: ${questTitle}
+Stages:\n${stagesSummary}
+${profileStr}
+${submissionsSummary ? `Their work:\n${submissionsSummary}` : ''}`,
+      userMessage: 'Generate reflection questions.',
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
   },
 
   // Generic chat: messages = [{role:'user'|'assistant', content}], systemPrompt = string
@@ -514,6 +656,54 @@ Rules:
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in AI response');
     return JSON.parse(jsonMatch[0]);
+  },
+};
+
+// ===================== SUBMISSION FEEDBACK =====================
+export const submissionFeedback = {
+  listForQuest: async (questId, studentName) => {
+    const { data, error } = await supabase.rpc('get_submission_feedback', {
+      p_quest_id: questId,
+      p_student_name: studentName,
+    });
+    return { data: data || [], error };
+  },
+
+  add: async ({ submissionId, questId, stageId, studentName, feedbackText, skillsDemonstrated, encouragement, nextSteps }) => {
+    return supabase.from('submission_feedback').insert({
+      submission_id: submissionId || null,
+      quest_id: questId,
+      stage_id: stageId,
+      student_name: studentName,
+      feedback_text: feedbackText,
+      skills_demonstrated: skillsDemonstrated || [],
+      encouragement: encouragement || null,
+      next_steps: nextSteps || null,
+    });
+  },
+};
+
+// ===================== GUIDE MESSAGES =====================
+export const guideMessages = {
+  list: async (questId, stageId, studentName) => {
+    const { data, error } = await supabase.rpc('get_guide_messages', {
+      p_quest_id: questId,
+      p_stage_id: stageId,
+      p_student_name: studentName,
+    });
+    return { data: data || [], error };
+  },
+
+  add: async ({ questId, stageId, studentId, studentName, role, content, messageType = 'field_guide' }) => {
+    return supabase.from('guide_messages').insert({
+      quest_id: questId,
+      stage_id: stageId,
+      student_id: studentId || null,
+      student_name: studentName,
+      role,
+      content,
+      message_type: messageType,
+    });
   },
 };
 
@@ -621,6 +811,27 @@ export const skills = {
       .from('student_skills')
       .upsert(rows, { onConflict: 'student_id,skill_id' })
       .select();
+  },
+};
+
+// ===================== SKILL SNAPSHOTS =====================
+export const skillSnapshots = {
+  add: async ({ studentId, skillId, proficiency, source, questId }) => {
+    return supabase.from('skill_snapshots').insert({
+      student_id: studentId,
+      skill_id: skillId,
+      proficiency,
+      source: source || 'ai',
+      quest_id: questId || null,
+    });
+  },
+
+  listForStudent: async (studentId) => {
+    return supabase
+      .from('skill_snapshots')
+      .select('*, skills(name, category)')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: true });
   },
 };
 
