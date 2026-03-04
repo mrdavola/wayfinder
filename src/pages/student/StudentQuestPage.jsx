@@ -794,12 +794,31 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
 // ===================== SUBMISSION VIEW (read-only) =====================
 function SubmissionView({ submission }) {
   if (!submission) return null;
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const history = submission.revision_history || [];
   const typeBadgeColor = {
     text: 'var(--lab-blue)',
     audio: 'var(--field-green)',
     video: 'var(--compass-gold)',
     file: 'var(--graphite)',
   }[submission.submission_type] || 'var(--graphite)';
+
+  const renderSubmissionContent = (sub) => {
+    const st = sub.submission_type;
+    if (st === 'text' && sub.content) return (
+      <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: 0, background: 'var(--parchment)', padding: '10px 12px', borderRadius: 6 }}>
+        {sub.content}
+      </p>
+    );
+    if (st === 'audio' && sub.file_url) return <audio controls src={sub.file_url} style={{ width: '100%' }} />;
+    if (st === 'video' && sub.file_url) return <video controls src={sub.file_url} style={{ width: '100%', borderRadius: 6 }} />;
+    if (st === 'file' && sub.file_url) return (
+      <a href={sub.file_url} download={sub.file_name || 'submission'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--lab-blue)', fontFamily: 'var(--font-body)' }}>
+        <Download size={13} /> {sub.file_name || 'Download file'}
+      </a>
+    );
+    return null;
+  };
 
   return (
     <div style={{ borderTop: '1px solid var(--pencil)', paddingTop: 14, marginTop: 4 }}>
@@ -810,27 +829,41 @@ function SubmissionView({ submission }) {
         <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: typeBadgeColor, background: `${typeBadgeColor}18`, padding: '2px 6px', borderRadius: 4 }}>
           {submission.submission_type}
         </span>
+        {history.length > 0 && (
+          <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>
+            (attempt {history.length + 1})
+          </span>
+        )}
       </div>
-      {submission.submission_type === 'text' && submission.content && (
-        <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: 0, background: 'var(--parchment)', padding: '10px 12px', borderRadius: 6 }}>
-          {submission.content}
-        </p>
-      )}
-      {submission.submission_type === 'audio' && submission.file_url && (
-        <audio controls src={submission.file_url} style={{ width: '100%' }} />
-      )}
-      {submission.submission_type === 'video' && submission.file_url && (
-        <video controls src={submission.file_url} style={{ width: '100%', borderRadius: 6 }} />
-      )}
-      {submission.submission_type === 'file' && submission.file_url && (
-        <a
-          href={submission.file_url}
-          download={submission.file_name || 'submission'}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--lab-blue)', fontFamily: 'var(--font-body)' }}
-        >
-          <Download size={13} />
-          {submission.file_name || 'Download file'}
-        </a>
+      {renderSubmissionContent(submission)}
+
+      {/* Previous attempts */}
+      {history.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              fontSize: 11, color: 'var(--graphite)', fontFamily: 'var(--font-body)',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <ChevronRight size={12} style={{ transform: historyOpen ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }} />
+            {history.length} previous attempt{history.length > 1 ? 's' : ''}
+          </button>
+          {historyOpen && (
+            <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid var(--pencil)' }}>
+              {[...history].reverse().map((prev, i) => (
+                <div key={i} style={{ marginBottom: 10, opacity: 0.7 }}>
+                  <div style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
+                    Attempt {history.length - i} — {prev.submitted_at ? new Date(prev.submitted_at).toLocaleDateString() : ''}
+                  </div>
+                  {renderSubmissionContent(prev)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -971,7 +1004,7 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
@@ -1397,6 +1430,8 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               setRevising(false);
               setFeedback(null);
               setFeedbackLoading(true);
+              // Reload submissions to get updated history
+              if (onReloadSubmissions) onReloadSubmissions();
               ai.reviewSubmission({
                 stageTitle: stage.title,
                 stageDescription: stage.description || '',
@@ -2005,6 +2040,7 @@ export default function StudentQuestPage() {
                   existingSubmission={submissions[activeStage.id] || null}
                   studentProfile={studentProfile}
                   groupRole={groupRole}
+                  onReloadSubmissions={loadSubmissions}
                 />
               ) : (
                 <div style={{
