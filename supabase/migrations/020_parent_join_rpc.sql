@@ -31,7 +31,7 @@ BEGIN
     -- Return existing token
     RETURN jsonb_build_object(
       'success', true,
-      'token', COALESCE(v_pa.token, v_pa.access_token),
+      'token', v_pa.access_token,
       'student_name', v_student.name,
       'is_new', false
     );
