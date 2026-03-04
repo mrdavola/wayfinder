@@ -1536,7 +1536,7 @@ export default function Dashboard() {
 
           {/* Right: stacked cards */}
           <div id="tour-new-quest" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-            <QuickQuestCard />
+            {/* QuickQuestCard removed — New Project button in header is sufficient */}
             <div id="tour-students">
               <StudentsCard user={user} />
             </div>
