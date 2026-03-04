@@ -2412,24 +2412,38 @@ export default function QuestBuilder() {
 
   function getInitials(n) { if (!n) return '?'; const p = n.trim().split(/\s+/); return p.length === 1 ? p[0][0].toUpperCase() : (p[0][0] + p[p.length-1][0]).toUpperCase(); }
 
+  // ── Session persistence: restore wizard state on refresh ──
+  const STORAGE_KEY = 'wayfinder_quest_builder';
+  function loadSaved() {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  const saved = useRef(loadSaved());
+
   // Step state
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => {
+    const s = saved.current;
+    // Only restore to step 5 (review) — don't restore mid-generation
+    return s?.step === 5 && s?.generatedQuest ? 5 : 1;
+  });
 
   // Step 1
   const [students, setStudents] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(true);
-  const [questType, setQuestType] = useState('individual');
-  const [selectedStudentId, setSelectedStudentId] = useState(null);
-  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-  const [selectedInterests, setSelectedInterests] = useState([]);
+  const [questType, setQuestType] = useState(() => saved.current?.questType || 'individual');
+  const [selectedStudentId, setSelectedStudentId] = useState(() => saved.current?.selectedStudentId || null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState(() => saved.current?.selectedStudentIds || []);
+  const [selectedInterests, setSelectedInterests] = useState(() => saved.current?.selectedInterests || []);
 
   // Step 2
-  const [selectedStandards, setSelectedStandards] = useState([]);
-  const [customTopic, setCustomTopic] = useState('');
+  const [selectedStandards, setSelectedStandards] = useState(() => saved.current?.selectedStandards || []);
+  const [customTopic, setCustomTopic] = useState(() => saved.current?.customTopic || '');
 
   // Step 3
-  const [selectedPathways, setSelectedPathways] = useState([]);
-  const [customCareer, setCustomCareer] = useState('');
+  const [selectedPathways, setSelectedPathways] = useState(() => saved.current?.selectedPathways || []);
+  const [customCareer, setCustomCareer] = useState(() => saved.current?.customCareer || '');
 
   // Step 4
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
@@ -2437,12 +2451,26 @@ export default function QuestBuilder() {
   const [genError, setGenError] = useState(null);
 
   // Step 5
-  const [generatedQuest, setGeneratedQuest] = useState(null);
+  const [generatedQuest, setGeneratedQuest] = useState(() => saved.current?.generatedQuest || null);
   const [launching, setLaunching] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
   // Step 6
   const [launchedQuestId, setLaunchedQuestId] = useState(null);
+
+  // Persist wizard state to sessionStorage on changes
+  useEffect(() => {
+    if (step < 1 || launchedQuestId) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    const data = {
+      step, questType, selectedStudentId, selectedStudentIds,
+      selectedInterests, selectedStandards, customTopic,
+      selectedPathways, customCareer, generatedQuest,
+    };
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  }, [step, questType, selectedStudentId, selectedStudentIds, selectedInterests, selectedStandards, customTopic, selectedPathways, customCareer, generatedQuest, launchedQuestId]);
 
   // Refs for generation timers
   const progressRef = useRef(null);
