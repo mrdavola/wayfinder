@@ -733,6 +733,46 @@ function Step2Skills({
   const [studentProfileStds, setStudentProfileStds] = useState([]);
   const [profileStdsLoading, setProfileStdsLoading] = useState(false);
   const profileStdsLoaded = useRef(false);
+  const [aiSkillSuggestions, setAiSkillSuggestions] = useState([]);
+  const [aiSkillsLoading, setAiSkillsLoading] = useState(false);
+  const aiSkillsRequested = useRef(false);
+
+  // AI-suggest standards based on student interests/passions/parent input
+  useEffect(() => {
+    if (aiSkillsRequested.current || !selectedStudents?.length) return;
+    const hasProfileData = selectedStudents.some(s =>
+      s.interests?.length || s.passions?.length || s.about_me || s.parent_child_loves || s.parent_expectations
+    );
+    if (!hasProfileData) return;
+    aiSkillsRequested.current = true;
+    setAiSkillsLoading(true);
+
+    // Build compact standards list for the AI prompt
+    const gradeBand = selectedStudents[0]?.grade_band;
+    const relevantFw = STANDARDS_FRAMEWORKS.filter(fw =>
+      !gradeBand || fw.gradeBand === gradeBand
+    );
+    const stdList = relevantFw.flatMap(fw =>
+      fw.categories.flatMap(cat =>
+        cat.standards.map(s => `${s.id}: ${s.description}`)
+      )
+    ).join('\n');
+
+    // Enrich students with parent skill priorities
+    const enriched = selectedStudents.map(s => {
+      const parentPri = s.parent_access?.[0]?.core_skill_priorities || [];
+      return { ...s, parent_skill_priorities: parentPri };
+    });
+
+    ai.suggestSkillStandards({ students: enriched, availableStandards: stdList })
+      .then(result => {
+        setAiSkillSuggestions(result.suggestions || []);
+      })
+      .catch(() => {
+        // Silently fail
+      })
+      .finally(() => setAiSkillsLoading(false));
+  }, [selectedStudents]);
 
   // Load student standards profiles on mount
   useEffect(() => {
@@ -816,6 +856,82 @@ function Step2Skills({
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.graphite, margin: '0 0 20px' }}>
         Select 2–6 standards, or describe a custom topic below.
       </p>
+
+      {/* AI-suggested standards based on student interests */}
+      {(aiSkillsLoading || aiSkillSuggestions.length > 0) && (
+        <div style={{
+          marginBottom: 16, padding: 14,
+          border: `2px solid ${T.compassGold}`,
+          borderRadius: 12,
+          background: 'rgba(184,134,11,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <Sparkles size={14} color={T.compassGold} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)' }}>
+              Suggested for {selectedStudents?.length === 1
+                ? selectedStudents[0].name?.split(' ')[0]
+                : `your ${selectedStudents?.length} students`}
+            </span>
+          </div>
+
+          {aiSkillsLoading && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0' }}>
+              <Loader2 size={12} color={T.graphite} style={{ animation: 'spin 1s linear infinite' }} />
+              <span style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)' }}>
+                Finding standards that match student interests...
+              </span>
+            </div>
+          )}
+
+          {!aiSkillsLoading && aiSkillSuggestions.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {aiSkillSuggestions.map((sug, i) => {
+                const std = findStandardById(sug.standard_id);
+                if (!std) return null;
+                const alreadySelected = selectedStandards.some(s => s.id === sug.standard_id);
+                return (
+                  <button
+                    key={sug.standard_id || i}
+                    onClick={() => !alreadySelected && toggleStandard(std)}
+                    disabled={alreadySelected}
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10,
+                      padding: '8px 12px', borderRadius: 8, textAlign: 'left',
+                      border: `1px solid ${alreadySelected ? T.fieldGreen : 'rgba(184,134,11,0.25)'}`,
+                      background: alreadySelected ? `${T.fieldGreen}10` : T.chalk,
+                      cursor: alreadySelected ? 'default' : 'pointer',
+                      opacity: alreadySelected ? 0.7 : 1,
+                      width: '100%',
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 1,
+                      border: `1.5px solid ${alreadySelected ? T.fieldGreen : T.pencil}`,
+                      background: alreadySelected ? `${T.fieldGreen}20` : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {alreadySelected && <Check size={11} color={T.fieldGreen} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: T.ink }}>
+                          {std.label}
+                        </span>
+                        <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: T.graphite }}>
+                          {std.description}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: T.compassGold, fontFamily: 'var(--font-body)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                        {sug.reasoning || sug.student_connection}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* From Student Profile card */}
       {(() => {

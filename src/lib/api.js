@@ -737,6 +737,52 @@ Suggest career pathways.`,
     return JSON.parse(jsonMatch[0]);
   },
 
+  suggestSkillStandards: async ({ students, availableStandards }) => {
+    const studentSummaries = (students || []).map(s => {
+      const parts = [`- ${s.name} (age ${s.age || '?'}, ${s.grade_band || 'unknown grade'})`];
+      if (s.interests?.length) parts.push(`  Interests: ${s.interests.join(', ')}`);
+      if (s.passions?.length) parts.push(`  Passions: ${s.passions.join(', ')}`);
+      if (s.about_me) parts.push(`  About: ${s.about_me}`);
+      if (s.parent_child_loves) parts.push(`  Parent says child loves: ${s.parent_child_loves}`);
+      if (s.parent_expectations) parts.push(`  Parent expectations: ${s.parent_expectations}`);
+      if (s.parent_skill_priorities?.length) parts.push(`  Parent priority skills: ${s.parent_skill_priorities.join(', ')}`);
+      return parts.join('\n');
+    }).join('\n');
+
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's academic standards recommendation engine. Given student profiles (their interests, passions, and what parents have shared), suggest academic standards that connect to who these students are.
+
+You MUST respond with ONLY valid JSON:
+{
+  "suggestions": [
+    {
+      "standard_id": "exact ID from the available standards list",
+      "reasoning": "1 sentence why this fits this student's interests/passions",
+      "student_connection": "which student(s) this connects to and why"
+    }
+  ]
+}
+
+Rules:
+- Suggest 4-6 standards ranked by relevance
+- Each suggestion MUST reference specific student interests, passions, or parent input
+- For groups, note which students each standard connects to
+- Pick standards that create natural bridges between what students love and academic skills
+- Only use standard IDs from the available list provided
+- Favor standards that could be woven into projects the student would be excited about`,
+      userMessage: `Student profiles:
+${studentSummaries}
+
+Available standards (use these exact IDs):
+${availableStandards}
+
+Suggest academic standards that connect to these students' interests and passions.`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
+  },
+
   suggestProjects: async ({ student, standards, questHistory, timeConstraints }) => {
     const profileText = [
       `- Name: ${student.name}`,

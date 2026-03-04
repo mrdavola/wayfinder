@@ -270,7 +270,7 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent })
                     .select()
                     .single();
                   if (data) {
-                    setParentLink(`${window.location.origin}/parent/${data.token}`);
+                    setParentLink(`${window.location.origin}/parent/${data.token || data.access_token}`);
                   }
                   setSharing(false);
                 }}
@@ -636,10 +636,11 @@ function ParentConnectionsSection({ students }) {
     const { data, error } = await supabase
       .from('parent_access')
       .insert({ student_id: student.id })
-      .select('token')
+      .select('*')
       .single();
     if (!error && data) {
-      const link = `${window.location.origin}/parent/${data.token}`;
+      const tok = data.token || data.access_token;
+      const link = `${window.location.origin}/parent/${tok}`;
       setNewLinks(prev => ({ ...prev, [student.id]: link }));
     }
     setCreating(null);
@@ -755,7 +756,8 @@ function ParentConnectionsSection({ students }) {
             {withParent.map(student => {
               const pa = student.parent_access[0];
               const isOnboarded = !!pa.onboarded_at;
-              const link = `${window.location.origin}/parent/${pa.token}`;
+              const tok = pa.token || pa.access_token;
+              const link = `${window.location.origin}/parent/${tok}`;
               return (
                 <div key={student.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
@@ -845,7 +847,7 @@ export default function StudentsPage() {
     setLoadError('');
     const { data, error } = await supabase
       .from('students')
-      .select('*, quest_students(quest_id, quests(id, title, status)), parent_access(id, token, parent_email, parent_name, onboarded_at)')
+      .select('*, quest_students(quest_id, quests(id, title, status)), parent_access(*)')
       .eq('guide_id', user.id)
       .order('name');
 
