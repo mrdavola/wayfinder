@@ -874,9 +874,10 @@ function ReflectionJournal({ reflections, onAdd, onClose }) {
 }
 
 // ===================== GUIDE PLAYBOOK PANEL =====================
-function GuidePlaybookPanel({ questId, onClose }) {
+function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     guidePlaybookApi.list(questId).then(({ data }) => {
@@ -884,6 +885,31 @@ function GuidePlaybookPanel({ questId, onClose }) {
       setLoading(false);
     });
   }, [questId]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const result = await ai.generatePlaybook({
+        questTitle: quest?.title || '',
+        stages: (stages || []).map((s) => ({
+          stage_title: s.title,
+          description: s.description,
+          deliverable: s.deliverable,
+          stage_type: s.stage_type || s.type,
+        })),
+        totalDays: stages?.length ? Math.max(stages.length * 2, 5) : 10,
+      });
+      const generated = result.days || [];
+      setDays(generated);
+      // Save to DB
+      if (generated.length > 0) {
+        await guidePlaybookApi.bulkUpsert(questId, generated);
+      }
+    } catch (err) {
+      console.error('Playbook generation error:', err);
+    }
+    setGenerating(false);
+  };
 
   const handlePrint = () => {
     const printWin = window.open('', '_blank');
@@ -930,10 +956,29 @@ function GuidePlaybookPanel({ questId, onClose }) {
           <div style={{ textAlign: 'center', padding: 40 }}>
             <Loader2 size={20} color="var(--graphite)" style={{ animation: 'spin 1s linear infinite' }} />
           </div>
+        ) : generating ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Loader2 size={20} color="var(--graphite)" style={{ animation: 'spin 1s linear infinite' }} />
+            <p style={{ fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginTop: 8 }}>Generating day-by-day plan...</p>
+          </div>
         ) : days.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--graphite)', fontFamily: 'var(--font-body)', textAlign: 'center', padding: 40 }}>
-            No playbook was generated for this project. You can generate one when creating a new project in the builder.
-          </p>
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Calendar size={32} color="var(--pencil)" style={{ marginBottom: 12 }} />
+            <p style={{ fontSize: 13, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginBottom: 16 }}>
+              No playbook yet for this project.
+            </p>
+            <button
+              onClick={handleGenerate}
+              style={{
+                padding: '10px 20px', borderRadius: 8, border: 'none',
+                background: 'var(--ink)', color: 'var(--chalk)',
+                fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)',
+                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <Calendar size={14} /> Generate Playbook
+            </button>
+          </div>
         ) : (
           days.map((day) => (
             <div key={day.day_number} style={{ padding: '12px 0', borderBottom: '1px solid var(--parchment)' }}>
@@ -1628,7 +1673,7 @@ export default function QuestMap() {
       {playbookOpen && (
         <>
           <div onClick={() => setPlaybookOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 199 }} />
-          <GuidePlaybookPanel questId={id} onClose={() => setPlaybookOpen(false)} />
+          <GuidePlaybookPanel questId={id} quest={quest} stages={stages} onClose={() => setPlaybookOpen(false)} />
         </>
       )}
     </div>
