@@ -41,7 +41,7 @@ function OnboardingForm({ onComplete, saving }) {
   return (
     <div style={{ maxWidth: 520, width: '100%' }}>
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <WayfinderLogoIcon size={32} color={T.fieldGreen} />
+        <WayfinderLogoIcon size={32} color={T.fieldGreen} style={{ display: 'block', margin: '0 auto' }} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '14px 0 6px' }}>
           Welcome to Wayfinder
         </h1>
@@ -352,7 +352,7 @@ function JoinWithCode() {
   return (
     <div style={{ maxWidth: 420, width: '100%' }}>
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <WayfinderLogoIcon size={32} color={T.fieldGreen} />
+        <WayfinderLogoIcon size={32} color={T.fieldGreen} style={{ display: 'block', margin: '0 auto' }} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '14px 0 6px' }}>
           Parent Portal
         </h1>
