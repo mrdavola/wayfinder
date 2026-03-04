@@ -4,11 +4,11 @@ import {
   ChevronLeft, BookOpen, Search, Wrench, FlaskConical, Mic,
   Megaphone, X, Send, CheckCircle, HelpCircle,
   Zap, ArrowRight, Loader2, AlertCircle, ChevronRight,
-  Volume2, VolumeX, Share2, List, Download,
+  Volume2, VolumeX, Share2, List, Download, Calendar, Printer,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ai } from '../lib/api';
+import { ai, guidePlaybook as guidePlaybookApi } from '../lib/api';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 
 // ===================== CONSTANTS =====================
@@ -873,6 +873,123 @@ function ReflectionJournal({ reflections, onAdd, onClose }) {
   );
 }
 
+// ===================== GUIDE PLAYBOOK PANEL =====================
+function GuidePlaybookPanel({ questId, onClose }) {
+  const [days, setDays] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    guidePlaybookApi.list(questId).then(({ data }) => {
+      setDays(data || []);
+      setLoading(false);
+    });
+  }, [questId]);
+
+  const handlePrint = () => {
+    const printWin = window.open('', '_blank');
+    const html = days.map((d) => `
+      <div style="page-break-inside:avoid;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid #ddd">
+        <h3 style="margin:0 0 4px;font-size:14px">Day ${d.day_number}: ${d.title}</h3>
+        ${d.prep_tasks?.length ? `<p style="margin:2px 0;font-size:12px"><strong>Prep:</strong> ${d.prep_tasks.join(', ')}</p>` : ''}
+        ${d.materials?.length ? `<p style="margin:2px 0;font-size:12px"><strong>Materials:</strong> ${d.materials.join(', ')}</p>` : ''}
+        ${d.time_blocks?.length ? `<p style="margin:2px 0;font-size:12px"><strong>Schedule:</strong> ${d.time_blocks.map(tb => `${tb.duration_min}min — ${tb.label}`).join('; ')}</p>` : ''}
+        ${d.facilitation_notes ? `<p style="margin:4px 0;font-size:12px;font-style:italic;color:#666">${d.facilitation_notes}</p>` : ''}
+      </div>
+    `).join('');
+    printWin.document.write(`<html><head><title>Guide Playbook</title><style>body{font-family:system-ui,sans-serif;max-width:700px;margin:40px auto;padding:0 20px}h2{font-size:18px;margin-bottom:16px}</style></head><body><h2>Guide Playbook</h2>${html}</body></html>`);
+    printWin.document.close();
+    printWin.print();
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, maxWidth: '90vw',
+      background: 'var(--chalk)', borderLeft: '1px solid var(--pencil)',
+      boxShadow: '-4px 0 24px rgba(0,0,0,0.08)', zIndex: 200,
+      display: 'flex', flexDirection: 'column', animation: 'slideInRight 200ms ease',
+    }}>
+      <style>{`@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--pencil)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Calendar size={16} color="var(--ink)" />
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--ink)' }}>Guide Playbook</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {days.length > 0 && (
+            <button onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--pencil)', background: 'transparent', fontSize: 11, color: 'var(--graphite)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+              <Printer size={12} /> Print
+            </button>
+          )}
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
+            <X size={16} color="var(--graphite)" />
+          </button>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Loader2 size={20} color="var(--graphite)" style={{ animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : days.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--graphite)', fontFamily: 'var(--font-body)', textAlign: 'center', padding: 40 }}>
+            No playbook was generated for this project. You can generate one when creating a new project in the builder.
+          </p>
+        ) : (
+          days.map((day) => (
+            <div key={day.day_number} style={{ padding: '12px 0', borderBottom: '1px solid var(--parchment)' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'var(--lab-blue)', color: 'var(--chalk)', fontFamily: 'var(--font-mono)' }}>
+                  Day {day.day_number}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
+                  {day.title}
+                </span>
+              </div>
+              {day.prep_tasks?.length > 0 && (
+                <div style={{ marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Prep</span>
+                  <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 11, color: 'var(--graphite)', fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
+                    {day.prep_tasks.map((t, i) => <li key={i}>{t}</li>)}
+                  </ul>
+                </div>
+              )}
+              {day.materials?.length > 0 && (
+                <div style={{ marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Materials</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                    {day.materials.map((m, i) => (
+                      <span key={i} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'var(--parchment)', color: 'var(--graphite)', fontFamily: 'var(--font-body)' }}>{m}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {day.time_blocks?.length > 0 && (
+                <div style={{ marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Schedule</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 }}>
+                    {day.time_blocks.map((tb, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 11, fontFamily: 'var(--font-body)' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--ink)', minWidth: 40 }}>{tb.duration_min}min</span>
+                        <span style={{ color: 'var(--ink)' }}>{tb.label}</span>
+                        {tb.notes && <span style={{ color: 'var(--pencil)', fontStyle: 'italic' }}> — {tb.notes}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {day.facilitation_notes && (
+                <p style={{ fontSize: 11, color: 'var(--graphite)', fontFamily: 'var(--font-body)', fontStyle: 'italic', lineHeight: 1.5, margin: '4px 0 0' }}>
+                  {day.facilitation_notes}
+                </p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ===================== PROGRESS SIDEBAR =====================
 function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, onClose }) {
   const completedCount = stages.filter((s) => s.status === 'completed').length;
@@ -1026,6 +1143,8 @@ export default function QuestMap() {
   const [confettiNode, setConfettiNode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [playbookOpen, setPlaybookOpen] = useState(false);
 
   const [stageSubmissions, setStageSubmissions] = useState({}); // keyed by stage_id
 
@@ -1279,6 +1398,22 @@ export default function QuestMap() {
         )}
 
         <button
+          onClick={() => setPlaybookOpen((v) => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px', borderRadius: 6,
+            border: `1px solid ${playbookOpen ? 'var(--lab-blue)' : 'var(--pencil)'}`,
+            background: playbookOpen ? 'rgba(59,130,246,0.08)' : 'transparent',
+            fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)',
+            color: playbookOpen ? 'var(--lab-blue)' : 'var(--ink)',
+            cursor: 'pointer', flexShrink: 0, transition: 'all 150ms',
+          }}
+        >
+          <Calendar size={14} />
+          Playbook
+        </button>
+
+        <button
           onClick={() => setJournalOpen((v) => !v)}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
@@ -1487,6 +1622,14 @@ export default function QuestMap() {
           onAdd={addReflection}
           onClose={() => setJournalOpen(false)}
         />
+      )}
+
+      {/* Guide Playbook slide-over */}
+      {playbookOpen && (
+        <>
+          <div onClick={() => setPlaybookOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 199 }} />
+          <GuidePlaybookPanel questId={id} onClose={() => setPlaybookOpen(false)} />
+        </>
       )}
     </div>
   );

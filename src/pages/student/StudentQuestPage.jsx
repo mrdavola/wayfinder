@@ -984,6 +984,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   const [feedback, setFeedback] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [challengerText, setChallengerText] = useState(null);
+  const [revising, setRevising] = useState(false);
   const guideBottomRef = useRef(null);
 
   useEffect(() => {
@@ -1349,7 +1350,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       )}
 
       {/* Read-only submission for completed stages */}
-      {isDone && existingSubmission && (
+      {isDone && existingSubmission && !revising && (
         <SubmissionView submission={existingSubmission} />
       )}
 
@@ -1360,6 +1361,62 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
       {feedback && <FeedbackCard feedback={feedback} />}
+
+      {/* Revise & Resubmit */}
+      {isDone && feedback && !revising && (
+        <button
+          onClick={() => setRevising(true)}
+          style={{
+            marginTop: 10, padding: '8px 16px', borderRadius: 8,
+            border: '1.5px solid var(--lab-blue)', background: 'rgba(59,130,246,0.06)',
+            color: 'var(--lab-blue)', fontSize: 12, fontWeight: 600,
+            fontFamily: 'var(--font-body)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all 150ms',
+          }}
+        >
+          <ArrowRight size={13} /> Revise & Resubmit
+        </button>
+      )}
+      {revising && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--lab-blue)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Revised Submission
+            </span>
+            <button onClick={() => setRevising(false)} style={{ fontSize: 11, color: 'var(--graphite)', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </div>
+          <SubmissionPanel
+            stageId={stage.id}
+            questId={questId}
+            studentName={studentName}
+            initialText={existingSubmission?.submission_type === 'text' ? existingSubmission.content : ''}
+            onSubmitComplete={(stageId, content) => {
+              setRevising(false);
+              setFeedback(null);
+              setFeedbackLoading(true);
+              ai.reviewSubmission({
+                stageTitle: stage.title,
+                stageDescription: stage.description || '',
+                deliverable: stage.deliverable || '',
+                submissionContent: content || '',
+                studentProfile: studentProfile || { name: studentName },
+              }).then((result) => {
+                setFeedback(result);
+                feedbackApi.add({
+                  questId, stageId: stage.id, studentName,
+                  feedbackText: result.feedback,
+                  skillsDemonstrated: result.skills_demonstrated,
+                  encouragement: result.encouragement,
+                  nextSteps: result.next_steps,
+                });
+              }).catch(() => {}).finally(() => setFeedbackLoading(false));
+            }}
+          />
+        </div>
+      )}
 
       {/* Devil's Advocate */}
       {challengerText && (

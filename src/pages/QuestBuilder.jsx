@@ -25,7 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai, questGroups as questGroupsApi } from '../lib/api';
+import { ai, questGroups as questGroupsApi, guidePlaybook } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 
@@ -1784,9 +1784,13 @@ function Step5Review({
   saveError,
 }) {
   const [openStage, setOpenStage] = useState(null);
-  const [playbookDays, setPlaybookDays] = useState(null);
+  const playbookDays = generatedQuest?.playbookDays || null;
   const [playbookLoading, setPlaybookLoading] = useState(false);
   const [playbookOpen, setPlaybookOpen] = useState(false);
+
+  const setPlaybookDays = (days) => {
+    setGeneratedQuest((prev) => ({ ...prev, playbookDays: days }));
+  };
 
   async function handleGeneratePlaybook() {
     if (!generatedQuest) return;
@@ -2723,6 +2727,11 @@ export default function QuestBuilder() {
         await supabase.from('quest_students').insert(
           selectedStudentIdsForSave.map((sid) => ({ quest_id: quest.id, student_id: sid }))
         );
+      }
+
+      // Save guide playbook if generated
+      if (generatedQuest.playbookDays?.length > 0) {
+        await guidePlaybook.bulkUpsert(quest.id, generatedQuest.playbookDays);
       }
 
       return quest.id;
