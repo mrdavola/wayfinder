@@ -1294,8 +1294,17 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         <StretchChallenge text={stage.stretch_challenge} />
       )}
 
-      {/* Work submission */}
-      {isActive && (
+      {/* Work submission — show for active stage OR completed stage if this student hasn't submitted */}
+      {isDone && !existingSubmission && !revising && (
+        <div style={{
+          fontSize: 11, color: 'var(--lab-blue)', fontWeight: 600,
+          fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+          letterSpacing: '0.06em', marginBottom: 6, marginTop: 8,
+        }}>
+          Your teammates submitted — add yours too!
+        </div>
+      )}
+      {(isActive || (isDone && !existingSubmission && !revising)) && (
         <SubmissionPanel
           stageId={stage.id}
           questId={questId}
@@ -1303,7 +1312,9 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           onSubmitComplete={async (stageId, submissionContent) => {
             // Trigger AI feedback non-blocking
             setFeedbackLoading(true);
-            onComplete(stageId);
+            // Only advance stage if not already completed (group member already submitted)
+            if (!isDone) onComplete(stageId);
+            else if (onReloadSubmissions) onReloadSubmissions();
             try {
               const result = await ai.reviewSubmission({
                 stageTitle: stage.title,
