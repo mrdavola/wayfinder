@@ -464,11 +464,14 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
+  const videoPreviewRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     return () => {
       clearInterval(timerRef.current);
       if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -486,8 +489,13 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
   const startRecording = async () => {
     setError('');
     try {
-      const constraints = type === 'video' ? { audio: true, video: true } : { audio: true };
+      const constraints = type === 'video' ? { audio: true, video: { facingMode: 'user' } } : { audio: true };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      // Show live preview for video
+      if (type === 'video' && videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = stream;
+      }
       chunksRef.current = [];
       const mr = new MediaRecorder(stream);
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
@@ -495,6 +503,8 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         const blob = new Blob(chunksRef.current, { type: type === 'video' ? 'video/webm' : 'audio/webm' });
         setMediaBlob(blob);
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
       };
       mediaRecorderRef.current = mr;
       mr.start();
@@ -685,12 +695,24 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
               </div>
             </div>
           ) : recording ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(192,57,43,0.06)', borderRadius: 8, border: '1px solid rgba(192,57,43,0.2)' }}>
-              <div className="sq-rec-dot" style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--specimen-red)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{fmtSecs(seconds)}</span>
-              <button onClick={stopRecording} style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 5, border: 'none', background: 'var(--specimen-red)', color: 'var(--chalk)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                Stop
-              </button>
+            <div>
+              <video
+                ref={videoPreviewRef}
+                autoPlay
+                muted
+                playsInline
+                style={{
+                  width: '100%', borderRadius: 8, marginBottom: 8,
+                  background: '#000', transform: 'scaleX(-1)',
+                }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(192,57,43,0.06)', borderRadius: 8, border: '1px solid rgba(192,57,43,0.2)' }}>
+                <div className="sq-rec-dot" style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--specimen-red)', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{fmtSecs(seconds)}</span>
+                <button onClick={stopRecording} style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 5, border: 'none', background: 'var(--specimen-red)', color: 'var(--chalk)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                  Stop
+                </button>
+              </div>
             </div>
           ) : file ? (
             <div style={{ padding: '8px 12px', background: 'var(--parchment)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>

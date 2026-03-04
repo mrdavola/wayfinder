@@ -121,11 +121,11 @@ BEGIN
   -- Recent snapshots
   SELECT COALESCE(jsonb_agg(sn), '[]'::jsonb) INTO v_snapshots
   FROM (
-    SELECT sks.proficiency, sks.source, sks.created_at, s.name AS skill_name
+    SELECT sks.proficiency, sks.snapshot_at, s.name AS skill_name
     FROM skill_snapshots sks
     JOIN skills s ON s.id = sks.skill_id
     WHERE sks.student_id = v_pa.student_id
-    ORDER BY sks.created_at DESC
+    ORDER BY sks.snapshot_at DESC
     LIMIT 20
   ) sn;
 
