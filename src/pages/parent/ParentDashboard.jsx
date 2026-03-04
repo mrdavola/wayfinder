@@ -304,49 +304,15 @@ function JoinWithCode() {
     setChecking(true);
     setError('');
 
-    // Look up student by PIN
-    const { data: student, error: fetchErr } = await supabase
-      .from('students')
-      .select('id, name')
-      .eq('pin', pin)
-      .single();
+    const { data, error: rpcErr } = await supabase.rpc('parent_join_by_pin', { p_pin: pin });
 
-    if (fetchErr || !student) {
-      setError('No student found with that code. Please check and try again.');
+    if (rpcErr || !data?.success) {
+      setError(data?.error || rpcErr?.message || 'No student found with that code. Please check and try again.');
       setChecking(false);
       return;
     }
 
-    // Check if parent_access already exists for this student
-    const { data: existing } = await supabase
-      .from('parent_access')
-      .select('*')
-      .eq('student_id', student.id)
-      .limit(1)
-      .single();
-
-    if (existing) {
-      // Already has a parent link — redirect to it
-      const tok = existing.token || existing.access_token;
-      navigate(`/parent/${tok}`);
-      return;
-    }
-
-    // Create new parent_access row
-    const { data: newPA, error: insertErr } = await supabase
-      .from('parent_access')
-      .insert({ student_id: student.id })
-      .select('*')
-      .single();
-
-    if (insertErr || !newPA) {
-      setError('Something went wrong. Please try again.');
-      setChecking(false);
-      return;
-    }
-
-    const tok = newPA.token || newPA.access_token;
-    navigate(`/parent/${tok}`);
+    navigate(`/parent/${data.token}`);
   }
 
   return (
