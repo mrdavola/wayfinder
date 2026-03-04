@@ -901,7 +901,7 @@ function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, o
       {/* Overlay header */}
       {isOverlay && (
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--pencil)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: 'var(--ink)' }}>Quest Progress</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: 'var(--ink)' }}>Project Progress</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--graphite)', padding: 4, display: 'flex' }}>
             <X size={17} />
           </button>
@@ -1065,7 +1065,7 @@ export default function QuestMap() {
         .single();
 
       if (fetchError) {
-        setError(fetchError.message || 'Failed to load quest.');
+        setError(fetchError.message || 'Failed to load project.');
         setLoading(false);
         return;
       }
@@ -1204,7 +1204,7 @@ export default function QuestMap() {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
         <AlertCircle size={48} color="var(--specimen-red)" strokeWidth={1.5} style={{ marginBottom: 16 }} />
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', color: 'var(--ink)', marginBottom: 8 }}>Quest Not Found</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', color: 'var(--ink)', marginBottom: 8 }}>Project Not Found</h2>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'var(--graphite)', marginBottom: 24 }}>{error}</p>
         <Link to="/dashboard" style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'var(--lab-blue)', textDecoration: 'none' }}>
           ← Return to Dashboard
@@ -1366,7 +1366,7 @@ export default function QuestMap() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <CheckCircle size={22} color="var(--chalk)" strokeWidth={2.5} />
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}>Quest Complete!</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}>Project Complete!</span>
                   </div>
                   <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, margin: '0 0 14px' }}>
                     Every stage finished. Your work is logged and ready for review.

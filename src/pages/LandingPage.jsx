@@ -70,7 +70,7 @@ function QuestMapIllustration() {
     <svg
       viewBox="0 0 340 480"
       xmlns="http://www.w3.org/2000/svg"
-      aria-label="Wayfinder quest map illustration"
+      aria-label="Wayfinder project map illustration"
       style={{ width: '100%', maxWidth: 340, height: 'auto' }}
     >
       {/* Grid paper lines */}
@@ -183,7 +183,7 @@ function QuestMapIllustration() {
 
       {/* End marker at bottom */}
       <g transform="translate(160, 438)">
-        <text textAnchor="middle" fontFamily="'IBM Plex Mono', monospace" fontSize="8" fill="#9CA3AF" y="4">QUEST COMPLETE</text>
+        <text textAnchor="middle" fontFamily="'IBM Plex Mono', monospace" fontSize="8" fill="#9CA3AF" y="4">PROJECT COMPLETE</text>
       </g>
       <g transform="translate(160, 428)">
         <polygon points="0,-7 7,4 -7,4" fill="#B8860B" />
@@ -472,7 +472,7 @@ export default function LandingPage() {
                   letterSpacing: '-0.02em',
                 }}
               >
-                Turn student curiosity into career-connected quests.
+                AI-powered project generation in minutes — based on you.
               </h1>
 
               <p
@@ -484,7 +484,7 @@ export default function LandingPage() {
                   maxWidth: 520,
                 }}
               >
-                Wayfinder uses AI to transform what learners already care about into rigorous, project-based experiences that build real skills and expose them to careers they&apos;ve never imagined.
+                Tell Wayfinder what your learners care about, pick your standards, and let the AI build a rigorous, career-connected project in under two minutes.
               </p>
 
               <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -493,7 +493,7 @@ export default function LandingPage() {
                   className="btn btn-primary"
                   style={{ fontSize: 'var(--text-base)', padding: 'var(--space-4) var(--space-8)' }}
                 >
-                  Start Building Quests
+                  Start Building Projects
                   <ArrowRight size={16} />
                 </Link>
                 <button
@@ -656,14 +656,14 @@ export default function LandingPage() {
               {
                 num: '2',
                 Icon: Route,
-                title: 'AI Generates the Quest',
+                title: 'AI Generates the Project',
                 desc: 'The engine designs a multi-stage project pathway that weaves required standards into the student\'s interest — and connects it to a real career field they\'ve never heard of.',
               },
               {
                 num: '3',
                 Icon: Mic,
                 title: 'Students Explore & Simulate',
-                desc: 'Learners follow the quest map, complete challenges, and enter voice-powered career simulations where they solve real problems as junior scientists and specialists.',
+                desc: 'Learners follow the project map, complete challenges, and enter voice-powered career simulations where they solve real problems as junior scientists and specialists.',
               },
             ].map(({ num, Icon, title, desc }) => (
               <div
@@ -752,7 +752,7 @@ export default function LandingPage() {
                 letterSpacing: '-0.02em',
               }}
             >
-              Sample quests from the frontier of AI careers.
+              Sample projects from the frontier of AI careers.
             </h2>
           </div>
 
@@ -989,11 +989,11 @@ export default function LandingPage() {
                 Bring Wayfinder to your whole campus.
               </h2>
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)', color: 'rgba(255,255,255,0.72)', lineHeight: 1.7, marginBottom: 'var(--space-8)' }}>
-                School licenses unlock a shared Quest Library, administrator dashboards, standards alignment reports, and onboarding support — so every guide can hit the ground running.
+                School licenses unlock a shared Project Library, administrator dashboards, standards alignment reports, and onboarding support — so every guide can hit the ground running.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-8)' }}>
                 {[
-                  'School-wide Quest Library with custom templates',
+                  'School-wide Project Library with custom templates',
                   'Admin dashboard — see all guides and learner progress',
                   'Standards alignment reports for parent & board review',
                   'Dedicated onboarding and curriculum mapping support',
@@ -1028,8 +1028,8 @@ export default function LandingPage() {
             {/* Right: feature cards */}
             <div style={{ flex: '1 1 260px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {[
-                { Icon: School,       title: 'Multi-guide schools', body: 'One licence covers your full teaching team. Share quests, co-create templates, and align on standards together.' },
-                { Icon: BarChart2,    title: 'Progress at a glance', body: "The admin dashboard surfaces every learner's quest status across all guides — no spreadsheets needed." },
+                { Icon: School,       title: 'Multi-guide schools', body: 'One licence covers your full teaching team. Share projects, co-create templates, and align on standards together.' },
+                { Icon: BarChart2,    title: 'Progress at a glance', body: "The admin dashboard surfaces every learner's project status across all guides — no spreadsheets needed." },
                 { Icon: ShieldCheck,  title: 'Private & secure', body: "Student data never leaves your school's workspace. Fully FERPA-compliant, no ads, no third-party sharing." },
               ].map((card) => (
                 <div key={card.title} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '18px 20px' }}>
@@ -1087,7 +1087,7 @@ export default function LandingPage() {
               lineHeight: 1.2,
             }}
           >
-            Ready to turn interests into quests?
+            Ready to turn interests into projects?
           </h2>
 
           {submitted ? (

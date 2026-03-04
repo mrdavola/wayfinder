@@ -92,9 +92,9 @@ export const QUESTS = [
     reflection_prompts: [
       'What surprised you most about how materials are tested in real labs?',
       'How did your experience building in Minecraft help you think about material tradeoffs?',
-      "What skill did you practice that you didn't expect to use in a science quest?",
+      "What skill did you practice that you didn't expect to use in a science project?",
     ],
-    parent_summary: 'Milo explored how artificial intelligence is revolutionizing material science by designing and testing battery materials for electric vehicles. Through this quest, he practiced comparing fractions to analyze material efficiency ratios, wrote a persuasive recommendation report, and used the scientific method to evaluate real data — all while discovering a career field he had never imagined.',
+    parent_summary: 'Milo explored how artificial intelligence is revolutionizing material science by designing and testing battery materials for electric vehicles. Through this project, he practiced comparing fractions to analyze material efficiency ratios, wrote a persuasive recommendation report, and used the scientific method to evaluate real data — all while discovering a career field he had never imagined.',
     created_at: '2025-02-15T10:00:00Z',
     completed_at: null,
     stages: [
@@ -204,9 +204,9 @@ export const QUESTS = [
         title: 'Field Notes',
         type: 'reflect',
         duration_days: 2,
-        description: "Every scientist keeps a research journal. Yours has been filling up during this quest. Now it's time to look back: what did you discover, what surprised you, and what changed in how you think about materials? Your reflections go into the public Quest Library so future researchers can learn from your journey.",
+        description: "Every scientist keeps a research journal. Yours has been filling up during this project. Now it's time to look back: what did you discover, what surprised you, and what changed in how you think about materials? Your reflections go into the public Project Library so future researchers can learn from your journey.",
         academic_skills_embedded: ['CCSS.ELA-LITERACY.W.4.2'],
-        skill_integration_note: 'Expository writing and reflection skills emerge naturally as students synthesize what they learned across the quest.',
+        skill_integration_note: 'Expository writing and reflection skills emerge naturally as students synthesize what they learned across the project.',
         deliverable: 'A 3-entry Field Notes journal: one surprise, one challenge, one career connection.',
         guiding_questions: [
           'What did you discover about AI-powered material science that you couldn\'t have known before?',

@@ -181,7 +181,7 @@ const FALLBACK_TEMPLATES = [
       { stage_number: 2, title: 'The Material Lab', type: 'experiment', duration_days: 3, description: 'Test 5 candidate materials against your criteria using a weighted scoring system.' },
       { stage_number: 3, title: 'Simulation Chamber', type: 'simulate', duration_days: 1, description: 'Present your recommendation to Dr. Reyes and defend it under pressure.' },
       { stage_number: 4, title: 'The Final Report', type: 'present', duration_days: 2, description: 'Write a 1-page brief the CEO can take to investors.' },
-      { stage_number: 5, title: 'Field Notes', type: 'reflect', duration_days: 2, description: 'Synthesize what you discovered and share it with the Quest Library.' },
+      { stage_number: 5, title: 'Field Notes', type: 'reflect', duration_days: 2, description: 'Synthesize what you discovered and share it with the Project Library.' },
     ],
   },
   {
@@ -470,8 +470,8 @@ function applyFilters(templates, { searchQuery, selectedPathway, selectedGrade, 
 const TOUR_STEPS = [
   {
     icon: <Compass size={48} color="var(--compass-gold)" />,
-    title: 'Welcome to the Quest Library',
-    body: 'Discover project-based learning quests you can customize for your learners. Every quest is designed around the Buck Institute\'s 7 Gold Standard PBL elements and aligned to real CCSS and NGSS academic standards.',
+    title: 'Welcome to the Project Library',
+    body: 'Discover project-based learning projects you can customize for your learners. Every project is designed around the Buck Institute\'s 7 Gold Standard PBL elements and aligned to real CCSS and NGSS academic standards.',
     visual: null,
   },
   {
@@ -497,7 +497,7 @@ const TOUR_STEPS = [
   {
     icon: <BookOpen size={40} color="var(--field-green)" />,
     title: 'Real Standards, Verified by Learning Commons',
-    body: 'Each quest is tagged with CCSS Math, ELA, and NGSS standards. Standards with a "KG" badge are verified against the Learning Commons Knowledge Graph — the authoritative standards registry.',
+    body: 'Each project is tagged with CCSS Math, ELA, and NGSS standards. Standards with a "KG" badge are verified against the Learning Commons Knowledge Graph — the authoritative standards registry.',
     visual: (
       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {[
@@ -540,8 +540,8 @@ const TOUR_STEPS = [
   },
   {
     icon: <Award size={40} color="var(--specimen-red)" />,
-    title: 'Gold Standard PBL — Built Into Every Quest',
-    body: 'Quests are designed around the Buck Institute\'s 7 Gold Standard PBL elements. Colored badges on each card show which elements the quest covers — from Driving Question to Public Product.',
+    title: 'Gold Standard PBL — Built Into Every Project',
+    body: 'Projects are designed around the Buck Institute\'s 7 Gold Standard PBL elements. Colored badges on each card show which elements the project covers — from Driving Question to Public Product.',
     visual: (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
         {Object.values(PBL_ELEMENTS).map(el => (
@@ -561,7 +561,7 @@ const TOUR_STEPS = [
   {
     icon: <Zap size={40} color="var(--compass-gold)" />,
     title: 'Preview, Customize & Launch',
-    body: 'Click "Preview" on any card to see the full quest — stages, narrative hook, and detailed standards breakdown. Hit "Use This Quest" to load it into the Quest Builder, where you personalize it for your learners.',
+    body: 'Click "Preview" on any card to see the full project — stages, narrative hook, and detailed standards breakdown. Hit "Use This Project" to load it into the Project Builder, where you personalize it for your learners.',
     visual: null,
   },
 ];
@@ -617,7 +617,7 @@ function WalkthroughTour({ onComplete }) {
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
           }}>
-            Quest Library Tour
+            Project Library Tour
           </span>
           <button
             onClick={handleComplete}
@@ -966,7 +966,7 @@ function QuestCard({ template, onPreview }) {
           onClick={handleUseQuest}
           style={{ flex: 1, justifyContent: 'center', fontSize: 'var(--text-sm)' }}
         >
-          Use This Quest
+          Use This Project
         </button>
       </div>
     </div>
@@ -1149,7 +1149,7 @@ function PreviewModal({ template, onClose }) {
                 color: 'var(--graphite)', textTransform: 'uppercase',
                 letterSpacing: '0.08em', marginBottom: 12,
               }}>
-                Quest Stages
+                Project Stages
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {template.stages.map(stage => (
@@ -1363,8 +1363,8 @@ function PreviewModal({ template, onClose }) {
                   marginTop: 10,
                   fontStyle: 'italic',
                 }}>
-                  This quest covers {pblCovered.length} of the 7 BIE Gold Standard PBL elements.
-                  The Quest Builder lets you incorporate additional elements.
+                  This project covers {pblCovered.length} of the 7 BIE Gold Standard PBL elements.
+                  The Project Builder lets you incorporate additional elements.
                 </p>
               )}
             </div>
@@ -1384,7 +1384,7 @@ function PreviewModal({ template, onClose }) {
             Close
           </button>
           <button className="btn btn-primary" onClick={handleUseQuest} style={{ fontSize: 'var(--text-sm)' }}>
-            Use This Quest
+            Use This Project
           </button>
         </div>
       </div>
@@ -1482,7 +1482,7 @@ function FilterBar({ searchQuery, setSearchQuery, selectedPathway, setSelectedPa
           />
           <input
             type="text"
-            placeholder="Search quests, standards, interests…"
+            placeholder="Search projects, standards, interests…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{
@@ -1523,7 +1523,7 @@ function FilterBar({ searchQuery, setSearchQuery, selectedPathway, setSelectedPa
           fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)',
           color: 'var(--graphite)', whiteSpace: 'nowrap', marginLeft: 'auto',
         }}>
-          {count} quest{count !== 1 ? 's' : ''}
+          {count} project{count !== 1 ? 's' : ''}
         </span>
       </div>
     </div>
@@ -1629,14 +1629,14 @@ export default function QuestLibrary() {
               lineHeight: 1.2,
               marginBottom: 6,
             }}>
-              Quest Library
+              Project Library
             </h1>
             <p style={{
               fontFamily: 'var(--font-body)',
               fontSize: 'var(--text-sm)',
               color: 'var(--graphite)',
             }}>
-              Standards-aligned, project-based learning quests — ready to personalize for your learners.
+              Standards-aligned, project-based learning projects — ready to personalize for your learners.
             </p>
           </div>
           <button
@@ -1712,7 +1712,7 @@ export default function QuestLibrary() {
             fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)',
             color: 'var(--compass-gold)',
           }}>
-            Could not connect to the library database. Showing curated quest examples.
+            Could not connect to the library database. Showing curated project examples.
           </div>
         )}
 
@@ -1728,7 +1728,7 @@ export default function QuestLibrary() {
           <div style={{ textAlign: 'center', padding: '64px 24px' }}>
             <Compass size={44} color="var(--pencil)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
-              No quests match your filters.
+              No projects match your filters.
             </h3>
             <p style={{
               fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)',

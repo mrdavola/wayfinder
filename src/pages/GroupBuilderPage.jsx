@@ -253,7 +253,7 @@ export default function GroupBuilderPage() {
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                  <label style={styles.fieldLabel}>Quest context <span style={{ fontWeight: 400, color: T.pencil }}>(optional)</span></label>
+                  <label style={styles.fieldLabel}>Project context <span style={{ fontWeight: 400, color: T.pencil }}>(optional)</span></label>
                   <input
                     type="text"
                     placeholder="e.g. Ocean ecosystem research project"

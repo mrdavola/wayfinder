@@ -224,7 +224,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
             <button
               onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 4, color: 'var(--graphite)', display: 'flex', alignItems: 'center' }}
-              aria-label="Quest options"
+              aria-label="Project options"
             >
               <MoreHorizontal size={16} />
             </button>
@@ -254,7 +254,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--parchment)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  <Archive size={13} /> Archive quest
+                  <Archive size={13} /> Archive project
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDelete(quest.id, quest.title); }}
@@ -262,7 +262,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(192,57,43,0.06)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  <Trash2 size={13} /> Delete quest
+                  <Trash2 size={13} /> Delete project
                 </button>
               </div>
             )}
@@ -381,7 +381,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
   );
 }
 
-// ── Active Quests Column ──────────────────────────────────────────────────────
+// ── Active Projects Column ──────────────────────────────────────────────────────
 
 function ActiveQuestsColumn({ user }) {
   const navigate = useNavigate();
@@ -450,7 +450,7 @@ function ActiveQuestsColumn({ user }) {
               color: 'var(--ink)',
             }}
           >
-            Active Quests
+            Active Projects
           </h2>
           {!loading && (
             <span
@@ -476,7 +476,7 @@ function ActiveQuestsColumn({ user }) {
           style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
         >
           <Plus size={15} />
-          New Quest
+          New Project
         </button>
       </div>
 
@@ -502,7 +502,7 @@ function ActiveQuestsColumn({ user }) {
             fontSize: 'var(--text-sm)',
           }}
         >
-          Failed to load quests: {error}
+          Failed to load projects: {error}
         </div>
       )}
 
@@ -526,7 +526,7 @@ function ActiveQuestsColumn({ user }) {
               marginBottom: 8,
             }}
           >
-            No active quests yet.
+            No active projects yet.
           </p>
           <p
             style={{
@@ -536,7 +536,7 @@ function ActiveQuestsColumn({ user }) {
               marginBottom: 'var(--space-4)',
             }}
           >
-            Quests help you connect learner interests to real-world careers and standards.
+            Projects help you connect learner interests to real-world careers and standards.
           </p>
           <button
             className="btn btn-primary"
@@ -544,7 +544,7 @@ function ActiveQuestsColumn({ user }) {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}
           >
             <Plus size={15} />
-            Create your first quest
+            Create your first project
           </button>
         </div>
       )}
@@ -607,7 +607,7 @@ function ActiveQuestsColumn({ user }) {
             onClick={(e) => e.stopPropagation()}
             style={{ background: 'var(--chalk)', borderRadius: 14, padding: '28px 28px 24px', maxWidth: 400, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}
           >
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', margin: '0 0 8px' }}>Delete quest?</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', margin: '0 0 8px' }}>Delete this project?</h3>
             <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, margin: '0 0 20px' }}>
               "<strong>{deleteConfirm.title}</strong>" and all its stages, reflections, and simulation data will be permanently deleted. This cannot be undone.
             </p>
@@ -674,7 +674,7 @@ function QuickQuestCard() {
             color: 'var(--ink)',
           }}
         >
-          New Quest
+          New Project
         </h3>
       </div>
 
@@ -736,7 +736,7 @@ function QuickQuestCard() {
         onClick={handleGenerate}
         style={{ width: '100%', justifyContent: 'center' }}
       >
-        Generate Quest
+        Generate Project
       </button>
     </div>
   );
@@ -1116,7 +1116,7 @@ function WeeklySnapshotCard({ quests, loading }) {
         }}
       >
         {[
-          { label: 'active quests', value: quests.length },
+          { label: 'active projects', value: quests.length },
           { label: 'stages completed this week', value: completedThisWeek },
         ].map(({ label, value }) => (
           <div
@@ -1304,7 +1304,7 @@ function SimulationDebriefsCard({ user }) {
               }}
             >
               <p style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink)', marginBottom: 2 }}>
-                {d.quests?.title || 'Untitled Quest'}
+                {d.quests?.title || 'Untitled Project'}
               </p>
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', lineHeight: 1.4,
                 overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -1323,23 +1323,23 @@ function SimulationDebriefsCard({ user }) {
 const TOUR_STEPS = [
   {
     target: 'tour-active-quests',
-    title: 'Your Active Quests',
-    body: 'All running quests appear here. Click any quest card to open the student journey map.',
+    title: 'Your Active Projects',
+    body: 'All running projects appear here. Click any project card to open the student journey map.',
   },
   {
     target: 'tour-new-quest',
-    title: 'Start a New Quest',
-    body: 'Use the quest generator to build a personalized, standards-aligned project in under 2 minutes.',
+    title: 'Start a New Project',
+    body: 'Use the project generator to build a personalized, standards-aligned project in under 2 minutes.',
   },
   {
     target: 'tour-students',
     title: 'Manage Students',
-    body: 'Add your learners here. Their interests drive the AI quest generator.',
+    body: 'Add your learners here. Their interests drive the AI project generator.',
   },
   {
     target: 'tour-snapshot',
     title: 'Weekly Snapshot',
-    body: 'Track quest progress and career pathway coverage across your class at a glance.',
+    body: 'Track project progress and career pathway coverage across your class at a glance.',
   },
 ];
 
@@ -1504,7 +1504,7 @@ export default function Dashboard() {
               color: 'var(--graphite)',
             }}
           >
-            Here's what's happening across your quests today.
+            Here's what's happening across your projects today.
           </p>
         </div>
 
@@ -1608,7 +1608,7 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 'var(--text-lg)', color: 'var(--ink)' }}>
-            Active Quests
+            Active Projects
           </h2>
           {!loading && (
             <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--compass-gold)', background: 'var(--parchment)', border: '1px solid var(--pencil)', borderRadius: 100, padding: '2px 8px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
@@ -1618,7 +1618,7 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/quest/new')} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Plus size={15} />
-          New Quest
+          New Project
         </button>
       </div>
 
@@ -1626,7 +1626,7 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
 
       {!loading && error && (
         <div style={{ background: 'rgba(192,57,43,0.06)', border: '1px solid rgba(192,57,43,0.2)', borderRadius: 8, padding: 'var(--space-4)', color: 'var(--specimen-red)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)' }}>
-          Failed to load quests: {error}
+          Failed to load projects: {error}
         </div>
       )}
 
@@ -1634,14 +1634,14 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
         <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-6)', background: 'var(--parchment)', border: '1px solid var(--pencil)', borderRadius: 8 }}>
           <Compass size={40} color="var(--pencil)" style={{ margin: '0 auto 16px' }} />
           <p style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
-            No active quests yet.
+            No active projects yet.
           </p>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'var(--graphite)', marginBottom: 'var(--space-4)' }}>
-            Quests help you connect learner interests to real-world careers and standards.
+            Projects help you connect learner interests to real-world careers and standards.
           </p>
           <button className="btn btn-primary" onClick={() => navigate('/quest/new')} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Plus size={15} />
-            Create your first quest
+            Create your first project
           </button>
         </div>
       )}
@@ -1672,7 +1672,7 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
       {deleteConfirm && (
         <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--chalk)', borderRadius: 14, padding: '28px 28px 24px', maxWidth: 400, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', margin: '0 0 8px' }}>Delete quest?</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', margin: '0 0 8px' }}>Delete this project?</h3>
             <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, margin: '0 0 20px' }}>
               "<strong>{deleteConfirm.title}</strong>" and all its stages will be permanently deleted.
             </p>

@@ -404,12 +404,12 @@ export default function AdminDashboard() {
         {activeTab === 'quests' && (
           <div style={{ background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--pencil)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--ink)' }}>{filteredQuests.length} quest{filteredQuests.length !== 1 ? 's' : ''} (last 100)</span>
+              <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--ink)' }}>{filteredQuests.length} project{filteredQuests.length !== 1 ? 's' : ''} (last 100)</span>
             </div>
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--graphite)', fontFamily: 'var(--font-body)', fontSize: 13 }}>Loading…</div>
             ) : filteredQuests.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--graphite)', fontFamily: 'var(--font-body)', fontSize: 13 }}>No quests found</div>
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--graphite)', fontFamily: 'var(--font-body)', fontSize: 13 }}>No projects found</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>

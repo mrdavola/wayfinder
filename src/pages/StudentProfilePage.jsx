@@ -313,7 +313,7 @@ export default function StudentProfilePage() {
               </p>
             ) : (
               <p style={{ color: T.pencil, fontSize: 13, fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
-                No recommendations yet. Click "Refresh" to generate skill and quest pathway recommendations.
+                No recommendations yet. Click "Refresh" to generate skill and project pathway recommendations.
               </p>
             )}
           </section>
@@ -322,7 +322,7 @@ export default function StudentProfilePage() {
           <section style={styles.section}>
             <h2 style={styles.sectionTitle}>
               <BookOpen size={16} style={{ marginRight: 6 }} />
-              Quest History
+              Project History
             </h2>
             {quests.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -361,7 +361,7 @@ export default function StudentProfilePage() {
               </div>
             ) : (
               <p style={{ color: T.pencil, fontSize: 13, fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
-                No quests assigned yet.
+                No projects assigned yet.
               </p>
             )}
           </section>
@@ -490,7 +490,7 @@ export default function StudentProfilePage() {
                   <div style={{ padding: '24px 20px', background: T.parchment, borderRadius: 10, textAlign: 'center' }}>
                     <Clock size={28} color={T.pencil} style={{ marginBottom: 8 }} />
                     <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.graphite }}>
-                      No skill updates recorded yet. Growth data will appear as students complete quests and receive AI feedback.
+                      No skill updates recorded yet. Growth data will appear as students complete projects and receive AI feedback.
                     </p>
                   </div>
                 )}
@@ -543,7 +543,7 @@ function RecCard({ rec, onAccept, onDismiss }) {
       {content.quest_pathways?.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: T.compassGold, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-            Quest Pathway Ideas
+            Project Pathway Ideas
           </div>
           {content.quest_pathways.map((item, i) => (
             <div key={i} style={{ fontSize: 13, color: T.ink, fontFamily: 'var(--font-body)', marginBottom: 6, padding: '8px 10px', background: T.chalk, borderRadius: 8, border: `1px solid ${T.parchment}` }}>

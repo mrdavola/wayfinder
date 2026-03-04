@@ -571,7 +571,7 @@ function DebriefScreen({ simulation, messages, onReturnToQuest }) {
             cursor: 'pointer',
           }}
         >
-          Return to Quest Map
+          Return to Project Map
         </button>
       </div>
     </div>

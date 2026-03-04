@@ -65,7 +65,7 @@ function QuestMapIllustration() {
 
       {/* Legend */}
       <rect x="30" y="30" width="80" height="22" rx="4" fill="var(--chalk)" stroke="var(--pencil)" strokeWidth="0.5" />
-      <text x="38" y="45" fill="var(--graphite)" fontSize="8" fontFamily="var(--font-mono)">QUEST MAP</text>
+      <text x="38" y="45" fill="var(--graphite)" fontSize="8" fontFamily="var(--font-mono)">PROJECT MAP</text>
 
       {/* Small dots along path */}
       {[[95, 220], [110, 200], [125, 178]].map(([x, y], i) => (
@@ -116,12 +116,6 @@ const ROLE_OPTIONS = [
     label: 'Guide',
     description: 'I work directly with students, designing their learning journeys.',
     icon: User,
-  },
-  {
-    value: 'school_leader',
-    label: 'School Leader',
-    description: 'I oversee curriculum and support guides across the school.',
-    icon: School,
   },
 ];
 
@@ -400,7 +394,7 @@ export default function OnboardingPage() {
                 Set up your school
               </h2>
               <p style={{ color: 'var(--graphite)', margin: 0, fontSize: 'var(--text-sm)' }}>
-                We'll use this to tailor curriculum suggestions and quest templates.
+                We'll use this to tailor curriculum suggestions and project templates.
               </p>
             </div>
 
@@ -586,7 +580,7 @@ export default function OnboardingPage() {
               margin: 0,
               lineHeight: 1.5,
             }}>
-              Wayfinder helps you map it — turning curiosity into structured, meaningful quests.
+              Wayfinder helps you map it — turning curiosity into structured, meaningful projects.
             </p>
           </div>
 

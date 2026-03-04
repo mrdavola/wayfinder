@@ -126,8 +126,8 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent })
             )}
             <span style={styles.questCount}>
               {activeQuestCount > 0
-                ? `${activeQuestCount} active quest${activeQuestCount !== 1 ? 's' : ''}`
-                : 'No quests yet'}
+                ? `${activeQuestCount} active project${activeQuestCount !== 1 ? 's' : ''}`
+                : 'No projects yet'}
             </span>
           </div>
 

@@ -187,7 +187,7 @@ function WelcomeScreen({ quest, assignedStudents, onEnter }) {
           }}>
             <Star size={12} color="var(--compass-gold)" fill="var(--compass-gold)" />
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Quest
+              Project
             </span>
           </div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--ink)', margin: '0 0 10px', lineHeight: 1.2 }}>
@@ -278,7 +278,7 @@ function WelcomeScreen({ quest, assignedStudents, onEnter }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            Start Quest <ArrowRight size={16} />
+            Start Project <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -326,11 +326,11 @@ function JourneyMap({ stages, activeCard, onNodeClick }) {
 
           return (
             <g key={stage.id}
-              className={!isLocked ? 'sq-node-hover' : ''}
-              onClick={() => !isLocked && onNodeClick(stage.id)}
-              role={!isLocked ? 'button' : undefined}
-              tabIndex={!isLocked ? 0 : undefined}
-              onKeyDown={(e) => { if (!isLocked && (e.key === 'Enter' || e.key === ' ')) onNodeClick(stage.id); }}
+              className="sq-node-hover"
+              onClick={() => onNodeClick(stage.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNodeClick(stage.id); }}
               aria-label={`${stage.title} — ${stage.status}`}
             >
               {isActive && <circle className="sq-pulse" cx={cx} cy={cy} r={NODE_RADIUS + 9} fill="none" stroke="var(--compass-gold)" strokeWidth={1.5} opacity={0.45} />}
@@ -891,6 +891,7 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
+  const isLocked = stage.status === 'locked';
 
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideMessages, setGuideMessages] = useState([]);
@@ -1007,6 +1008,50 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         <SpeakButton text={readText} />
       </div>
 
+      {isLocked && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '3px 10px', borderRadius: 20,
+          background: 'var(--parchment)', border: '1px solid var(--pencil)',
+          fontSize: 11, fontWeight: 600, color: 'var(--graphite)',
+          fontFamily: 'var(--font-body)', marginBottom: 8,
+        }}>
+          <Lock size={11} /> Locked
+        </div>
+      )}
+
+      {isLocked ? (
+        <div style={{ opacity: 0.55, pointerEvents: 'none' }}>
+          {stage.description && (
+            <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, fontFamily: 'var(--font-body)', margin: '0 0 12px' }}>
+              {stage.description}
+            </p>
+          )}
+          {stage.guiding_questions?.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontFamily: 'var(--font-body)' }}>
+                Questions to explore
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {stage.guiding_questions.map((q, i) => (
+                  <li key={i} style={{ fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginBottom: 4, lineHeight: 1.5 }}>{q}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {stage.deliverable && (
+            <div style={{ background: 'var(--parchment)', borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, fontFamily: 'var(--font-body)' }}>
+                Deliverable
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--ink)', fontFamily: 'var(--font-body)', margin: 0, lineHeight: 1.5 }}>
+                {stage.deliverable}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
       {/* Description */}
       {stage.description && (
         <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.7, margin: '0 0 14px' }}>
@@ -1244,6 +1289,8 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           onRespond={() => setChallengerText(null)}
         />
       )}
+        </>
+      )}
     </div>
   );
 }
@@ -1354,7 +1401,7 @@ function QuestReflectionSection({ questions, answers, onAnswer, onSave, loading,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <BookOpen size={16} color="var(--compass-gold)" />
-        <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: 'var(--ink)' }}>Quest Reflection</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: 'var(--ink)' }}>Project Reflection</span>
       </div>
       <p style={{ fontSize: 12, color: 'var(--graphite)', lineHeight: 1.5, margin: '0 0 16px' }}>
         Take a moment to think about your journey. There are no wrong answers — this is about what YOU discovered.
@@ -1477,7 +1524,7 @@ export default function StudentQuestPage() {
         .single();
 
       if (err || !data) {
-        setError(err?.message || 'Quest not found.');
+        setError(err?.message || 'Project not found.');
         setLoading(false);
         return;
       }
@@ -1618,7 +1665,7 @@ export default function StudentQuestPage() {
     }).catch(() => {
       // Fallback questions
       setReflectionQuestions([
-        { type: 'growth', question: 'What did you discover about yourself during this quest?' },
+        { type: 'growth', question: 'What did you discover about yourself during this project?' },
         { type: 'connection', question: 'How does what you learned connect to something you care about?' },
         { type: 'challenge', question: 'What was the hardest part, and how did you push through it?' },
         { type: 'transfer', question: 'Where else in your life could you use what you learned?' },
@@ -1657,7 +1704,7 @@ export default function StudentQuestPage() {
   if (error) return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
       <AlertCircle size={44} color="var(--specimen-red)" strokeWidth={1.5} style={{ marginBottom: 14 }} />
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink)', marginBottom: 8 }}>Quest Not Found</h2>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink)', marginBottom: 8 }}>Project Not Found</h2>
       <p style={{ fontSize: 14, color: 'var(--graphite)' }}>{error}</p>
     </div>
   );
@@ -1776,7 +1823,7 @@ export default function StudentQuestPage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <CheckCircle size={22} color="var(--chalk)" strokeWidth={2.5} />
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 18 }}>Quest Complete!</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 18 }}>Project Complete!</span>
                   </div>
                   <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55, margin: 0 }}>
                     Amazing work, {studentName}! You've completed every stage. Your guide can see your progress.

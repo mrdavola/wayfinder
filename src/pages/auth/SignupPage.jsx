@@ -34,7 +34,7 @@ function Spinner() {
 }
 
 const BENEFITS = [
-  'Turn student interests into structured quests',
+  'Turn student interests into structured projects',
   'Connect learning to real career pathways',
   'AI-powered curriculum generation in minutes',
 ];

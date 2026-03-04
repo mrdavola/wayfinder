@@ -831,7 +831,7 @@ function Step1Students({
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 24px' }}>
-        Who is this quest for?
+        Who is this project for?
       </h2>
 
       {studentsLoading ? (
@@ -1071,7 +1071,7 @@ function Step1Students({
           {(questType === 'individual' ? !!selectedStudentId : selectedStudentIds.length > 0) && (
             <div style={{ marginBottom: 28 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6, fontFamily: 'var(--font-body)' }}>
-                Interests for this quest
+                Interests for this project
                 <span style={{ fontWeight: 400, color: T.graphite, marginLeft: 6 }}>(add or remove)</span>
               </label>
               <InterestChipInput interests={selectedInterests} onChange={setSelectedInterests} />
@@ -1170,7 +1170,7 @@ function Step2Skills({
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 6px' }}>
-        What skills should this quest build?
+        What skills should this project build?
       </h2>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.graphite, margin: '0 0 20px' }}>
         Select 2–6 standards, or describe a custom topic below.
@@ -1503,6 +1503,10 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
         Optional — choose up to {MAX_SELECT}. The AI will weave them into a real-world simulation.
       </p>
 
+      <button onClick={onSkip} style={{ ...btnGhost, width: '100%', marginBottom: 12, color: T.graphite, border: `1px dashed ${T.pencil}`, borderRadius: 8 }}>
+        Skip for now
+      </button>
+
       {/* Selected chips */}
       {selectedPathways.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
@@ -1650,13 +1654,10 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
         />
       </div>
 
-      <button onClick={onSkip} style={{ ...btnGhost, width: '100%', marginBottom: 12, color: T.graphite, border: `1px dashed ${T.pencil}`, borderRadius: 8 }}>
-        Skip Career Pathway
-      </button>
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={onBack} style={btnSecondary}>Back</button>
         <button onClick={onNext} style={{ ...btnPrimary, flex: 1 }}>
-          Generate Quest
+          Generate Project
         </button>
       </div>
     </div>
@@ -1693,7 +1694,7 @@ function Step4Generating({ progress, loadingText, error, onRegenerate }) {
             <CompassSpinner />
           </div>
           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: T.ink, margin: '0 0 8px' }}>
-            Generating your quest...
+            Generating your project...
           </h3>
           <p
             style={{
@@ -1791,7 +1792,7 @@ function Step5Review({
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 24px' }}>
-        Review your quest
+        Review your project
       </h2>
 
       {/* Quest header */}
@@ -2036,42 +2037,44 @@ function Step5Review({
 
               {isOpen && (
                 <div style={{ padding: '14px', borderTop: `1px solid ${T.pencil}` }}>
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: T.graphite, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, fontFamily: 'var(--font-body)' }}>
-                      Description
-                    </label>
-                    <textarea
-                      defaultValue={stage.description}
-                      onBlur={(e) => updateStage(i, 'description', e.target.value)}
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        border: `1px solid ${T.pencil}`,
-                        borderRadius: 6,
-                        padding: '8px 10px',
-                        fontSize: 12,
-                        fontFamily: 'var(--font-body)',
-                        color: T.ink,
-                        lineHeight: 1.6,
-                        resize: 'vertical',
-                        boxSizing: 'border-box',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-
-                  {(stage.guiding_questions || []).length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     <div style={{ marginBottom: 12 }}>
                       <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: T.graphite, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, fontFamily: 'var(--font-body)' }}>
-                        Guiding Questions
+                        Description
                       </label>
-                      <ul style={{ margin: 0, paddingLeft: 18 }}>
-                        {(stage.guiding_questions || []).map((q, qi) => (
-                          <li key={qi} style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)', marginBottom: 4 }}>{q}</li>
-                        ))}
-                      </ul>
+                      <textarea
+                        defaultValue={stage.description}
+                        onBlur={(e) => updateStage(i, 'description', e.target.value)}
+                        rows={3}
+                        style={{
+                          width: '100%',
+                          border: `1px solid ${T.pencil}`,
+                          borderRadius: 6,
+                          padding: '8px 10px',
+                          fontSize: 12,
+                          fontFamily: 'var(--font-body)',
+                          color: T.ink,
+                          lineHeight: 1.6,
+                          resize: 'vertical',
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                        }}
+                      />
                     </div>
-                  )}
+
+                    {(stage.guiding_questions || []).length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: T.graphite, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, fontFamily: 'var(--font-body)' }}>
+                          Guiding Questions
+                        </label>
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {(stage.guiding_questions || []).map((q, qi) => (
+                            <li key={qi} style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)', marginBottom: 4 }}>{q}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
 
                   {stage.deliverable && (
                     <div
@@ -2182,7 +2185,7 @@ function Step5Review({
           }}
         >
           {launching ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
-          {launching ? 'Launching...' : 'Launch Quest'}
+          {launching ? 'Launching...' : 'Launch Project'}
         </button>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onDraft} disabled={launching} style={{ ...btnSecondary, flex: 1 }}>
@@ -2216,10 +2219,10 @@ function Step6Launch({ selectedStudents, questId }) {
         <AnimatedCheck />
       </div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '0 0 8px' }}>
-        Quest launched!
+        Project launched!
       </h2>
       <p style={{ color: T.graphite, fontSize: 15, fontFamily: 'var(--font-body)', margin: '0 0 32px' }}>
-        {names ? `${names}'s quest is ready.` : 'Your quest is ready.'}
+        {names ? `${names}'s project is ready.` : 'Your project is ready.'}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
         {questId && (
@@ -2233,7 +2236,7 @@ function Step6Launch({ selectedStudents, questId }) {
               minWidth: 200,
             }}
           >
-            View Quest Map
+            View Project Map
           </Link>
         )}
         <Link
@@ -2622,7 +2625,7 @@ export default function QuestBuilder() {
         {/* Main content */}
         <div
           style={{
-            maxWidth: 640,
+            maxWidth: step === 5 ? 900 : 640,
             margin: '0 auto',
             padding: '40px 24px',
           }}

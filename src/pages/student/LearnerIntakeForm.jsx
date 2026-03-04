@@ -303,7 +303,7 @@ function WelcomeStep({ inviteData, onNext }) {
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: T.graphite, marginBottom: 24, lineHeight: 1.6 }}>
         {inviteData.guide_name ? `${inviteData.guide_name} has invited you` : 'You\'ve been invited'} to join
         {inviteData.school_name ? ` ${inviteData.school_name}` : ''}.
-        Let's set up your learner profile so we can create amazing quests just for you.
+        Let's set up your learner profile so we can create amazing projects just for you.
       </p>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: T.pencil, marginBottom: 28 }}>
         This takes about 3 minutes. A parent or guardian can help!
@@ -683,8 +683,8 @@ function SuccessStep({ result }) {
         You're all set, {result.student_name}!
       </h2>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: T.graphite, marginBottom: 24, lineHeight: 1.6 }}>
-        Your guide will use your profile to create quests just for you.
-        Use the code below to log in when your guide shares a quest.
+        Your guide will use your profile to create projects just for you.
+        Use the code below to log in when your guide shares a project.
       </p>
 
       <div style={{

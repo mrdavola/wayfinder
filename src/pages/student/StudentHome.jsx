@@ -69,7 +69,7 @@ function QuestCard({ quest }) {
           ) : (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--graphite)' }}>
               <Clock size={12} />
-              {quest.total_duration_days}d quest
+              {quest.total_duration_days}d project
             </span>
           )}
         </div>
@@ -148,7 +148,7 @@ function QuestCard({ quest }) {
           onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
         >
-          {isComplete ? 'View Quest' : 'Continue Quest'}
+          {isComplete ? 'View Project' : 'Continue Project'}
           <ChevronRight size={15} />
         </Link>
       </div>
@@ -187,7 +187,7 @@ export default function StudentHome() {
       if (rpcErr) throw rpcErr;
       setQuests(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || 'Failed to load quests');
+      setError(err.message || 'Failed to load projects');
     } finally {
       setLoading(false);
     }
@@ -267,7 +267,7 @@ export default function StudentHome() {
             letterSpacing: '-0.02em',
             marginBottom: 6,
           }}>
-            Your Quests
+            Your Projects
           </h1>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--graphite)' }}>
             Pick up where you left off or explore what's next.
@@ -278,7 +278,7 @@ export default function StudentHome() {
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 32, justifyContent: 'center' }}>
             <Loader2 size={20} color="var(--graphite)" style={{ animation: 'sh-spin 1s linear infinite' }} />
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)' }}>Loading your quests…</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)' }}>Loading your projects…</span>
           </div>
         )}
 
@@ -323,10 +323,10 @@ export default function StudentHome() {
           }}>
             <Lock size={36} color="var(--pencil)" strokeWidth={1.5} style={{ marginBottom: 16 }} />
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)', marginBottom: 8 }}>
-              No quests yet
+              No projects yet
             </h3>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', maxWidth: 320, margin: '0 auto' }}>
-              Your guide hasn't assigned any quests to you yet. Check back soon!
+              Your guide hasn't assigned any projects to you yet. Check back soon!
             </p>
           </div>
         )}
