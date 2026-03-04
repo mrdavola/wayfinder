@@ -963,7 +963,7 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
           </div>
         ) : days.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
-            <Calendar size={32} color="var(--pencil)" style={{ marginBottom: 12 }} />
+            <Calendar size={32} color="var(--pencil)" style={{ display: 'block', margin: '0 auto 12px' }} />
             <p style={{ fontSize: 13, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginBottom: 16 }}>
               No playbook yet for this project.
             </p>
