@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus, Share2, UserCheck, ExternalLink } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus, Share2, UserCheck, ExternalLink, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { invites as invitesApi } from '../lib/api';
@@ -28,7 +28,7 @@ function countActiveQuests(student) {
 
 // ── Student Row ───────────────────────────────────────────────────────────────
 
-function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete }) {
+function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete, onPinRegenerated }) {
   const activeQuestCount = countActiveQuests(student);
 
   if (isEditing) {
@@ -47,11 +47,12 @@ function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete
       activeQuestCount={activeQuestCount}
       onEdit={onEdit}
       onDelete={onDelete}
+      onPinRegenerated={onPinRegenerated}
     />
   );
 }
 
-function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent }) {
+function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, onPinRegenerated }) {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pinVisible, setPinVisible] = useState(false);
@@ -60,6 +61,20 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent })
   const [parentEmail, setParentEmail] = useState('');
   const [sharing, setSharing] = useState(false);
   const [parentLink, setParentLink] = useState(null);
+  const [regenerating, setRegenerating] = useState(false);
+
+  async function regeneratePin() {
+    setRegenerating(true);
+    const newPin = String(Math.floor(1000 + Math.random() * 9000));
+    const { error } = await supabase
+      .from('students')
+      .update({ pin: newPin })
+      .eq('id', student.id);
+    if (!error && onPinRegenerated) {
+      onPinRegenerated(student.id, newPin);
+    }
+    setRegenerating(false);
+  }
   const interests = Array.isArray(student.interests) ? student.interests : [];
   const visibleInterests = interests.slice(0, 4);
   const extraCount = interests.length - 4;
@@ -167,6 +182,14 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent })
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? 'var(--field-green)' : 'var(--graphite)', padding: 2, display: 'inline-flex', transition: 'color 150ms' }}
               >
                 {copied ? <Check size={13} /> : <Copy size={13} />}
+              </button>
+              <button
+                onClick={regeneratePin}
+                disabled={regenerating}
+                title="Generate new code"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--graphite)', padding: 2, display: 'inline-flex', opacity: regenerating ? 0.5 : 1 }}
+              >
+                <RefreshCw size={12} style={regenerating ? { animation: 'spin 1s linear infinite' } : {}} />
               </button>
             </div>
           )}
@@ -623,33 +646,16 @@ function EmptySearchState({ query }) {
 // ── Parent Connections Section ────────────────────────────────────────────────
 
 function ParentConnectionsSection({ students }) {
-  const [creating, setCreating] = useState(null); // student id being created
-  const [newLinks, setNewLinks] = useState({}); // { studentId: link }
-  const [copiedId, setCopiedId] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
+  const parentLink = `${window.location.origin}/parent`;
   const withParent = students.filter(s => s.parent_access?.length > 0);
-  const withoutParent = students.filter(s => !s.parent_access?.length);
   const onboarded = withParent.filter(s => s.parent_access.some(p => p.onboarded_at));
 
-  async function createParentLink(student) {
-    setCreating(student.id);
-    const { data, error } = await supabase
-      .from('parent_access')
-      .insert({ student_id: student.id })
-      .select('*')
-      .single();
-    if (!error && data) {
-      const tok = data.token || data.access_token;
-      const link = `${window.location.origin}/parent/${tok}`;
-      setNewLinks(prev => ({ ...prev, [student.id]: link }));
-    }
-    setCreating(null);
-  }
-
-  function copyLink(link, id) {
-    navigator.clipboard.writeText(link);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  function copyParentLink() {
+    navigator.clipboard.writeText(parentLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   }
 
   return (
@@ -662,144 +668,96 @@ function ParentConnectionsSection({ students }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <UserCheck size={16} color="var(--lab-blue)" />
           <h3 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--ink)', margin: 0 }}>
-            Parent Connections
+            Parent Portal
           </h3>
         </div>
         <div style={{ display: 'flex', gap: 12, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <span style={{ color: 'var(--lab-blue)' }}>{onboarded.length} active</span>
-          <span style={{ color: 'var(--compass-gold)' }}>{withParent.length - onboarded.length} invited</span>
-          <span style={{ color: 'var(--graphite)' }}>{withoutParent.length} not connected</span>
+          <span style={{ color: 'var(--graphite)' }}>{students.length - withParent.length} not connected</span>
         </div>
       </div>
 
-      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', lineHeight: 1.5, margin: '0 0 16px' }}>
-        Share a link with parents so they can tell you about their child and track progress. Parents fill out a short form about what their child loves and what skills matter most.
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', lineHeight: 1.5, margin: '0 0 14px' }}>
+        Share one link with all parents. They enter their child's student code to connect — the same code students use to join projects.
       </p>
 
-      {/* Students without parent connections */}
-      {withoutParent.length > 0 && (
+      {/* Universal parent link */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '12px 14px', borderRadius: 10,
+        background: 'rgba(27,73,101,0.04)', border: '2px solid rgba(27,73,101,0.2)',
+        marginBottom: 16,
+      }}>
+        <Share2 size={16} color="var(--lab-blue)" style={{ flexShrink: 0 }} />
+        <code style={{
+          flex: 1, fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 600,
+          color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {parentLink}
+        </code>
+        <button
+          onClick={copyParentLink}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '6px 14px', borderRadius: 8, border: 'none',
+            background: copiedLink ? 'var(--field-green)' : 'var(--lab-blue)',
+            color: 'var(--chalk)', fontSize: 12, fontWeight: 700,
+            fontFamily: 'var(--font-body)', cursor: 'pointer', flexShrink: 0,
+            transition: 'background 150ms',
+          }}
+        >
+          {copiedLink ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy Link</>}
+        </button>
+      </div>
+
+      {/* Per-student status */}
+      {students.length > 0 && (
         <div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--graphite)', marginBottom: 8 }}>
-            No parent link yet
+            Student codes & parent status
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {withoutParent.map(student => (
-              <div key={student.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '8px 12px', background: 'var(--parchment)',
-                borderRadius: 8, border: '1px solid var(--pencil)',
-              }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: 'var(--chalk)', border: '1px solid var(--pencil)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-                  color: 'var(--graphite)', flexShrink: 0,
-                }}>
-                  {getStudentInitials(student.name)}
-                </div>
-                <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>
-                  {student.name}
-                </span>
-                {newLinks[student.id] ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <code style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--graphite)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {newLinks[student.id]}
-                    </code>
-                    <button
-                      onClick={() => copyLink(newLinks[student.id], student.id)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 3,
-                        padding: '4px 10px', borderRadius: 6,
-                        border: `1px solid ${copiedId === student.id ? 'var(--field-green)' : 'var(--pencil)'}`,
-                        background: 'transparent',
-                        color: copiedId === student.id ? 'var(--field-green)' : 'var(--graphite)',
-                        fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: 'var(--font-body)',
-                      }}
-                    >
-                      {copiedId === student.id ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => createParentLink(student)}
-                    disabled={creating === student.id}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '5px 12px', borderRadius: 6, border: 'none',
-                      background: 'var(--lab-blue)', color: 'var(--chalk)',
-                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                      fontFamily: 'var(--font-body)', opacity: creating === student.id ? 0.6 : 1,
-                    }}
-                  >
-                    {creating === student.id ? (
-                      <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Creating...</>
-                    ) : (
-                      <><Share2 size={12} /> Create Link</>
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Students with parent connections */}
-      {withParent.length > 0 && (
-        <div style={{ marginTop: withoutParent.length > 0 ? 16 : 0 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--graphite)', marginBottom: 8 }}>
-            Connected
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {withParent.map(student => {
-              const pa = student.parent_access[0];
-              const isOnboarded = !!pa.onboarded_at;
-              const tok = pa.token || pa.access_token;
-              const link = `${window.location.origin}/parent/${tok}`;
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {students.map(student => {
+              const pa = student.parent_access?.[0];
+              const isOnboarded = !!pa?.onboarded_at;
+              const hasParent = !!pa;
               return (
                 <div key={student.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 12px', background: 'var(--chalk)',
-                  borderRadius: 8, border: `1px solid ${isOnboarded ? 'rgba(27,73,101,0.2)' : 'rgba(184,134,11,0.2)'}`,
+                  padding: '7px 12px', background: 'var(--parchment)',
+                  borderRadius: 8,
                 }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: '50%',
-                    background: isOnboarded ? 'rgba(27,73,101,0.08)' : 'rgba(184,134,11,0.08)',
-                    border: `1px solid ${isOnboarded ? 'rgba(27,73,101,0.2)' : 'rgba(184,134,11,0.2)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-                    color: isOnboarded ? 'var(--lab-blue)' : 'var(--compass-gold)', flexShrink: 0,
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500, color: 'var(--ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {student.name}
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
+                    color: 'var(--ink)', letterSpacing: '0.15em',
+                    background: 'var(--chalk)', padding: '2px 8px', borderRadius: 4,
+                    border: '1px solid var(--pencil)',
                   }}>
-                    {getStudentInitials(student.name)}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>
-                      {student.name}
+                    {student.pin || '—'}
+                  </span>
+                  {hasParent ? (
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-mono)',
+                      padding: '2px 8px', borderRadius: 4,
+                      color: isOnboarded ? 'var(--lab-blue)' : 'var(--compass-gold)',
+                      background: isOnboarded ? 'rgba(27,73,101,0.08)' : 'rgba(184,134,11,0.08)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {isOnboarded ? (pa.parent_name || 'Parent') + ' connected' : 'Pending'}
                     </span>
-                    <div style={{ fontSize: 11, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>
-                      {isOnboarded ? (
-                        <>{pa.parent_name || 'Parent'} · Onboarded {new Date(pa.onboarded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</>
-                      ) : (
-                        <>Invited{pa.parent_email ? ` · ${pa.parent_email}` : ''} · Not yet onboarded</>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => copyLink(link, student.id)}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 3,
-                      padding: '4px 10px', borderRadius: 6,
-                      border: `1px solid ${copiedId === student.id ? 'var(--field-green)' : 'var(--pencil)'}`,
-                      background: 'transparent',
-                      color: copiedId === student.id ? 'var(--field-green)' : 'var(--graphite)',
-                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                      fontFamily: 'var(--font-body)',
-                    }}
-                  >
-                    {copiedId === student.id ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy link</>}
-                  </button>
+                  ) : (
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-mono)',
+                      padding: '2px 8px', borderRadius: 4,
+                      color: 'var(--pencil)', background: 'var(--chalk)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      Not connected
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -807,9 +765,9 @@ function ParentConnectionsSection({ students }) {
         </div>
       )}
 
-      {withParent.length === 0 && withoutParent.length === 0 && (
+      {students.length === 0 && (
         <p style={{ color: 'var(--pencil)', fontSize: 13, fontStyle: 'italic', margin: 0 }}>
-          Add students first, then connect their parents.
+          Add students first, then share the parent link.
         </p>
       )}
     </div>
@@ -980,6 +938,9 @@ export default function StudentsPage() {
                     onCancelEdit={() => setEditingId(null)}
                     onSave={handleSave}
                     onDelete={handleDelete}
+                    onPinRegenerated={(id, newPin) => {
+                      setStudents(prev => prev.map(s => s.id === id ? { ...s, pin: newPin } : s));
+                    }}
                   />
                 </div>
               ))}

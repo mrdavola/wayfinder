@@ -43,6 +43,7 @@ export default function App() {
           <Route path="/student" element={<StudentHome />} />
 
           {/* Parent portal */}
+          <Route path="/parent" element={<ParentDashboard />} />
           <Route path="/parent/:token" element={<ParentDashboard />} />
 
           {/* Semi-protected: only accessible after signup */}

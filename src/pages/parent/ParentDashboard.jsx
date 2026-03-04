@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Loader2, CheckCircle, BookOpen, Star, Clock } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2, CheckCircle, BookOpen, Star, Clock, ArrowRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
@@ -290,6 +290,128 @@ function DashboardView({ data }) {
   );
 }
 
+// ── Join With Student Code ──
+function JoinWithCode() {
+  const navigate = useNavigate();
+  const [code, setCode] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const pin = code.trim();
+    if (!pin) return;
+    setChecking(true);
+    setError('');
+
+    // Look up student by PIN
+    const { data: student, error: fetchErr } = await supabase
+      .from('students')
+      .select('id, name')
+      .eq('pin', pin)
+      .single();
+
+    if (fetchErr || !student) {
+      setError('No student found with that code. Please check and try again.');
+      setChecking(false);
+      return;
+    }
+
+    // Check if parent_access already exists for this student
+    const { data: existing } = await supabase
+      .from('parent_access')
+      .select('*')
+      .eq('student_id', student.id)
+      .limit(1)
+      .single();
+
+    if (existing) {
+      // Already has a parent link — redirect to it
+      const tok = existing.token || existing.access_token;
+      navigate(`/parent/${tok}`);
+      return;
+    }
+
+    // Create new parent_access row
+    const { data: newPA, error: insertErr } = await supabase
+      .from('parent_access')
+      .insert({ student_id: student.id })
+      .select('*')
+      .single();
+
+    if (insertErr || !newPA) {
+      setError('Something went wrong. Please try again.');
+      setChecking(false);
+      return;
+    }
+
+    const tok = newPA.token || newPA.access_token;
+    navigate(`/parent/${tok}`);
+  }
+
+  return (
+    <div style={{ maxWidth: 420, width: '100%' }}>
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <WayfinderLogoIcon size={32} color={T.fieldGreen} />
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '14px 0 6px' }}>
+          Parent Portal
+        </h1>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: T.graphite, lineHeight: 1.6 }}>
+          Enter your child's student code to see their progress and share what matters to you about their learning.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{
+        background: T.chalk, borderRadius: 16, border: `1px solid ${T.parchment}`,
+        boxShadow: '0 4px 24px rgba(26,26,46,0.06)', padding: '28px 28px 24px',
+      }}>
+        <label style={labelStyle}>Student code</label>
+        <p style={{ fontSize: 12, color: T.graphite, margin: '0 0 8px', lineHeight: 1.5 }}>
+          Your child's guide gave them a 4-digit code. It's the same code they use to join projects.
+        </p>
+        <input
+          type="text"
+          value={code}
+          onChange={e => { setCode(e.target.value); setError(''); }}
+          placeholder="e.g. 4821"
+          maxLength={6}
+          style={{
+            ...inputStyle,
+            fontSize: 20, fontFamily: 'var(--font-mono)', fontWeight: 700,
+            letterSpacing: '0.2em', textAlign: 'center', padding: '14px',
+          }}
+          autoFocus
+        />
+
+        {error && (
+          <p style={{ fontSize: 12, color: T.specimenRed, margin: '8px 0 0', fontFamily: 'var(--font-body)' }}>
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={checking || !code.trim()}
+          style={{
+            width: '100%', padding: '13px', borderRadius: 10, border: 'none', marginTop: 16,
+            background: checking || !code.trim() ? T.pencil : T.fieldGreen,
+            color: checking || !code.trim() ? T.graphite : T.chalk,
+            fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-body)',
+            cursor: checking || !code.trim() ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          {checking ? (
+            <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Looking up...</>
+          ) : (
+            <><ArrowRight size={15} /> Continue</>
+          )}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 // ── Main ──
 export default function ParentDashboard() {
   const { token } = useParams();
@@ -299,8 +421,11 @@ export default function ParentDashboard() {
   const [dashData, setDashData] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
+  // If no token, show the join-with-code screen
+  const isJoinMode = !token;
+
   useEffect(() => {
-    if (!token) return;
+    if (!token) { setLoading(false); return; }
     loadDashboard();
   }, [token]);
 
@@ -356,6 +481,15 @@ export default function ParentDashboard() {
           Something went wrong
         </h2>
         <p style={{ fontSize: 14, color: T.graphite, fontFamily: 'var(--font-body)' }}>{error}</p>
+      </div>
+    );
+  }
+
+  if (isJoinMode) {
+    return (
+      <div style={pageStyle}>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <JoinWithCode />
       </div>
     );
   }
