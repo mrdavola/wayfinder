@@ -1540,7 +1540,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               AI Field Guide
             </span>
             <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', opacity: 0.7 }}>
-              AI-powered · may make mistakes
+              may make mistakes
             </span>
           </div>
           <div style={{
