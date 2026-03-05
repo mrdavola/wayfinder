@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, LogOut, Settings } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import WayfinderLogoIcon from '../icons/WayfinderLogo';
 
@@ -15,7 +15,6 @@ const NAV_LINKS = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Library', to: '/library' },
   { label: 'Students', to: '/students' },
-  { label: 'Moderation', to: '/moderation' },
 ];
 
 export default function TopBar() {
@@ -183,6 +182,22 @@ export default function TopBar() {
               >
                 <Settings size={14} />
                 Settings
+              </Link>
+              <Link
+                to="/moderation"
+                onClick={() => setDropdownOpen(false)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                  width: '100%', padding: '10px 14px',
+                  fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)',
+                  color: 'var(--graphite)', textDecoration: 'none',
+                  transition: 'background 150ms ease, color 150ms ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--parchment)'; e.currentTarget.style.color = 'var(--ink)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--graphite)'; }}
+              >
+                <Shield size={14} />
+                Moderation
               </Link>
               <button
                 onClick={() => { setDropdownOpen(false); signOut(); }}
