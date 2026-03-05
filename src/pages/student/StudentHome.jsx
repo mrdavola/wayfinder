@@ -193,8 +193,8 @@ function CreateProjectModal({ student, onClose, onCreated }) {
     if (!result) return;
     setGenerating(true);
     try {
-      // Get the student's school_id from their profile
-      const { data: studentData } = await supabase.from('students').select('school_id, guide_id').eq('id', student.id).single();
+      // Get the student's guide_id from their profile
+      const { data: studentData } = await supabase.from('students').select('guide_id').eq('id', student.id).single();
 
       // Create the quest
       const { data: quest, error: questErr } = await supabase.from('quests').insert({
@@ -204,7 +204,6 @@ function CreateProjectModal({ student, onClose, onCreated }) {
         total_duration_days: result.total_duration || 10,
         career_pathway: 'self_directed',
         status: 'active',
-        school_id: studentData?.school_id,
         guide_id: studentData?.guide_id,
       }).select().single();
       if (questErr) throw questErr;
