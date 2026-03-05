@@ -1235,7 +1235,10 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           }}>
             <MessageCircle size={13} color="var(--lab-blue)" />
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--lab-blue)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Field Guide
+              AI Field Guide
+            </span>
+            <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', opacity: 0.7 }}>
+              AI-powered · may make mistakes
             </span>
           </div>
           <div style={{
@@ -1244,7 +1247,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           }}>
             {guideMessages.length === 0 && (
               <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
-                Need help? Ask your Field Guide a question — they'll help you explore and think deeper, not just give you answers.
+                Need help? Ask your AI Field Guide a question — it'll help you explore and think deeper, not just give you answers. Always double-check important facts with your teacher.
               </p>
             )}
             {guideMessages.map((msg, i) => (
