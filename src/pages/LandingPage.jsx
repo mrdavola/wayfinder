@@ -345,15 +345,9 @@ export default function LandingPage() {
               Learner Login
             </Link>
             <Link
-              to="/login"
-              className="btn btn-secondary"
-              style={{ marginLeft: 'var(--space-4)' }}
-            >
-              Sign In
-            </Link>
-            <Link
               to="/signup"
               className="btn btn-primary"
+              style={{ marginLeft: 'var(--space-4)' }}
             >
               Get Started Free
             </Link>
@@ -433,13 +427,6 @@ export default function LandingPage() {
               }}
             >
               Learner Login
-            </Link>
-            <Link
-              to="/login"
-              className="btn btn-secondary"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Sign In
             </Link>
             <Link
               to="/signup"
