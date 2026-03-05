@@ -332,6 +332,19 @@ export default function LandingPage() {
               Library
             </Link>
             <Link
+              to="/student/login"
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--compass-gold)',
+                fontWeight: 600,
+                textDecoration: 'none',
+                marginLeft: 'var(--space-4)',
+              }}
+            >
+              Learner Login
+            </Link>
+            <Link
               to="/login"
               className="btn btn-secondary"
               style={{ marginLeft: 'var(--space-4)' }}
@@ -408,10 +421,23 @@ export default function LandingPage() {
               Library
             </Link>
             <Link
+              to="/student/login"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--compass-gold)',
+                fontWeight: 600,
+                textDecoration: 'none',
+                marginTop: 'var(--space-2)',
+              }}
+            >
+              Learner Login
+            </Link>
+            <Link
               to="/login"
               className="btn btn-secondary"
               onClick={() => setMobileMenuOpen(false)}
-              style={{ marginTop: 'var(--space-2)' }}
             >
               Sign In
             </Link>

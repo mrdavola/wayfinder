@@ -403,6 +403,27 @@ export default function LoginPage() {
             </Link>
           </p>
 
+          {/* Learner login */}
+          <div style={{
+            textAlign: 'center',
+            padding: '14px 0',
+            borderTop: '1px solid var(--parchment)',
+            marginTop: '4px',
+          }}>
+            <Link
+              to="/student/login"
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--compass-gold)',
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              I'm a learner →
+            </Link>
+          </div>
+
           {/* Back to home */}
           <div style={{ textAlign: 'center' }}>
             <Link

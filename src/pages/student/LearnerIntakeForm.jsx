@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, ChevronRight, ChevronLeft, Check, Copy } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2, AlertCircle, ChevronRight, ChevronLeft, Check, Copy, ArrowRight } from 'lucide-react';
 import { invites, skills as skillsApi } from '../../lib/api';
+import { setStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ const T = {
 
 export default function LearnerIntakeForm() {
   const { code } = useParams();
+  const navigate = useNavigate();
   const [step, setStep] = useState(0); // 0=welcome, 1=about, 2=interests, 3=skills, 4=confirm
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -249,7 +251,13 @@ export default function LearnerIntakeForm() {
       )}
 
       {step === 5 && result && (
-        <SuccessStep result={result} />
+        <SuccessStep result={result} onGoToProjects={() => {
+          // Log the student in and navigate to their homepage
+          if (result.student_id) {
+            setStudentSession({ studentId: result.student_id, studentName: result.student_name });
+          }
+          navigate('/student');
+        }} />
       )}
     </PageShell>
   );
@@ -667,7 +675,7 @@ function ConfirmStep({
 
 // ── Step 5: Success ──────────────────────────────────────────────────────────
 
-function SuccessStep({ result }) {
+function SuccessStep({ result, onGoToProjects }) {
   const [copied, setCopied] = useState(false);
 
   function copyPin() {
@@ -713,9 +721,22 @@ function SuccessStep({ result }) {
         </button>
       </div>
 
-      <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: T.pencil }}>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: T.pencil, marginBottom: 24 }}>
         Write this code down or take a screenshot. You'll need it to log in.
       </p>
+
+      <button
+        onClick={onGoToProjects}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '12px 28px', borderRadius: 10,
+          background: T.fieldGreen, color: T.chalk,
+          fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-body)',
+          border: 'none', cursor: 'pointer', transition: 'opacity 150ms',
+        }}
+      >
+        Go to My Projects <ArrowRight size={16} />
+      </button>
     </div>
   );
 }
