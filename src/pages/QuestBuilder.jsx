@@ -2620,14 +2620,17 @@ export default function QuestBuilder() {
     setGenError(null);
     setProgress(0);
 
-    // Start progress animation: 0 → 90 over 8 seconds
+    // Start progress animation: 0 → 90 with decelerating curve over ~45s
+    // Moves quickly at first (feels responsive) then slows down so it
+    // never reaches 90 before the API returns
     const startTime = Date.now();
-    const duration = 8000;
     const tick = () => {
       const elapsed = Date.now() - startTime;
-      const pct = Math.min(90, (elapsed / duration) * 90);
-      setProgress(pct);
-      if (pct < 90) {
+      // Logarithmic ease-out: fast start, very slow finish
+      // At 5s → ~40%, 15s → ~65%, 30s → ~80%, 60s → ~88%
+      const pct = Math.min(90, 90 * (1 - Math.exp(-elapsed / 12000)));
+      setProgress(Math.round(pct));
+      if (pct < 89.5) {
         progressRef.current = requestAnimationFrame(tick);
       }
     };
