@@ -5,6 +5,7 @@ import {
   Megaphone, X, Send, Zap, ArrowRight, Loader2, AlertCircle,
   ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
   Paperclip, Video, Download, LogOut, Sparkles, Users,
+  Pause, Play, Maximize2, SwitchCamera,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -450,26 +451,46 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
   const [type, setType] = useState('text');
   const [textContent, setTextContent] = useState(initialText);
   const [recording, setRecording] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [mediaBlob, setMediaBlob] = useState(null);
   const [seconds, setSeconds] = useState(0);
   const [mediaDuration, setMediaDuration] = useState('');
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [countdown, setCountdown] = useState(0); // 3,2,1 countdown
+  const [videoExpanded, setVideoExpanded] = useState(false);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCamera, setSelectedCamera] = useState('');
+  const [previewActive, setPreviewActive] = useState(false); // show camera before recording
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const videoPreviewRef = useRef(null);
   const streamRef = useRef(null);
+  const countdownRef = useRef(null);
 
   useEffect(() => {
     return () => {
       clearInterval(timerRef.current);
+      clearInterval(countdownRef.current);
       if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
+
+  // Enumerate cameras when video tab selected
+  useEffect(() => {
+    if (type !== 'video') return;
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      setCameras(videoDevices);
+      if (videoDevices.length > 0 && !selectedCamera) {
+        setSelectedCamera(videoDevices[0].deviceId);
+      }
+    }).catch(() => {});
+  }, [type, selectedCamera]);
 
   const canSubmit =
     (type === 'text' && textContent.trim()) ||
@@ -482,41 +503,130 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
     return `${m}:${sc}`;
   };
 
+  // Open camera preview (before recording)
+  const openCameraPreview = async () => {
+    setError('');
+    try {
+      const videoConstraint = selectedCamera
+        ? { deviceId: { exact: selectedCamera } }
+        : { facingMode: 'user' };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraint });
+      streamRef.current = stream;
+      if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
+      setPreviewActive(true);
+      // Re-enumerate cameras now that we have permission
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      setCameras(videoDevices);
+    } catch (err) {
+      setError('Could not access camera: ' + (err.message || 'Permission denied'));
+    }
+  };
+
+  // Switch camera
+  const switchCamera = async (deviceId) => {
+    setSelectedCamera(deviceId);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: { deviceId: { exact: deviceId } },
+      });
+      streamRef.current = stream;
+      if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
+    } catch (err) {
+      setError('Could not switch camera: ' + (err.message || ''));
+    }
+  };
+
+  // Start recording with countdown
   const startRecording = async () => {
     setError('');
     try {
-      const constraints = type === 'video' ? { audio: true, video: { facingMode: 'user' } } : { audio: true };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      // Show live preview for video
-      if (type === 'video' && videoPreviewRef.current) {
-        videoPreviewRef.current.srcObject = stream;
+      if (type === 'audio') {
+        // Audio: no countdown, start immediately
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        _beginRecording(stream);
+        return;
       }
-      chunksRef.current = [];
-      const mr = new MediaRecorder(stream);
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: type === 'video' ? 'video/webm' : 'audio/webm' });
-        setMediaBlob(blob);
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
-      };
-      mediaRecorderRef.current = mr;
-      mr.start();
-      setRecording(true);
-      setSeconds(0);
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+
+      // Video: ensure preview is active, then do 3-2-1 countdown
+      if (!previewActive) {
+        await openCameraPreview();
+      }
+      setCountdown(3);
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current);
+            // Start actual recording using the existing stream
+            if (streamRef.current) _beginRecording(streamRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } catch (err) {
       setError('Could not access microphone/camera: ' + (err.message || 'Permission denied'));
     }
   };
 
+  const _beginRecording = (stream) => {
+    chunksRef.current = [];
+    const mr = new MediaRecorder(stream);
+    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: type === 'video' ? 'video/webm' : 'audio/webm' });
+      setMediaBlob(blob);
+      stream.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+      setPreviewActive(false);
+    };
+    mediaRecorderRef.current = mr;
+    mr.start();
+    setRecording(true);
+    setPaused(false);
+    setSeconds(0);
+    timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.pause();
+      setPaused(true);
+      clearInterval(timerRef.current);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current?.state === 'paused') {
+      mediaRecorderRef.current.resume();
+      setPaused(false);
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    }
+  };
+
   const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+    if (mediaRecorderRef.current?.state === 'recording' || mediaRecorderRef.current?.state === 'paused') {
+      mediaRecorderRef.current.stop();
+    }
     setRecording(false);
+    setPaused(false);
     clearInterval(timerRef.current);
     setMediaDuration(fmtSecs(seconds));
+  };
+
+  const cancelPreview = () => {
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+    setPreviewActive(false);
+    setCountdown(0);
+    clearInterval(countdownRef.current);
   };
 
   const handleSubmit = async () => {
@@ -580,11 +690,20 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
   ];
 
   const switchTab = (k) => {
+    // Clean up any active preview/recording
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+    clearInterval(timerRef.current);
+    clearInterval(countdownRef.current);
     setType(k);
     setMediaBlob(null);
     setFile(null);
     setRecording(false);
-    clearInterval(timerRef.current);
+    setPaused(false);
+    setPreviewActive(false);
+    setCountdown(0);
+    setVideoExpanded(false);
     setError('');
   };
 
@@ -691,25 +810,145 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
                 </button>
               </div>
             </div>
-          ) : recording ? (
+          ) : (recording || previewActive) ? (
             <div>
-              <video
-                ref={videoPreviewRef}
-                autoPlay
-                muted
-                playsInline
-                style={{
-                  width: '100%', borderRadius: 8, marginBottom: 8,
-                  background: '#000', transform: 'scaleX(-1)',
-                }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(192,57,43,0.06)', borderRadius: 8, border: '1px solid rgba(192,57,43,0.2)' }}>
-                <div className="sq-rec-dot" style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--specimen-red)', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{fmtSecs(seconds)}</span>
-                <button onClick={stopRecording} style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 5, border: 'none', background: 'var(--specimen-red)', color: 'var(--chalk)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                  Stop
+              {/* Video preview — expandable */}
+              <div style={{ position: 'relative' }}>
+                <video
+                  ref={videoPreviewRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  style={{
+                    width: '100%',
+                    maxHeight: videoExpanded ? '80vh' : 220,
+                    objectFit: 'cover',
+                    borderRadius: 8, marginBottom: 8,
+                    background: '#000', transform: 'scaleX(-1)',
+                    transition: 'max-height 200ms ease',
+                  }}
+                />
+                {/* Countdown overlay */}
+                {countdown > 0 && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.5)', borderRadius: 8,
+                  }}>
+                    <span style={{
+                      fontFamily: 'var(--font-display)', fontSize: 64,
+                      color: 'var(--chalk)', fontWeight: 700,
+                      animation: 'sq-pop 800ms ease',
+                    }}>
+                      {countdown}
+                    </span>
+                  </div>
+                )}
+                {/* Expand button */}
+                <button
+                  onClick={() => setVideoExpanded(v => !v)}
+                  title={videoExpanded ? 'Shrink' : 'Expand'}
+                  style={{
+                    position: 'absolute', top: 8, right: 8,
+                    width: 28, height: 28, borderRadius: 6,
+                    background: 'rgba(0,0,0,0.5)', border: 'none',
+                    color: 'var(--chalk)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Maximize2 size={14} />
                 </button>
+                {/* Paused overlay */}
+                {paused && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.35)', borderRadius: 8,
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--chalk)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      Paused
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* Camera selector */}
+              {cameras.length > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <SwitchCamera size={12} color="var(--graphite)" />
+                  <select
+                    value={selectedCamera}
+                    onChange={(e) => switchCamera(e.target.value)}
+                    style={{
+                      flex: 1, padding: '4px 8px', borderRadius: 5,
+                      border: '1px solid var(--pencil)', background: 'var(--chalk)',
+                      fontSize: 10, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+                    }}
+                  >
+                    {cameras.map((cam, i) => (
+                      <option key={cam.deviceId} value={cam.deviceId}>
+                        {cam.label || `Camera ${i + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Controls */}
+              {recording ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(192,57,43,0.06)', borderRadius: 8, border: '1px solid rgba(192,57,43,0.2)' }}>
+                  <div className="sq-rec-dot" style={{ width: 10, height: 10, borderRadius: '50%', background: paused ? 'var(--graphite)' : 'var(--specimen-red)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--ink)', minWidth: 40 }}>{fmtSecs(seconds)}</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={paused ? resumeRecording : pauseRecording}
+                      style={{
+                        padding: '5px 10px', borderRadius: 5, border: '1px solid var(--pencil)',
+                        background: 'var(--chalk)', color: 'var(--ink)',
+                        fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}
+                    >
+                      {paused ? <><Play size={11} /> Resume</> : <><Pause size={11} /> Pause</>}
+                    </button>
+                    <button onClick={stopRecording} style={{
+                      padding: '5px 12px', borderRadius: 5, border: 'none',
+                      background: 'var(--specimen-red)', color: 'var(--chalk)',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    }}>
+                      Stop
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Preview active but not recording yet — show Record + Cancel */
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={startRecording}
+                    disabled={countdown > 0}
+                    style={{
+                      flex: 1, padding: '9px', borderRadius: 6, border: 'none',
+                      background: countdown > 0 ? 'var(--graphite)' : 'var(--specimen-red)',
+                      color: 'var(--chalk)', fontSize: 12, fontWeight: 600,
+                      fontFamily: 'var(--font-body)', cursor: countdown > 0 ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--chalk)' }} />
+                    {countdown > 0 ? `Starting in ${countdown}...` : 'Start Recording'}
+                  </button>
+                  <button
+                    onClick={cancelPreview}
+                    style={{
+                      padding: '9px 12px', borderRadius: 6, border: '1px solid var(--pencil)',
+                      background: 'transparent', color: 'var(--graphite)',
+                      fontSize: 12, cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           ) : file ? (
             <div style={{ padding: '8px 12px', background: 'var(--parchment)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -718,7 +957,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={startRecording} style={{ flex: 1, padding: '9px', borderRadius: 6, border: 'none', background: 'var(--ink)', color: 'var(--chalk)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <button onClick={openCameraPreview} style={{ flex: 1, padding: '9px', borderRadius: 6, border: 'none', background: 'var(--ink)', color: 'var(--chalk)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <Video size={13} /> Record Video
               </button>
               <label style={{ padding: '9px 12px', borderRadius: 6, border: '1px solid var(--pencil)', color: 'var(--graphite)', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
