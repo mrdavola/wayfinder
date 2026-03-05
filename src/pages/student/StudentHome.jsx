@@ -334,7 +334,7 @@ function CreateProjectModal({ student, onClose, onCreated }) {
 
         {step === 2 && (
           <div style={{ textAlign: 'center', padding: '32px 0' }}>
-            <Loader2 size={32} color="var(--compass-gold)" style={{ animation: 'sh-spin 1s linear infinite', marginBottom: 16 }} />
+            <Loader2 size={32} color="var(--compass-gold)" style={{ animation: 'sh-spin 1s linear infinite', marginBottom: 16, display: 'block', margin: '0 auto 16px' }} />
             <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>Designing your project...</p>
             <p style={{ fontSize: 12, color: 'var(--graphite)' }}>This usually takes about 10 seconds.</p>
           </div>
