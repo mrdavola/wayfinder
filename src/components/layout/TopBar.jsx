@@ -68,7 +68,7 @@ export default function TopBar() {
 
       {/* Center nav */}
       <nav className="topbar-nav" style={{
-        display: 'flex', alignItems: 'center', gap: 'var(--space-5)',
+        display: 'flex', alignItems: 'center', gap: 32,
       }}>
         {navLinks.map(({ label, to }) => {
           const active = pathname === to;
