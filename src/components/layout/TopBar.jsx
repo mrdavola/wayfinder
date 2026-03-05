@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Library', to: '/library' },
   { label: 'Students', to: '/students' },
+  { label: 'Moderation', to: '/moderation' },
 ];
 
 export default function TopBar() {

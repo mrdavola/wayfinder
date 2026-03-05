@@ -947,12 +947,11 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onSaveNote, stageNoteContent }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
 
-  const [guideOpen, setGuideOpen] = useState(false);
   const [guideMessages, setGuideMessages] = useState([]);
   const [guideInput, setGuideInput] = useState('');
   const [guideSending, setGuideSending] = useState(false);
@@ -961,8 +960,6 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [challengerText, setChallengerText] = useState(null);
   const [revising, setRevising] = useState(false);
-  const [noteText, setNoteText] = useState(stageNoteContent || '');
-  const [noteSaved, setNoteSaved] = useState(false);
   const guideBottomRef = useRef(null);
 
   useEffect(() => {
@@ -989,16 +986,34 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
     });
   }, [isDone, questId, studentName, stage.id]);
 
+  // Client-side safety filter for student messages
+  const UNSAFE_PATTERNS = /\b(kill|murder|suicide|bomb|weapon|gun|shoot|drug|cocaine|heroin|meth|sex|porn|nude|naked|rape|assault|hate|racist|slur)\b/i;
+
   const handleSendToGuide = async () => {
     const trimmed = guideInput.trim();
     if (!trimmed || guideSending) return;
     setGuideInput('');
     setGuideSending(true);
+
+    const studentId = studentProfile?.id || null;
+    const isFlagged = UNSAFE_PATTERNS.test(trimmed);
+
+    // Persist user message (flag if unsafe)
+    guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'user', content: trimmed, flagged: isFlagged });
+
+    // If flagged, don't send to AI — respond with redirect
+    if (isFlagged) {
+      const redirect = "That's not something I can help with. Let's get back to your project! What were you working on?";
+      const updated = [...guideMessages, { role: 'user', content: trimmed }, { role: 'assistant', content: redirect }];
+      setGuideMessages(updated);
+      guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'assistant', content: redirect });
+      setGuideSending(false);
+      return;
+    }
+
     const updated = [...guideMessages, { role: 'user', content: trimmed }];
     setGuideMessages(updated);
-    // Persist user message
-    const studentId = studentProfile?.id || null;
-    guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'user', content: trimmed });
+
     try {
       const reply = await ai.questHelp({
         stageTitle: stage.title,
@@ -1013,7 +1028,6 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         messages: updated,
       });
       setGuideMessages([...updated, { role: 'assistant', content: reply }]);
-      // Persist assistant message
       guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'assistant', content: reply });
     } catch {
       const fallback = "That's a great observation! What evidence from the stage supports that? What might challenge your thinking?";
@@ -1135,89 +1149,6 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
-      {/* Field Guide chat */}
-      {isActive && (
-        <div style={{ marginBottom: 14 }}>
-          <button
-            onClick={() => setGuideOpen(v => !v)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              background: 'transparent', border: 'none',
-              color: 'var(--lab-blue)', fontSize: 12, fontWeight: 600,
-              fontFamily: 'var(--font-body)', cursor: 'pointer', padding: '4px 0',
-              transition: 'opacity 150ms',
-            }}
-          >
-            <MessageCircle size={13} />
-            Ask the Field Guide {guideOpen ? '↑' : '↓'}
-          </button>
-          {guideOpen && (
-            <div style={{
-              marginTop: 8,
-              background: 'rgba(27,73,101,0.04)',
-              border: '1px solid rgba(27,73,101,0.15)',
-              borderRadius: 8, overflow: 'hidden',
-            }}>
-              <div style={{
-                maxHeight: 200, overflowY: 'auto', padding: '10px 12px',
-                display: 'flex', flexDirection: 'column', gap: 8,
-              }}>
-                {guideMessages.length === 0 && (
-                  <p style={{ fontSize: 11, color: 'var(--graphite)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
-                    Ask a question — your Field Guide will help you explore, not just answer.
-                  </p>
-                )}
-                {guideMessages.map((msg, i) => (
-                  <div key={i} style={{ fontSize: 12, lineHeight: 1.55 }}>
-                    <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: msg.role === 'user' ? 'var(--graphite)' : 'var(--lab-blue)', marginBottom: 2 }}>
-                      {msg.role === 'user' ? 'You' : 'Field Guide'}
-                    </div>
-                    <div style={{ color: msg.role === 'user' ? 'var(--ink)' : 'var(--lab-blue)' }}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ))}
-                {guideSending && (
-                  <div style={{ fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Loader2 size={11} className="sq-spin" /> Field Guide is thinking...
-                  </div>
-                )}
-                <div ref={guideBottomRef} />
-              </div>
-              <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid rgba(27,73,101,0.1)' }}>
-                <input
-                  type="text"
-                  value={guideInput}
-                  onChange={e => setGuideInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSendToGuide()}
-                  placeholder="Ask a question..."
-                  disabled={guideSending}
-                  style={{
-                    flex: 1, padding: '6px 10px', borderRadius: 5,
-                    border: '1px solid rgba(27,73,101,0.2)',
-                    background: 'var(--chalk)', fontSize: 12,
-                    fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none',
-                  }}
-                />
-                <button
-                  onClick={handleSendToGuide}
-                  disabled={guideSending || !guideInput.trim()}
-                  style={{
-                    padding: '6px 10px', borderRadius: 5, border: 'none',
-                    background: guideSending || !guideInput.trim() ? 'var(--parchment)' : 'var(--lab-blue)',
-                    color: guideSending || !guideInput.trim() ? 'var(--pencil)' : 'var(--chalk)',
-                    cursor: guideSending || !guideInput.trim() ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center',
-                  }}
-                >
-                  {guideSending ? <Loader2 size={12} className="sq-spin" /> : <Send size={12} />}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Deliverable */}
       {stage.deliverable && (
         <div style={{
@@ -1234,47 +1165,87 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
-      {/* Per-stage notes */}
+      {/* Field Guide chat — always visible for active and completed stages */}
       {(isActive || isDone) && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-            My Notes
+        <div style={{
+          marginBottom: 14,
+          background: 'rgba(27,73,101,0.04)',
+          border: '1px solid rgba(27,73,101,0.15)',
+          borderRadius: 10, overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '8px 12px',
+            background: 'rgba(27,73,101,0.06)',
+            borderBottom: '1px solid rgba(27,73,101,0.1)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <MessageCircle size={13} color="var(--lab-blue)" />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--lab-blue)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Field Guide
+            </span>
           </div>
-          <textarea
-            value={noteText}
-            onChange={(e) => { setNoteText(e.target.value); setNoteSaved(false); }}
-            placeholder="Jot down ideas, observations, questions..."
-            rows={2}
-            className="sq-journal-input"
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              padding: '8px 10px', borderRadius: 6,
-              border: '1px solid var(--pencil)', background: 'var(--parchment)',
-              fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--ink)',
-              resize: 'vertical', lineHeight: 1.5, transition: 'border-color 150ms, box-shadow 150ms',
-            }}
-          />
-          {noteText.trim() && !noteSaved && (
-            <button
-              onClick={() => {
-                if (onSaveNote) onSaveNote(stage.id, stage.title, noteText.trim());
-                setNoteSaved(true);
-              }}
+          <div style={{
+            maxHeight: 260, overflowY: 'auto', padding: '10px 12px',
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }}>
+            {guideMessages.length === 0 && (
+              <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
+                Need help? Ask your Field Guide a question — they'll help you explore and think deeper, not just give you answers.
+              </p>
+            )}
+            {guideMessages.map((msg, i) => (
+              <div key={i} style={{
+                fontSize: 12, lineHeight: 1.55,
+                padding: '6px 10px', borderRadius: 8,
+                background: msg.role === 'user' ? 'var(--parchment)' : 'rgba(27,73,101,0.06)',
+                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                maxWidth: '88%',
+              }}>
+                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: msg.role === 'user' ? 'var(--graphite)' : 'var(--lab-blue)', marginBottom: 2 }}>
+                  {msg.role === 'user' ? 'You' : 'Field Guide'}
+                </div>
+                <div style={{ color: msg.role === 'user' ? 'var(--ink)' : 'var(--lab-blue)' }}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {guideSending && (
+              <div style={{ fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Loader2 size={11} className="sq-spin" /> Field Guide is thinking...
+              </div>
+            )}
+            <div ref={guideBottomRef} />
+          </div>
+          <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid rgba(27,73,101,0.1)' }}>
+            <input
+              type="text"
+              value={guideInput}
+              onChange={e => setGuideInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSendToGuide()}
+              placeholder="Ask a question..."
+              disabled={guideSending}
+              className="sq-journal-input"
               style={{
-                marginTop: 4, padding: '4px 10px', borderRadius: 5,
-                border: 'none', background: 'var(--ink)', color: 'var(--chalk)',
-                fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                flex: 1, padding: '8px 12px', borderRadius: 8,
+                border: '1px solid rgba(27,73,101,0.2)',
+                background: 'var(--chalk)', fontSize: 12,
+                fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none',
+              }}
+            />
+            <button
+              onClick={handleSendToGuide}
+              disabled={guideSending || !guideInput.trim()}
+              style={{
+                padding: '8px 12px', borderRadius: 8, border: 'none',
+                background: guideSending || !guideInput.trim() ? 'var(--parchment)' : 'var(--lab-blue)',
+                color: guideSending || !guideInput.trim() ? 'var(--pencil)' : 'var(--chalk)',
+                cursor: guideSending || !guideInput.trim() ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center',
               }}
             >
-              <Send size={10} /> Save Note
+              {guideSending ? <Loader2 size={12} className="sq-spin" /> : <Send size={12} />}
             </button>
-          )}
-          {noteSaved && (
-            <span style={{ fontSize: 10, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', marginTop: 4, display: 'block' }}>
-              Saved
-            </span>
-          )}
+          </div>
         </div>
       )}
 
@@ -1827,26 +1798,6 @@ export default function StudentQuestPage() {
     setReflections(data || []);
   }, [id]);
 
-  // Per-stage notes: keyed by stageId → content
-  const [stageNotes, setStageNotes] = useState({});
-
-  // Load existing stage notes from reflections
-  useEffect(() => {
-    const noteMap = {};
-    reflections.filter(r => r.entry_type === 'student' && r.stage_id).forEach(r => {
-      noteMap[r.stage_id] = r.content;
-    });
-    setStageNotes(noteMap);
-  }, [reflections]);
-
-  const saveStageNote = useCallback(async (stageId, stageTitle, content) => {
-    // Upsert: delete old note for this stage then insert new one
-    await supabase.from('reflection_entries').delete().eq('quest_id', id).eq('stage_id', stageId).eq('entry_type', 'student');
-    await supabase.from('reflection_entries').insert({ quest_id: id, stage_id: stageId, content, entry_type: 'student' });
-    const { data } = await supabase.from('reflection_entries').select('*').eq('quest_id', id).order('created_at');
-    setReflections(data || []);
-  }, [id]);
-
   // Generate reflection questions when quest completes
   useEffect(() => {
     if (quest?.status !== 'completed' || reflectionQuestions || reflectionLoading) return;
@@ -2123,8 +2074,6 @@ export default function StudentQuestPage() {
                   studentProfile={studentProfile}
                   groupRole={groupRole}
                   onReloadSubmissions={loadSubmissions}
-                  onSaveNote={saveStageNote}
-                  stageNoteContent={stageNotes[activeStage.id] || ''}
                 />
               ) : (
                 <div style={{
