@@ -877,22 +877,48 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
                 >
                   {videoExpanded ? <X size={16} /> : <Maximize2 size={14} />}
                 </button>
-                {/* Recording indicator in expanded mode */}
-                {videoExpanded && recording && (
+                {/* Fullscreen controls — always visible in expanded mode */}
+                {videoExpanded && (
                   <div style={{
                     position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 16px', borderRadius: 100,
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 20px', borderRadius: 100,
                     background: 'rgba(0,0,0,0.7)', color: 'var(--chalk)',
                   }}>
-                    <div className={paused ? '' : 'sq-rec-dot'} style={{ width: 10, height: 10, borderRadius: '50%', background: paused ? 'var(--graphite)' : 'var(--specimen-red)' }} />
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600 }}>{fmtSecs(seconds)}</span>
-                    <button onClick={paused ? resumeRecording : pauseRecording} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'var(--chalk)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {paused ? <><Play size={11} /> Resume</> : <><Pause size={11} /> Pause</>}
-                    </button>
-                    <button onClick={() => { stopRecording(); setVideoExpanded(false); }} style={{ background: 'var(--specimen-red)', border: 'none', color: 'var(--chalk)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                      Stop
-                    </button>
+                    {recording ? (
+                      <>
+                        <div className={paused ? '' : 'sq-rec-dot'} style={{ width: 10, height: 10, borderRadius: '50%', background: paused ? 'var(--graphite)' : 'var(--specimen-red)' }} />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 600, minWidth: 48 }}>{fmtSecs(seconds)}</span>
+                        <button onClick={paused ? resumeRecording : pauseRecording} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'var(--chalk)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {paused ? <><Play size={13} /> Resume</> : <><Pause size={13} /> Pause</>}
+                        </button>
+                        <button onClick={() => { stopRecording(); setVideoExpanded(false); }} style={{ background: 'var(--specimen-red)', border: 'none', color: 'var(--chalk)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                          Stop
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={startRecording}
+                          disabled={countdown > 0}
+                          style={{
+                            background: countdown > 0 ? 'var(--graphite)' : 'var(--specimen-red)',
+                            border: 'none', color: 'var(--chalk)', borderRadius: 8,
+                            padding: '8px 20px', cursor: countdown > 0 ? 'not-allowed' : 'pointer',
+                            fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--chalk)' }} />
+                          {countdown > 0 ? `${countdown}...` : 'Record'}
+                        </button>
+                        <button
+                          onClick={() => { cancelPreview(); setVideoExpanded(false); }}
+                          style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'var(--chalk)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
                 {/* Paused overlay */}
