@@ -321,17 +321,6 @@ export default function LandingPage() {
               For Schools
             </button>
             <Link
-              to="/library"
-              className="btn btn-ghost"
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 'var(--text-sm)',
-                color: 'var(--graphite)',
-              }}
-            >
-              Library
-            </Link>
-            <Link
               to="/student/login"
               style={{
                 fontFamily: 'var(--font-body)',
@@ -407,13 +396,6 @@ export default function LandingPage() {
             >
               For Schools
             </button>
-            <Link
-              to="/library"
-              className="btn btn-ghost"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Library
-            </Link>
             <Link
               to="/student/login"
               onClick={() => setMobileMenuOpen(false)}
