@@ -89,11 +89,11 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, o
   }
 
   return (
-    <div className="card" style={styles.studentCard}>
+    <div className="card sp-student-card" style={styles.studentCard}>
       {/* Left side */}
       <div style={styles.studentLeft}>
         {/* Avatar */}
-        <div style={styles.avatar} aria-hidden="true">{initials}</div>
+        <div className="sp-avatar" style={styles.avatar} aria-hidden="true">{initials}</div>
 
         {/* Info */}
         <div style={styles.studentInfo}>
@@ -197,7 +197,7 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, o
       </div>
 
       {/* Right side */}
-      <div style={styles.studentRight}>
+      <div className="sp-right" style={styles.studentRight}>
         {confirmDelete ? (
           <div style={styles.confirmRow}>
             <button
@@ -257,8 +257,8 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, o
 
       {/* Parent share inline */}
       {showParentShare && (
-        <div style={{
-          gridColumn: '1 / -1', background: 'rgba(45,106,79,0.04)',
+        <div className="sp-parent-share" style={{
+          width: '100%', background: 'rgba(45,106,79,0.04)',
           border: '1px solid rgba(45,106,79,0.15)', borderRadius: 8,
           padding: '10px 14px', marginTop: 8,
         }}>
@@ -850,6 +850,30 @@ export default function StudentsPage() {
   return (
     <div style={styles.pageWrapper}>
       <TopBar />
+      <style>{`
+        @media (max-width: 640px) {
+          .sp-student-card {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .sp-student-card .sp-avatar {
+            display: none !important;
+          }
+          .sp-student-card .sp-right {
+            align-self: flex-end;
+            margin-top: -28px;
+          }
+          .sp-parent-share {
+            width: 100%;
+          }
+          .sp-parent-share > div {
+            flex-direction: column !important;
+          }
+          .sp-parent-share input {
+            width: 100% !important;
+          }
+        }
+      `}</style>
 
       <main style={styles.main}>
         <div style={styles.content}>
@@ -1066,6 +1090,7 @@ const styles = {
     padding: '14px 18px',
     background: 'var(--chalk)',
     transition: 'box-shadow 150ms ease',
+    flexWrap: 'wrap',
   },
 
   // Student content
