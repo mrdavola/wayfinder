@@ -4,7 +4,8 @@ import {
   ChevronLeft, BookOpen, Search, Wrench, FlaskConical, Mic,
   Megaphone, X, Send, CheckCircle, HelpCircle,
   Zap, ArrowRight, Loader2, AlertCircle, ChevronRight,
-  Share2, List, Download, Calendar, Printer,
+  Share2, List, Download, Calendar, Printer, MessageCircle,
+  ChevronDown,
 } from 'lucide-react';
 import SpeakButton from '../components/ui/SpeakButton';
 import { useAuth } from '../context/AuthContext';
@@ -1035,11 +1036,35 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
 }
 
 // ===================== PROGRESS SIDEBAR =====================
-function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, onClose }) {
+function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, onClose, questId }) {
   const completedCount = stages.filter((s) => s.status === 'completed').length;
   const totalCount = stages.length;
   const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const studentEntries = reflections.filter((r) => r.entry_type === 'student');
+
+  // Field Guide conversations
+  const [conversations, setConversations] = useState({});
+  const [expandedStudent, setExpandedStudent] = useState(null);
+  const [convoLoaded, setConvoLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!questId || convoLoaded) return;
+    supabase
+      .from('guide_messages')
+      .select('*')
+      .eq('quest_id', questId)
+      .eq('message_type', 'field_guide')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        const grouped = {};
+        (data || []).forEach(msg => {
+          if (!grouped[msg.student_name]) grouped[msg.student_name] = [];
+          grouped[msg.student_name].push(msg);
+        });
+        setConversations(grouped);
+        setConvoLoaded(true);
+      });
+  }, [questId, convoLoaded]);
 
   const asideStyle = isOverlay
     ? {
@@ -1126,6 +1151,77 @@ function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, o
                   <div style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5 }}>
                     {preview}{preview.length === 90 ? '…' : ''}
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Field Guide Conversations */}
+        {Object.keys(conversations).length > 0 && (
+          <div style={{ borderTop: '1px solid var(--pencil)', paddingTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <MessageCircle size={12} color="var(--lab-blue)" />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                AI Field Guide Chats
+              </span>
+            </div>
+            {Object.entries(conversations).map(([studentName, msgs]) => {
+              const isExpanded = expandedStudent === studentName;
+              const hasFlagged = msgs.some(m => m.flagged);
+              return (
+                <div key={studentName} style={{ marginBottom: 6 }}>
+                  <button
+                    onClick={() => setExpandedStudent(isExpanded ? null : studentName)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                      padding: '5px 8px', borderRadius: 6,
+                      background: isExpanded ? 'rgba(27,73,101,0.06)' : 'transparent',
+                      border: 'none', cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <ChevronDown size={10} color="var(--graphite)" style={{
+                      transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                      transition: 'transform 150ms',
+                    }} />
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--ink)', flex: 1 }}>
+                      {studentName}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--graphite)' }}>
+                      {msgs.length}
+                    </span>
+                    {hasFlagged && (
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--specimen-red)', flexShrink: 0 }} />
+                    )}
+                  </button>
+                  {isExpanded && (
+                    <div style={{
+                      maxHeight: 200, overflowY: 'auto',
+                      padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
+                    }}>
+                      {msgs.map((msg, i) => (
+                        <div key={i} style={{
+                          padding: '4px 8px', borderRadius: 6, fontSize: 10, lineHeight: 1.45,
+                          background: msg.role === 'user' ? 'var(--parchment)' : 'rgba(27,73,101,0.04)',
+                          border: msg.flagged ? '1px solid rgba(192,57,43,0.3)' : 'none',
+                        }}>
+                          <span style={{
+                            fontFamily: 'var(--font-mono)', fontSize: 8,
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            color: msg.role === 'user' ? 'var(--graphite)' : 'var(--lab-blue)',
+                          }}>
+                            {msg.role === 'user' ? studentName : 'AI'}
+                          </span>
+                          {msg.flagged && (
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 7, color: 'var(--specimen-red)', marginLeft: 4, fontWeight: 700 }}>FLAGGED</span>
+                          )}
+                          <div style={{ color: 'var(--ink)', marginTop: 1 }}>
+                            {msg.content.length > 120 ? msg.content.substring(0, 120) + '…' : msg.content}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1644,6 +1740,7 @@ export default function QuestMap() {
             reflections={reflections}
             isOverlay={isMobile}
             onClose={() => setSidebarOpen(false)}
+            questId={id}
           />
         )}
 
