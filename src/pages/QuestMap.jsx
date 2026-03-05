@@ -1158,15 +1158,19 @@ function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, o
         )}
 
         {/* Field Guide Conversations */}
-        {Object.keys(conversations).length > 0 && (
-          <div style={{ borderTop: '1px solid var(--pencil)', paddingTop: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <MessageCircle size={12} color="var(--lab-blue)" />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                AI Field Guide Chats
-              </span>
+        <div style={{ borderTop: '1px solid var(--pencil)', paddingTop: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <MessageCircle size={12} color="var(--lab-blue)" />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              AI Field Guide Chats
+            </span>
+          </div>
+          {Object.keys(conversations).length === 0 ? (
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic', padding: '4px 0' }}>
+              No conversations yet. Chats will appear here when learners use the AI Field Guide.
             </div>
-            {Object.entries(conversations).map(([studentName, msgs]) => {
+          ) : (
+            Object.entries(conversations).map(([studentName, msgs]) => {
               const isExpanded = expandedStudent === studentName;
               const hasFlagged = msgs.some(m => m.flagged);
               return (
@@ -1224,9 +1228,9 @@ function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, o
                   )}
                 </div>
               );
-            })}
-          </div>
-        )}
+            }))
+          }
+        </div>
 
         {/* Duration */}
         {quest?.total_duration && (
@@ -1574,6 +1578,15 @@ export default function QuestMap() {
             </span>
           )}
         </button>
+
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+          color: 'var(--lab-blue)', background: 'rgba(27,73,101,0.08)',
+          padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0,
+        }}>
+          Guide View
+        </span>
 
         {profile && (
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--lab-blue)', color: 'var(--chalk)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', userSelect: 'none', flexShrink: 0 }}>
