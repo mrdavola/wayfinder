@@ -6,7 +6,7 @@ const API_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
 
 // Shared cache across all hook instances
 const audioCache = new Map();
-const MAX_CACHE = 20;
+const MAX_CACHE = 25;
 
 function cacheSet(key, blob) {
   if (audioCache.size >= MAX_CACHE) {
