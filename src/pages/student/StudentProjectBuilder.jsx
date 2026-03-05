@@ -498,7 +498,7 @@ function Step4Generating() {
 
   return (
     <div style={{ textAlign: 'center', padding: '40px 0' }}>
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
         <Rocket size={40} color={T.compassGold} style={{ animation: 'spb-float 2s ease-in-out infinite' }} />
       </div>
       <p style={{ fontSize: 16, color: T.ink, fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: 8 }}>
