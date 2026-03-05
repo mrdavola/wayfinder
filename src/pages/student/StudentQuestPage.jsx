@@ -1901,6 +1901,15 @@ export default function StudentQuestPage() {
   const simId = simulation?.id || id;
   const handleEnterSim = useCallback(() => navigate(`/simulation/${simId}`), [navigate, simId]);
 
+  // Auto-select first active stage on mobile (so students see content immediately)
+  const isMobile = window.innerWidth < 768;
+  useEffect(() => {
+    if (!isMobile || activeCard || stages.length === 0) return;
+    const firstActive = stages.find(s => s.status === 'active') || stages.find(s => s.status !== 'locked') || stages[0];
+    if (firstActive) setActiveCard(firstActive.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stages.length]);
+
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
       <WayfinderLogoIcon size={36} color="var(--compass-gold)" />
@@ -1920,15 +1929,6 @@ export default function StudentQuestPage() {
   if (!studentName) return (
     <WelcomeScreen quest={quest} assignedStudents={assignedStudents} onEnter={handleEnter} />
   );
-
-  const isMobile = window.innerWidth < 768;
-
-  // Auto-select first active stage on mobile (so students see content immediately)
-  useEffect(() => {
-    if (!isMobile || activeCard || stages.length === 0) return;
-    const firstActive = stages.find(s => s.status === 'active') || stages.find(s => s.status !== 'locked') || stages[0];
-    if (firstActive) setActiveCard(firstActive.id);
-  }, [isMobile, stages, activeCard]);
 
   const activeStage = activeCard ? stages.find(s => s.id === activeCard) : null;
 
