@@ -205,7 +205,7 @@ function CreateProjectModal({ student, onClose, onCreated }) {
         career_pathway: 'self_directed',
         status: 'active',
         school_id: studentData?.school_id,
-        created_by: studentData?.guide_id,
+        guide_id: studentData?.guide_id,
       }).select().single();
       if (questErr) throw questErr;
 
