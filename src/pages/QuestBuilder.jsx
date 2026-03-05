@@ -1831,6 +1831,12 @@ function Step6Review({
   selectedPathways,
   questType,
   selectedStudents,
+  allStudents,
+  selectedStudentId,
+  setSelectedStudentId,
+  selectedStudentIds,
+  setSelectedStudentIds,
+  setQuestType,
   onLaunch,
   onDraft,
   onRegenerate,
@@ -1839,6 +1845,7 @@ function Step6Review({
   saveError,
 }) {
   const [openStage, setOpenStage] = useState(null);
+  const [editingStudents, setEditingStudents] = useState(false);
   const playbookDays = generatedQuest?.playbookDays || null;
   const [playbookLoading, setPlaybookLoading] = useState(false);
   const [playbookOpen, setPlaybookOpen] = useState(false);
@@ -1893,11 +1900,96 @@ function Step6Review({
 
   const studentNames = selectedStudents.map((s) => s.name).join(', ');
 
+  const toggleStudentForReview = (studentId) => {
+    if (questType === 'individual') {
+      setSelectedStudentId(selectedStudentId === studentId ? null : studentId);
+    } else {
+      setSelectedStudentIds((prev) =>
+        prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
+      );
+    }
+  };
+
   return (
     <div>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 24px' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 16px' }}>
         Review your project
       </h2>
+
+      {/* Sharing with section */}
+      <div style={{
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8,
+        marginBottom: 20, padding: '10px 14px',
+        background: T.paper, borderRadius: 10, border: `1px solid ${T.parchment}`,
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Sharing with:
+        </span>
+        {selectedStudents.length > 0 ? (
+          selectedStudents.map((s) => (
+            <span key={s.id} style={{
+              padding: '3px 10px', borderRadius: 20,
+              background: `${T.fieldGreen}12`, color: T.fieldGreen,
+              fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)',
+            }}>
+              {s.name}
+            </span>
+          ))
+        ) : (
+          <span style={{ fontSize: 12, color: T.pencil, fontStyle: 'italic', fontFamily: 'var(--font-body)' }}>
+            No students selected
+          </span>
+        )}
+        <button
+          onClick={() => setEditingStudents((v) => !v)}
+          style={{
+            fontSize: 11, fontWeight: 600, color: T.labBlue,
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: 'var(--font-body)', padding: '2px 4px',
+          }}
+        >
+          {editingStudents ? 'Done' : 'Edit'}
+        </button>
+      </div>
+
+      {/* Inline student picker */}
+      {editingStudents && allStudents && (
+        <div style={{
+          marginBottom: 20, padding: 14,
+          border: `1px solid ${T.pencil}`, borderRadius: 10,
+          maxHeight: 200, overflowY: 'auto',
+        }}>
+          {allStudents.map((s) => {
+            const checked = questType === 'individual'
+              ? selectedStudentId === s.id
+              : selectedStudentIds.includes(s.id);
+            return (
+              <label
+                key={s.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 8px', borderRadius: 6, cursor: 'pointer',
+                  background: checked ? `${T.fieldGreen}08` : 'transparent',
+                  transition: 'background 100ms',
+                }}
+              >
+                <input
+                  type={questType === 'individual' ? 'radio' : 'checkbox'}
+                  checked={checked}
+                  onChange={() => toggleStudentForReview(s.id)}
+                  style={{ accentColor: T.fieldGreen }}
+                />
+                <span style={{ fontSize: 13, fontFamily: 'var(--font-body)', color: T.ink, fontWeight: checked ? 600 : 400 }}>
+                  {s.name}
+                </span>
+                {s.grade_band && (
+                  <span style={{ fontSize: 10, color: T.graphite, fontFamily: 'var(--font-mono)' }}>{s.grade_band}</span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      )}
 
       {/* Quest header */}
       <div
@@ -1964,9 +2056,6 @@ function Step6Review({
               {pw.label}
             </span>
           ))}
-          <span style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)' }}>
-            {studentNames}
-          </span>
           <span style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-mono)' }}>
             {generatedQuest.total_duration} days
           </span>
@@ -2822,6 +2911,8 @@ export default function QuestBuilder() {
     }
   };
 
+  const [addedToLibrary, setAddedToLibrary] = useState(false);
+
   const handleAddToLibrary = async () => {
     if (!generatedQuest) return;
     const { error } = await supabase.from('quest_templates').insert({
@@ -2837,14 +2928,19 @@ export default function QuestBuilder() {
       grade_band: selectedStudents[0]?.grade_band || '3-5',
       usage_count: 0,
       is_public: false,
+      author_name: profile?.full_name || null,
       stages_data: generatedQuest.stages || [],
       simulation_data: generatedQuest.career_simulation || null,
     });
-    if (error) console.error('Add to Library error:', error.message);
+    if (error) {
+      console.error('Add to Library error:', error.message);
+    } else {
+      setAddedToLibrary(true);
+    }
   };
 
   const handleRegenerate = () => {
-    setStep(5);
+    setStep(4); // Go to "Anything Else?" so guide can refine before re-generating
   };
 
   const handleSkipPathway = () => {
@@ -3021,6 +3117,12 @@ export default function QuestBuilder() {
                 selectedPathways={selectedPathways}
                 questType={questType}
                 selectedStudents={selectedStudents}
+                allStudents={students}
+                selectedStudentId={selectedStudentId}
+                setSelectedStudentId={setSelectedStudentId}
+                selectedStudentIds={selectedStudentIds}
+                setSelectedStudentIds={setSelectedStudentIds}
+                setQuestType={setQuestType}
                 onLaunch={handleLaunch}
                 onDraft={handleDraft}
                 onRegenerate={handleRegenerate}

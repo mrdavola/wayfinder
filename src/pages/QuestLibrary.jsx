@@ -815,8 +815,7 @@ function PblBadge({ elementKey }) {
 
 // ── Quest Card ────────────────────────────────────────────────────────────────
 
-function QuestCard({ template, onPreview }) {
-  const navigate = useNavigate();
+function QuestCard({ template, onPreview, isMyTemplate, onTogglePublic, onDelete, onUse }) {
   const tabColor = getTabColor(template.career_pathway);
   const standardsCount = (template.academic_standards || []).length;
   const kgCount = (template.academic_standards || []).filter(code => resolveStandard(code)?.kg_uuid).length;
@@ -825,8 +824,7 @@ function QuestCard({ template, onPreview }) {
 
   function handleUseQuest(e) {
     e.stopPropagation();
-    localStorage.setItem('wayfinder_template', JSON.stringify(template));
-    navigate('/quest/new');
+    if (onUse) onUse();
   }
 
   return (
@@ -952,6 +950,35 @@ function QuestCard({ template, onPreview }) {
         </div>
       </div>
 
+      {/* My template controls */}
+      {isMyTemplate && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onTogglePublic?.(); }}
+            style={{
+              fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600,
+              padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
+              border: `1px solid ${template.is_public ? 'var(--field-green)' : 'var(--pencil)'}`,
+              background: template.is_public ? 'rgba(45,106,79,0.08)' : 'transparent',
+              color: template.is_public ? 'var(--field-green)' : 'var(--graphite)',
+              textTransform: 'uppercase', letterSpacing: '0.04em',
+            }}
+          >
+            {template.is_public ? 'Public' : 'Private'}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+            style={{
+              fontSize: 11, color: 'var(--pencil)', background: 'none', border: 'none',
+              cursor: 'pointer', padding: 2,
+            }}
+            title="Delete template"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
         <button
@@ -975,9 +1002,7 @@ function QuestCard({ template, onPreview }) {
 
 // ── Preview Modal ─────────────────────────────────────────────────────────────
 
-function PreviewModal({ template, onClose }) {
-  const navigate = useNavigate();
-
+function PreviewModal({ template, onClose, onUseTemplate }) {
   useEffect(() => {
     function handleKey(e) { if (e.key === 'Escape') onClose(); }
     document.addEventListener('keydown', handleKey);
@@ -991,9 +1016,10 @@ function PreviewModal({ template, onClose }) {
   }, []);
 
   function handleUseQuest() {
-    localStorage.setItem('wayfinder_template', JSON.stringify(template));
+    if (onUseTemplate) {
+      onUseTemplate(template);
+    }
     onClose();
-    navigate('/quest/new');
   }
 
   const STAGE_TYPE_COLORS = {
@@ -1534,7 +1560,10 @@ function FilterBar({ searchQuery, setSearchQuery, selectedPathway, setSelectedPa
 
 export default function QuestLibrary() {
   const { profile, signOut } = useAuth();
-  const [templates, setTemplates] = useState([]);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('featured');
+  const [myTemplates, setMyTemplates] = useState([]);
+  const [communityTemplates, setCommunityTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [previewTemplate, setPreviewTemplate] = useState(null);
@@ -1549,48 +1578,109 @@ export default function QuestLibrary() {
   // Show tour for first-time visitors
   useEffect(() => {
     if (!localStorage.getItem('wayfinder_library_toured')) {
-      // Slight delay so the page renders first
       const t = setTimeout(() => setShowTour(true), 600);
       return () => clearTimeout(t);
     }
   }, []);
 
-  // Fetch from Supabase, with client-side dedup
+  // Fetch templates
   useEffect(() => {
     async function fetchTemplates() {
       setLoading(true);
       setError(null);
 
-      const { data, error: err } = await supabase
-        .from('quest_templates')
-        .select('*')
-        .eq('is_public', true)
-        .order('usage_count', { ascending: false });
+      try {
+        // My templates
+        if (profile?.id) {
+          const { data: mine } = await supabase
+            .from('quest_templates')
+            .select('*')
+            .eq('guide_id', profile.id)
+            .order('created_at', { ascending: false });
+          if (mine) setMyTemplates(mine.map(normalizeTemplate));
+        }
 
-      if (err) {
+        // Community (public from others)
+        const { data: community, error: commErr } = await supabase
+          .from('quest_templates')
+          .select('*')
+          .eq('is_public', true)
+          .order('use_count', { ascending: false });
+
+        if (commErr) {
+          setError(commErr.message);
+        } else if (community) {
+          const seen = new Set();
+          const deduped = community
+            .filter(t => t.guide_id !== profile?.id)
+            .map(normalizeTemplate)
+            .filter(t => {
+              const key = t.title.toLowerCase().trim();
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          setCommunityTemplates(deduped);
+        }
+      } catch (err) {
         setError(err.message);
-        setTemplates(FALLBACK_TEMPLATES);
-      } else if (!data || data.length === 0) {
-        setTemplates(FALLBACK_TEMPLATES);
-      } else {
-        // Deduplicate by title (keep first/highest usage_count occurrence)
-        const seen = new Set();
-        const deduped = data
-          .map(normalizeTemplate)
-          .filter(t => {
-            const key = t.title.toLowerCase().trim();
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
-        setTemplates(deduped.length > 0 ? deduped : FALLBACK_TEMPLATES);
       }
 
       setLoading(false);
     }
 
     fetchTemplates();
-  }, []);
+  }, [profile?.id]);
+
+  // Toggle template visibility
+  async function togglePublic(templateId, currentValue) {
+    const { error: err } = await supabase
+      .from('quest_templates')
+      .update({ is_public: !currentValue })
+      .eq('id', templateId);
+    if (!err) {
+      setMyTemplates(prev => prev.map(t =>
+        t.id === templateId ? { ...t, is_public: !currentValue } : t
+      ));
+    }
+  }
+
+  // Use template → pre-fill QuestBuilder at review
+  function useTemplate(template) {
+    const questData = {
+      quest_title: template.title,
+      quest_subtitle: template.subtitle || '',
+      narrative_hook: template.narrativeHook || template.narrative_hook || '',
+      total_duration: template.duration || template.total_duration_days || 10,
+      stages: template.stages || [],
+      reflection_prompts: template.reflection_prompts || [],
+      career_simulation: template.careerSimulation || template.career_simulation || null,
+    };
+    sessionStorage.setItem('wayfinder_quest_builder', JSON.stringify({
+      step: 6,
+      generatedQuest: questData,
+      questType: 'individual',
+      selectedStudentId: null,
+      selectedStudentIds: [],
+      selectedInterests: [],
+      selectedStandards: [],
+      customTopic: '',
+      additionalContext: '',
+      selectedPathways: [],
+      customCareer: '',
+    }));
+    navigate('/quest/new');
+  }
+
+  // Delete my template
+  async function deleteTemplate(templateId) {
+    await supabase.from('quest_templates').delete().eq('id', templateId);
+    setMyTemplates(prev => prev.filter(t => t.id !== templateId));
+  }
+
+  const templates = activeTab === 'my-templates' ? myTemplates
+    : activeTab === 'community' ? communityTemplates
+    : FALLBACK_TEMPLATES;
 
   const filtered = applyFilters(templates, { searchQuery, selectedPathway, selectedGrade, sortBy });
 
@@ -1636,24 +1726,33 @@ export default function QuestLibrary() {
               fontSize: 'var(--text-sm)',
               color: 'var(--graphite)',
             }}>
-              Standards-aligned, project-based learning projects — ready to personalize for your learners.
+              Browse templates, save your own, and remix projects from the community.
             </p>
           </div>
-          <button
-            onClick={() => setShowTour(true)}
-            className="btn btn-ghost"
-            style={{
-              fontSize: 'var(--text-xs)',
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <MapPin size={13} />
-            Tour Guide
-          </button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ maxWidth: 1120, margin: '0 auto', display: 'flex', gap: 0, paddingTop: 12 }}>
+          {[
+            { id: 'featured', label: 'Featured' },
+            { id: 'community', label: 'Community' },
+            { id: 'my-templates', label: `My Templates${myTemplates.length ? ` (${myTemplates.length})` : ''}` },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setSearchQuery(''); }}
+              style={{
+                padding: '8px 20px',
+                fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 400,
+                color: activeTab === tab.id ? 'var(--ink)' : 'var(--graphite)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: activeTab === tab.id ? '2px solid var(--ink)' : '2px solid transparent',
+                transition: 'all 150ms',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -1728,15 +1827,17 @@ export default function QuestLibrary() {
           <div style={{ textAlign: 'center', padding: '64px 24px' }}>
             <Compass size={44} color="var(--pencil)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
-              No projects match your filters.
+              {activeTab === 'my-templates' ? 'No saved templates yet.' : 'No projects match your filters.'}
             </h3>
             <p style={{
               fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)',
               color: 'var(--graphite)', marginBottom: 'var(--space-4)',
             }}>
-              Try adjusting your search or clearing the active filters.
+              {activeTab === 'my-templates'
+                ? 'When you generate a project, click "Add to Library" on the review step to save it here.'
+                : 'Try adjusting your search or clearing the active filters.'}
             </p>
-            {hasActiveFilters && (
+            {hasActiveFilters && activeTab !== 'my-templates' && (
               <button className="btn btn-ghost" onClick={clearFilters}>Clear filters</button>
             )}
           </div>
@@ -1754,6 +1855,10 @@ export default function QuestLibrary() {
                 key={template.id}
                 template={template}
                 onPreview={t => setPreviewTemplate(t)}
+                isMyTemplate={activeTab === 'my-templates'}
+                onTogglePublic={activeTab === 'my-templates' ? () => togglePublic(template.id, template.is_public) : null}
+                onDelete={activeTab === 'my-templates' ? () => deleteTemplate(template.id) : null}
+                onUse={() => useTemplate(template)}
               />
             ))}
           </div>
@@ -1765,6 +1870,7 @@ export default function QuestLibrary() {
         <PreviewModal
           template={previewTemplate}
           onClose={() => setPreviewTemplate(null)}
+          onUseTemplate={useTemplate}
         />
       )}
 

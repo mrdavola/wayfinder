@@ -582,10 +582,19 @@ function ActiveQuestsColumn({ user }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                   <Link
                     to={`/quest/${q.id}`}
-                    style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--compass-gold)', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                    style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--lab-blue)', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
                   >
-                    Continue →
+                    Edit →
                   </Link>
+                  <button
+                    onClick={async () => {
+                      await supabase.from('quests').update({ status: 'active' }).eq('id', q.id);
+                      setQuests(prev => prev.map(p => p.id === q.id ? { ...p, status: 'active' } : p));
+                    }}
+                    style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--field-green)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    Launch
+                  </button>
                   <button
                     onClick={() => handleDelete(q.id, q.title)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--pencil)', padding: 4, display: 'flex', borderRadius: 4, flexShrink: 0 }}
