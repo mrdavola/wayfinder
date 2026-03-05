@@ -907,15 +907,13 @@ function Step2Skills({
                 return (
                   <button
                     key={sug.standard_id || i}
-                    onClick={() => !alreadySelected && toggleStandard(std)}
-                    disabled={alreadySelected}
+                    onClick={() => toggleStandard(std)}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: 10,
                       padding: '8px 12px', borderRadius: 8, textAlign: 'left',
                       border: `1px solid ${alreadySelected ? T.fieldGreen : 'rgba(184,134,11,0.25)'}`,
                       background: alreadySelected ? `${T.fieldGreen}10` : T.chalk,
-                      cursor: alreadySelected ? 'default' : 'pointer',
-                      opacity: alreadySelected ? 0.7 : 1,
+                      cursor: 'pointer',
                       width: '100%',
                     }}
                   >
