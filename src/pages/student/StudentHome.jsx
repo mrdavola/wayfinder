@@ -475,9 +475,46 @@ function CreateProjectModal({ student, onClose, onCreated }) {
             <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 16px' }}>
               {result.narrative_hook}
             </p>
-            <div style={{ fontSize: 12, color: 'var(--graphite)', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--graphite)', marginBottom: 12 }}>
               {(result.stages || []).length} stages · ~{result.total_duration || 10} days
             </div>
+
+            {/* Stages overview */}
+            {(result.stages || []).length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                {(result.stages || []).map((s, i) => (
+                  <div key={i} style={{
+                    display: 'flex', gap: 10, alignItems: 'flex-start',
+                    padding: '10px 0',
+                    borderBottom: i < (result.stages || []).length - 1 ? '1px solid var(--pencil)' : 'none',
+                  }}>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                      background: 'var(--parchment)', border: '1.5px solid var(--pencil)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 700, color: 'var(--graphite)',
+                      fontFamily: 'var(--font-mono)', marginTop: 1,
+                    }}>
+                      {s.stage_number || i + 1}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>
+                        {s.stage_title}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--graphite)', lineHeight: 1.4, marginTop: 2 }}>
+                        {s.description?.slice(0, 100)}{s.description?.length > 100 ? '...' : ''}
+                      </div>
+                      {s.deliverable && (
+                        <div style={{ fontSize: 10, color: 'var(--lab-blue)', fontFamily: 'var(--font-mono)', marginTop: 3 }}>
+                          Deliverable: {s.deliverable}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {error && (
               <div style={{ fontSize: 12, color: 'var(--specimen-red)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <AlertCircle size={13} /> {error}
