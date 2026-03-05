@@ -800,10 +800,10 @@ export default function StudentProjectBuilder() {
     if (!profile) return;
     setAiLoading('interests');
     try {
-      const text = await ai.chat({
-        systemPrompt: 'You suggest learning interests for students. Return ONLY a JSON array of 5-6 interest strings based on the student profile. No other text.',
-        messages: [{ role: 'user', content: `Student: ${profile.name}, age ${profile.age || 10}. Current interests: ${(profile.interests || []).join(', ') || 'none listed'}. Passions: ${(profile.passions || []).join(', ') || 'none'}. Already selected: ${interests.join(', ') || 'none'}. Suggest 5-6 NEW interests they might enjoy.` }],
-      });
+      const text = await ai.chat(
+        [{ role: 'user', content: `Student: ${profile.name}, age ${profile.age || 10}. Current interests: ${(profile.interests || []).join(', ') || 'none listed'}. Passions: ${(profile.passions || []).join(', ') || 'none'}. Already selected: ${interests.join(', ') || 'none'}. Suggest 5-6 NEW interests they might enjoy.` }],
+        'You suggest learning interests for students. Return ONLY a JSON array of 5-6 interest strings based on the student profile. No other text.',
+      );
       const match = text.match(/\[[\s\S]*\]/);
       if (match) setInterestSuggestions(prev => [...new Set([...prev, ...JSON.parse(match[0])])]);
     } catch (e) { console.error(e); }
@@ -813,10 +813,10 @@ export default function StudentProjectBuilder() {
   async function suggestSkills() {
     setAiLoading('skills');
     try {
-      const text = await ai.chat({
-        systemPrompt: 'You suggest learning skills for students. Return ONLY a JSON array of 5-6 skill strings. No other text.',
-        messages: [{ role: 'user', content: `Student interests: ${interests.join(', ')}. Already selected skills: ${skills.join(', ') || 'none'}. Suggest 5-6 complementary skills.` }],
-      });
+      const text = await ai.chat(
+        [{ role: 'user', content: `Student interests: ${interests.join(', ')}. Already selected skills: ${skills.join(', ') || 'none'}. Suggest 5-6 complementary skills.` }],
+        'You suggest learning skills for students. Return ONLY a JSON array of 5-6 skill strings. No other text.',
+      );
       const match = text.match(/\[[\s\S]*\]/);
       if (match) setSkillSuggestions(prev => [...new Set([...prev, ...JSON.parse(match[0])])]);
     } catch (e) { console.error(e); }
@@ -826,10 +826,10 @@ export default function StudentProjectBuilder() {
   async function suggestPathways() {
     try {
       const allPathwayLabels = CAREER_PATHWAYS.map(p => p.id).join(', ');
-      const text = await ai.chat({
-        systemPrompt: `You match student interests to career pathways. Given the student's interests, return a JSON array of 4-6 pathway IDs from this list: ${allPathwayLabels}. Return ONLY the JSON array.`,
-        messages: [{ role: 'user', content: `Interests: ${interests.join(', ')}. Skills: ${skills.join(', ')}.` }],
-      });
+      const text = await ai.chat(
+        [{ role: 'user', content: `Interests: ${interests.join(', ')}. Skills: ${skills.join(', ')}.` }],
+        `You match student interests to career pathways. Given the student's interests, return a JSON array of 4-6 pathway IDs from this list: ${allPathwayLabels}. Return ONLY the JSON array.`,
+      );
       const match = text.match(/\[[\s\S]*\]/);
       if (match) {
         const ids = JSON.parse(match[0]);
@@ -844,13 +844,13 @@ export default function StudentProjectBuilder() {
       const matesInfo = classmates.map(m =>
         `${m.name}: interests=[${(m.interests || []).join(', ')}], passions=[${(m.passions || []).join(', ')}]`
       ).join('\n');
-      const text = await ai.chat({
-        systemPrompt: 'You pair students for collaborative projects. Return JSON: {"student_name":"...","reason":"1-2 sentence justification"}. Pick the BEST match. Return ONLY JSON.',
-        messages: [{
+      const text = await ai.chat(
+        [{
           role: 'user',
           content: `My interests: ${interests.join(', ')}. My skills: ${skills.join(', ')}. My project pathways: ${selectedPathways.join(', ')}.\n\nClassmates:\n${matesInfo}\n\nWho should I work with and why?`
         }],
-      });
+        'You pair students for collaborative projects. Return JSON: {"student_name":"...","reason":"1-2 sentence justification"}. Pick the BEST match. Return ONLY JSON.',
+      );
       const match = text.match(/\{[\s\S]*\}/);
       if (match) {
         const suggestion = JSON.parse(match[0]);
@@ -929,7 +929,7 @@ export default function StudentProjectBuilder() {
         quest_id: quest.id,
         stage_number: s.stage_number || i + 1,
         title: s.stage_title,
-        stage_type: s.stage_type || 'research',
+        stage_type: ['research', 'build', 'experiment', 'simulate', 'reflect', 'present'].includes(s.stage_type) ? s.stage_type : 'research',
         description: s.description,
         deliverable: s.deliverable,
         guiding_questions: s.guiding_questions || [],
