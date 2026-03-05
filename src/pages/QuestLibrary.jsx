@@ -1167,19 +1167,19 @@ function PreviewModal({ template, onClose, onUseTemplate }) {
             </div>
           )}
 
-          {/* Stages */}
-          {template.stages && template.stages.length > 0 && (
-            <div style={{ marginBottom: 28 }}>
-              <h4 style={{
-                fontFamily: 'var(--font-mono)', fontSize: 10,
-                color: 'var(--graphite)', textTransform: 'uppercase',
-                letterSpacing: '0.08em', marginBottom: 12,
-              }}>
-                Project Stages
-              </h4>
+          {/* Stages — always shown prominently */}
+          <div style={{ marginBottom: 28 }}>
+            <h4 style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10,
+              color: 'var(--graphite)', textTransform: 'uppercase',
+              letterSpacing: '0.08em', marginBottom: 12,
+            }}>
+              Project Stages {template.stages?.length ? `(${template.stages.length})` : ''}
+            </h4>
+            {template.stages && template.stages.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {template.stages.map(stage => (
-                  <div key={stage.stage_number} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                {template.stages.map((stage, idx) => (
+                  <div key={stage.stage_number ?? idx} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                     <div style={{
                       width: 28, height: 28, borderRadius: '50%',
                       background: 'var(--parchment)', border: '1px solid var(--pencil)',
@@ -1187,7 +1187,7 @@ function PreviewModal({ template, onClose, onUseTemplate }) {
                       fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
                       color: 'var(--graphite)', flexShrink: 0, marginTop: 1,
                     }}>
-                      {stage.stage_number}
+                      {stage.stage_number ?? idx + 1}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
@@ -1197,34 +1197,69 @@ function PreviewModal({ template, onClose, onUseTemplate }) {
                         }}>
                           {stage.title}
                         </span>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)', fontSize: 9,
-                          color: STAGE_TYPE_COLORS[stage.type] ?? 'var(--graphite)',
-                          border: `1px solid ${STAGE_TYPE_COLORS[stage.type] ?? 'var(--graphite)'}`,
-                          borderRadius: 100, padding: '1px 7px',
-                          textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.8,
-                        }}>
-                          {getStageTypeLabel(stage.type)}
-                        </span>
+                        {stage.type && (
+                          <span style={{
+                            fontFamily: 'var(--font-mono)', fontSize: 9,
+                            color: STAGE_TYPE_COLORS[stage.type] ?? 'var(--graphite)',
+                            border: `1px solid ${STAGE_TYPE_COLORS[stage.type] ?? 'var(--graphite)'}`,
+                            borderRadius: 100, padding: '1px 7px',
+                            textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.8,
+                          }}>
+                            {getStageTypeLabel(stage.type)}
+                          </span>
+                        )}
                       </div>
-                      <p style={{
-                        fontFamily: 'var(--font-body)', fontSize: 'var(--text-xs)',
-                        color: 'var(--graphite)', lineHeight: 1.5,
-                      }}>
-                        {stage.description}
-                      </p>
-                      <span style={{
-                        fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--pencil)',
-                        marginTop: 3, display: 'block',
-                      }}>
-                        {stage.duration_days} day{stage.duration_days !== 1 ? 's' : ''}
-                      </span>
+                      {stage.description && (
+                        <p style={{
+                          fontFamily: 'var(--font-body)', fontSize: 'var(--text-xs)',
+                          color: 'var(--graphite)', lineHeight: 1.5,
+                        }}>
+                          {stage.description}
+                        </p>
+                      )}
+                      {stage.deliverable && (
+                        <p style={{
+                          fontFamily: 'var(--font-mono)', fontSize: 10,
+                          color: 'var(--lab-blue)', marginTop: 4,
+                        }}>
+                          Deliverable: {stage.deliverable}
+                        </p>
+                      )}
+                      {stage.duration_days && (
+                        <span style={{
+                          fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--pencil)',
+                          marginTop: 3, display: 'block',
+                        }}>
+                          {stage.duration_days} day{stage.duration_days !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {stage.guiding_questions?.length > 0 && (
+                        <div style={{ marginTop: 6 }}>
+                          {stage.guiding_questions.map((q, qi) => (
+                            <p key={qi} style={{
+                              fontFamily: 'var(--font-body)', fontSize: 11,
+                              color: 'var(--graphite)', lineHeight: 1.4,
+                              paddingLeft: 10, borderLeft: '2px solid var(--pencil)',
+                              marginBottom: 4,
+                            }}>
+                              {q}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p style={{
+                fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)',
+                color: 'var(--graphite)', fontStyle: 'italic',
+              }}>
+                Stage details will be generated when you use this template.
+              </p>
+            )}
+          </div>
 
           {/* Academic Standards — enriched */}
           {standardsWithInfo.length > 0 && (
