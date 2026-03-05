@@ -44,7 +44,7 @@ export default function TopBar() {
     <header style={{
       background: 'var(--chalk)',
       borderBottom: '1px solid var(--pencil)',
-      padding: '0 var(--space-6)',
+      padding: '0 var(--space-4)',
       height: 56,
       display: 'flex',
       alignItems: 'center',
@@ -53,22 +53,22 @@ export default function TopBar() {
       top: 0,
       zIndex: 100,
       flexShrink: 0,
+      gap: 8,
     }}>
       {/* Logo */}
-      <Link to="/dashboard" style={{
+      <Link to="/dashboard" className="topbar-logo" style={{
         display: 'flex', alignItems: 'center', gap: 8,
         fontFamily: 'var(--font-display)', fontSize: '1.25rem',
         color: 'var(--ink)', textDecoration: 'none',
         letterSpacing: '-0.01em', flexShrink: 0,
       }}>
         <WayfinderLogoIcon size={22} color="var(--ink)" />
-        Wayfinder
+        <span className="topbar-logo-text">Wayfinder</span>
       </Link>
 
       {/* Center nav */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', gap: 'var(--space-6)',
-        position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+      <nav className="topbar-nav" style={{
+        display: 'flex', alignItems: 'center', gap: 'var(--space-5)',
       }}>
         {navLinks.map(({ label, to }) => {
           const active = pathname === to;
@@ -83,6 +83,7 @@ export default function TopBar() {
                 fontWeight: active ? 600 : 400,
                 borderBottom: active ? '2px solid var(--ink)' : '2px solid transparent',
                 paddingBottom: 2,
+                whiteSpace: 'nowrap',
                 transition: 'color 150ms ease, border-color 150ms ease',
               }}
               onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--ink)'; }}
@@ -95,12 +96,12 @@ export default function TopBar() {
       </nav>
 
       {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-        <span style={{
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
+        <span className="topbar-badge" style={{
           fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
           letterSpacing: '0.08em', textTransform: 'uppercase',
           color: 'var(--lab-blue)', background: 'rgba(27,73,101,0.08)',
-          padding: '3px 8px', borderRadius: 4,
+          padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap',
         }}>
           Guide View
         </span>
@@ -205,8 +206,15 @@ export default function TopBar() {
       </div>
 
       <style>{`
-        @media (max-width: 480px) { .topbar-school-name { display: none; } }
-        @media (max-width: 640px) { nav[aria-label="main"] { display: none; } }
+        @media (max-width: 640px) {
+          .topbar-logo-text { display: none; }
+          .topbar-badge { display: none !important; }
+          .topbar-school-name { display: none !important; }
+          .topbar-nav { gap: var(--space-3) !important; }
+        }
+        @media (max-width: 480px) {
+          .topbar-school-name { display: none !important; }
+        }
       `}</style>
     </header>
   );
