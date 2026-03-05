@@ -55,6 +55,11 @@ const injectStyles = () => {
     .sq-confetti-piece { animation: sq-confetti 700ms ease forwards; }
     .sq-journal-input:focus { border-color: var(--compass-gold) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(184,134,11,0.12) !important; }
     .sq-name-input:focus { border-color: var(--compass-gold) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(184,134,11,0.15) !important; }
+    @media (max-width: 767px) {
+      .sq-topbar-badge { display: none !important; }
+      .sq-topbar-title { display: none !important; }
+      .sq-quest-header-hook { font-size: 12px !important; }
+    }
   `;
   document.head.appendChild(el);
 };
@@ -387,6 +392,55 @@ function JourneyMap({ stages, activeCard, onNodeClick }) {
           </g>
         )}
       </svg>
+    </div>
+  );
+}
+
+// ===================== MOBILE STAGE NAV =====================
+function MobileStageNav({ stages, activeCard, onNodeClick }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 0,
+      padding: '12px 16px', background: 'var(--chalk)',
+      borderBottom: '1px solid var(--pencil)',
+      overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+    }}>
+      {stages.map((stage, i) => {
+        const isDone = stage.status === 'completed';
+        const isActive = stage.status === 'active';
+        const isLocked = stage.status === 'locked';
+        const isSelected = activeCard === stage.id;
+        return (
+          <div key={stage.id} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <button
+              onClick={() => onNodeClick(stage.id)}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                border: isSelected ? '2.5px solid var(--lab-blue)' : '2px solid transparent',
+                background: isDone ? 'var(--field-green)' : isActive ? 'var(--compass-gold)' : 'var(--parchment)',
+                color: isDone || isActive ? 'var(--chalk)' : 'var(--pencil)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', padding: 0,
+                opacity: isLocked ? 0.4 : 1,
+                transition: 'all 150ms',
+                boxShadow: isSelected ? '0 0 0 3px rgba(27,73,101,0.15)' : 'none',
+              }}
+            >
+              {isDone ? <CheckCircle size={15} strokeWidth={2.5} />
+                : isLocked ? <Lock size={12} strokeWidth={2} />
+                : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700 }}>{stage.stage_number}</span>
+              }
+            </button>
+            {i < stages.length - 1 && (
+              <div style={{
+                width: 20, height: 2,
+                background: isDone ? 'var(--field-green)' : 'var(--pencil)',
+                opacity: isDone ? 0.7 : 0.3,
+              }} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1867,33 +1921,41 @@ export default function StudentQuestPage() {
     <WelcomeScreen quest={quest} assignedStudents={assignedStudents} onEnter={handleEnter} />
   );
 
-  const activeStage = activeCard ? stages.find(s => s.id === activeCard) : null;
   const isMobile = window.innerWidth < 768;
+
+  // Auto-select first active stage on mobile (so students see content immediately)
+  useEffect(() => {
+    if (!isMobile || activeCard || stages.length === 0) return;
+    const firstActive = stages.find(s => s.status === 'active') || stages.find(s => s.status !== 'locked') || stages[0];
+    if (firstActive) setActiveCard(firstActive.id);
+  }, [isMobile, stages, activeCard]);
+
+  const activeStage = activeCard ? stages.find(s => s.id === activeCard) : null;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', fontFamily: 'var(--font-body)', display: 'flex', flexDirection: 'column' }}>
       <ConfettiBurst active={confetti} />
 
       {/* Top bar */}
-      <header style={{
-        height: 54, background: 'var(--chalk)', borderBottom: '1px solid var(--pencil)',
+      <header className="sq-topbar" style={{
+        height: 48, background: 'var(--chalk)', borderBottom: '1px solid var(--pencil)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 20px', position: 'sticky', top: 0, zIndex: 100,
-        gap: 12,
+        padding: '0 14px', position: 'sticky', top: 0, zIndex: 100,
+        gap: 8,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <WayfinderLogoIcon size={18} color="var(--compass-gold)" />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <WayfinderLogoIcon size={16} color="var(--compass-gold)" />
+          <span className="sq-topbar-title" style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
             Wayfinder
           </span>
         </div>
 
-        <div style={{ flex: 1, maxWidth: 280 }}>
+        <div style={{ flex: 1, maxWidth: 200, minWidth: 60 }}>
           <ProgressBar stages={stages} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span className="sq-topbar-badge" style={{
             fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
             letterSpacing: '0.08em', textTransform: 'uppercase',
             color: 'var(--compass-gold)', background: 'rgba(184,134,11,0.1)',
@@ -1901,7 +1963,7 @@ export default function StudentQuestPage() {
           }}>
             Learner View
           </span>
-          <span style={{ fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>
+          <span className="sq-topbar-name" style={{ fontSize: 11, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {studentName}
           </span>
           <button
@@ -1927,35 +1989,31 @@ export default function StudentQuestPage() {
           </button>
           <button
             onClick={() => setJournalOpen(v => !v)}
+            title="Notes"
             style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '5px 12px', borderRadius: 6,
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '5px 8px', borderRadius: 6,
               border: '1px solid var(--pencil)', background: 'transparent',
-              fontSize: 12, color: 'var(--ink)', cursor: 'pointer',
+              fontSize: 11, color: 'var(--ink)', cursor: 'pointer',
               fontFamily: 'var(--font-body)',
             }}
           >
             <BookOpen size={13} />
-            Notes
-            {reflections.filter(r => r.entry_type === 'student').length > 0 && (
-              <span style={{ background: 'var(--compass-gold)', color: 'var(--chalk)', borderRadius: '50%', width: 15, height: 15, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {reflections.filter(r => r.entry_type === 'student').length}
-              </span>
-            )}
+            <span className="sq-topbar-badge">{/* hidden on mobile */}Notes</span>
           </button>
         </div>
       </header>
 
       {/* Quest header */}
-      <div style={{ background: 'var(--chalk)', borderBottom: '1px solid var(--pencil)', padding: '18px 22px' }}>
+      <div style={{ background: 'var(--chalk)', borderBottom: '1px solid var(--pencil)', padding: isMobile ? '12px 14px' : '18px 22px' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           {quest?.subtitle && (
             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--lab-blue)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
               {quest.subtitle}
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: quest?.narrative_hook ? 12 : 0 }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink)', margin: 0, lineHeight: 1.25 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: quest?.narrative_hook ? (isMobile ? 8 : 12) : 0 }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: isMobile ? 18 : 22, color: 'var(--ink)', margin: 0, lineHeight: 1.25 }}>
               {quest?.title}
             </h1>
             {quest?.narrative_hook && (
@@ -1966,12 +2024,12 @@ export default function StudentQuestPage() {
             )}
           </div>
           {quest?.narrative_hook && (
-            <div style={{
+            <div className="sq-quest-header-hook" style={{
               background: 'var(--parchment)', borderRadius: 8,
-              padding: '12px 16px', borderLeft: '3px solid var(--compass-gold)',
+              padding: isMobile ? '8px 12px' : '12px 16px', borderLeft: '3px solid var(--compass-gold)',
               maxWidth: 600,
             }}>
-              <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.7, margin: 0 }}>
+              <p style={{ fontSize: isMobile ? 12 : 13, color: 'var(--ink)', lineHeight: 1.6, margin: 0 }}>
                 {quest.narrative_hook}
               </p>
             </div>
@@ -1979,23 +2037,30 @@ export default function StudentQuestPage() {
         </div>
       </div>
 
+      {/* Mobile stage navigator */}
+      {isMobile && stages.length > 0 && (
+        <MobileStageNav stages={stages} activeCard={activeCard} onNodeClick={handleNodeClick} />
+      )}
+
       {/* Main content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <main style={{ flex: 1, overflowY: 'auto', padding: '28px 22px' }}>
-          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 36, alignItems: 'flex-start' }}>
-            {/* SVG map */}
-            <div style={{ flexShrink: 0, width: isMobile ? '100%' : 320 }}>
-              {stages.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pencil)', fontSize: 13 }}>
-                  No stages yet — check back soon!
-                </div>
-              ) : (
-                <JourneyMap stages={stages} activeCard={activeCard} onNodeClick={handleNodeClick} />
-              )}
-            </div>
+        <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 14px' : '28px 22px' }}>
+          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 36, alignItems: 'flex-start' }}>
+            {/* SVG map — hidden on mobile */}
+            {!isMobile && (
+              <div style={{ flexShrink: 0, width: 320 }}>
+                {stages.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pencil)', fontSize: 13 }}>
+                    No stages yet — check back soon!
+                  </div>
+                ) : (
+                  <JourneyMap stages={stages} activeCard={activeCard} onNodeClick={handleNodeClick} />
+                )}
+              </div>
+            )}
 
             {/* Stage card + hint */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, width: isMobile ? '100%' : 'auto' }}>
               {/* Completion banner */}
               {quest?.status === 'completed' && (
                 <div style={{
