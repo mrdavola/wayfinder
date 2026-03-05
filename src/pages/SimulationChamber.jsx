@@ -16,6 +16,7 @@ import useSpeech from '../hooks/useSpeech';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ai } from '../lib/api';
+import { getStudentSession } from '../lib/studentSession';
 
 // ===================== SYSTEM PROMPT BUILDER =====================
 
@@ -845,8 +846,9 @@ export default function SimulationChamber() {
 
   // ---- Back navigation ----
   const handleExit = useCallback(() => {
-    if (quest?.id) navigate(`/quest/${quest.id}`);
-    else navigate('/dashboard');
+    const isStudent = !!getStudentSession()?.studentId;
+    if (quest?.id) navigate(isStudent ? `/q/${quest.id}` : `/quest/${quest.id}`);
+    else navigate(isStudent ? '/student' : '/dashboard');
   }, [navigate, quest]);
 
   // ---- Loading ----
