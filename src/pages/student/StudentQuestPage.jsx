@@ -4,7 +4,7 @@ import {
   CheckCircle, BookOpen, Search, Wrench, FlaskConical, Mic,
   Megaphone, X, Send, Zap, ArrowRight, Loader2, AlertCircle,
   ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
-  Paperclip, Video, Download, LogOut,
+  Paperclip, Video, Download, LogOut, Sparkles, Users,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -947,7 +947,7 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onSaveNote, stageNoteContent }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
@@ -961,6 +961,8 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [challengerText, setChallengerText] = useState(null);
   const [revising, setRevising] = useState(false);
+  const [noteText, setNoteText] = useState(stageNoteContent || '');
+  const [noteSaved, setNoteSaved] = useState(false);
   const guideBottomRef = useRef(null);
 
   useEffect(() => {
@@ -1229,6 +1231,50 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}>
             {stage.deliverable}
           </p>
+        </div>
+      )}
+
+      {/* Per-stage notes */}
+      {(isActive || isDone) && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            My Notes
+          </div>
+          <textarea
+            value={noteText}
+            onChange={(e) => { setNoteText(e.target.value); setNoteSaved(false); }}
+            placeholder="Jot down ideas, observations, questions..."
+            rows={2}
+            className="sq-journal-input"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '8px 10px', borderRadius: 6,
+              border: '1px solid var(--pencil)', background: 'var(--parchment)',
+              fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+              resize: 'vertical', lineHeight: 1.5, transition: 'border-color 150ms, box-shadow 150ms',
+            }}
+          />
+          {noteText.trim() && !noteSaved && (
+            <button
+              onClick={() => {
+                if (onSaveNote) onSaveNote(stage.id, stage.title, noteText.trim());
+                setNoteSaved(true);
+              }}
+              style={{
+                marginTop: 4, padding: '4px 10px', borderRadius: 5,
+                border: 'none', background: 'var(--ink)', color: 'var(--chalk)',
+                fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              <Send size={10} /> Save Note
+            </button>
+          )}
+          {noteSaved && (
+            <span style={{ fontSize: 10, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', marginTop: 4, display: 'block' }}>
+              Saved
+            </span>
+          )}
         </div>
       )}
 
@@ -1781,6 +1827,26 @@ export default function StudentQuestPage() {
     setReflections(data || []);
   }, [id]);
 
+  // Per-stage notes: keyed by stageId → content
+  const [stageNotes, setStageNotes] = useState({});
+
+  // Load existing stage notes from reflections
+  useEffect(() => {
+    const noteMap = {};
+    reflections.filter(r => r.entry_type === 'student' && r.stage_id).forEach(r => {
+      noteMap[r.stage_id] = r.content;
+    });
+    setStageNotes(noteMap);
+  }, [reflections]);
+
+  const saveStageNote = useCallback(async (stageId, stageTitle, content) => {
+    // Upsert: delete old note for this stage then insert new one
+    await supabase.from('reflection_entries').delete().eq('quest_id', id).eq('stage_id', stageId).eq('entry_type', 'student');
+    await supabase.from('reflection_entries').insert({ quest_id: id, stage_id: stageId, content, entry_type: 'student' });
+    const { data } = await supabase.from('reflection_entries').select('*').eq('quest_id', id).order('created_at');
+    setReflections(data || []);
+  }, [id]);
+
   // Generate reflection questions when quest completes
   useEffect(() => {
     if (quest?.status !== 'completed' || reflectionQuestions || reflectionLoading) return;
@@ -1876,7 +1942,14 @@ export default function StudentQuestPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Who am I + switch */}
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: 'var(--compass-gold)', background: 'rgba(184,134,11,0.1)',
+            padding: '3px 8px', borderRadius: 4,
+          }}>
+            Learner View
+          </span>
           <span style={{ fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>
             {studentName}
           </span>
@@ -2000,6 +2073,33 @@ export default function StudentQuestPage() {
                 />
               )}
 
+              {/* Next project suggestion after completion */}
+              {quest?.status === 'completed' && (
+                <div className="sq-card" style={{
+                  background: 'rgba(184,134,11,0.04)', border: '1px solid rgba(184,134,11,0.2)',
+                  borderRadius: 14, padding: '20px 22px', marginTop: 16, textAlign: 'center',
+                }}>
+                  <Sparkles size={20} color="var(--compass-gold)" style={{ marginBottom: 8 }} />
+                  <p style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--ink)', margin: '0 0 6px' }}>
+                    What's next?
+                  </p>
+                  <p style={{ fontSize: 12, color: 'var(--graphite)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                    You finished this project — keep exploring by creating your own!
+                  </p>
+                  <button
+                    onClick={() => navigate('/student')}
+                    style={{
+                      padding: '10px 20px', borderRadius: 8, border: 'none',
+                      background: 'var(--compass-gold)', color: 'var(--ink)',
+                      fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-body)',
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <Sparkles size={13} /> Create My Next Project
+                  </button>
+                </div>
+              )}
+
               {/* Group role badge */}
               {groupRole && (
                 <div style={{
@@ -2023,6 +2123,8 @@ export default function StudentQuestPage() {
                   studentProfile={studentProfile}
                   groupRole={groupRole}
                   onReloadSubmissions={loadSubmissions}
+                  onSaveNote={saveStageNote}
+                  stageNoteContent={stageNotes[activeStage.id] || ''}
                 />
               ) : (
                 <div style={{

@@ -896,7 +896,7 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
           <div class="facilitation">${d.facilitation_notes}</div>` : ''}
       </div>
     `).join('');
-    printWin.document.write(`<html><head><title>Guide Playbook — ${quest?.title || 'Project'}</title>
+    printWin.document.write(`<html><head><title>Facilitation Guide — ${quest?.title || 'Project'}</title>
     <style>
       @page { margin: 0.75in; }
       body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 720px; margin: 0 auto; color: #1a1a2e; line-height: 1.5; }
@@ -918,8 +918,8 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
       .note { color: #999; font-style: italic; }
       .facilitation { font-size: 12px; color: #555; font-style: italic; line-height: 1.6; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
     </style></head><body>
-      <h1>${quest?.title || 'Guide Playbook'}</h1>
-      <div class="subtitle">Guide Playbook — ${days.length} days</div>
+      <h1>${quest?.title || 'Facilitation Guide'}</h1>
+      <div class="subtitle">Facilitation Guide — ${days.length} days</div>
       ${html}
     </body></html>`);
     printWin.document.close();
@@ -937,7 +937,7 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--pencil)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Calendar size={16} color="var(--ink)" />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--ink)' }}>Guide Playbook</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--ink)' }}>Facilitation Guide</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {days.length > 0 && (

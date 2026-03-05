@@ -19,17 +19,20 @@ import { ai } from '../lib/api';
 
 // ===================== SYSTEM PROMPT BUILDER =====================
 
-const buildSystemPrompt = (simulation, quest) => `
+const buildSystemPrompt = (simulation, quest, fieldNotes) => `
 You are a voice agent in Wayfinder's career simulation.
 Role: ${simulation?.voice_agent_personality || 'An experienced professional'}
 Quest: ${quest?.title || 'Career exploration'}
 Scenario: ${simulation?.context || ''}
+${fieldNotes?.length ? `\nThe student's notes from their project work:\n${fieldNotes.map(n => `- ${n}`).join('\n')}` : ''}
 
 Behavior:
+- All content must be age-appropriate for school-age children. Never reference violence, sexual content, drugs, or any inappropriate topics.
 - Speak at a student's comprehension level but NEVER condescend
 - Treat the student as a junior colleague
 - Keep responses to 2-4 sentences maximum
 - Use specific data from the scenario
+- Reference the student's own notes and prior work when relevant to make the conversation feel connected to their learning journey
 - Never say "wrong" — ask them to explain their reasoning, then introduce new information
 - After 4-5 exchanges, guide toward a conclusion
 - End by thanking them with specific genuine praise
@@ -276,69 +279,83 @@ function DecisionCards({ options, onSelect, selectedIndex }) {
   );
 }
 
-// ===================== DATA SIDEBAR =====================
+// ===================== YOUR NOTES SIDEBAR =====================
 
-function DataSidebar({ simulation }) {
-  const materialData = simulation?.data_table || [
-    { material: 'Lithium Iron Phos.', energyDensity: '4.2', weight: 'Light', costPerKwh: '$340', recommended: true },
-    { material: 'Manganese Oxide',    energyDensity: '3.1', weight: 'Medium', costPerKwh: '$190', recommended: false },
-    { material: 'NMC-X9 (AI)',        energyDensity: '4.8', weight: 'Light', costPerKwh: '$280', recommended: false },
-    { material: 'Lead Acid',          energyDensity: '1.8', weight: 'Heavy', costPerKwh: '$90',  recommended: false },
-  ];
-
-  const keyDecisions = simulation?.key_decisions || [];
+function NotesSidebar({ fieldNotes, submissions, keyDecisions }) {
+  const hasNotes = fieldNotes?.length > 0;
+  const hasSubmissions = submissions?.length > 0;
+  const hasDecisions = keyDecisions?.length > 0;
 
   return (
     <aside style={{
-      width: 240,
-      minWidth: 240,
+      width: 260,
+      minWidth: 260,
       borderLeft: '1px solid var(--pencil)',
       background: 'var(--chalk)',
       padding: '20px 16px',
       overflowY: 'auto',
       display: 'flex',
       flexDirection: 'column',
-      gap: 12,
+      gap: 16,
     }}>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
-        Reference Data
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 0 }}>
+        Your Notes
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--ink)' }}>
-        <thead>
-          <tr style={{ background: 'var(--parchment)' }}>
-            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--pencil)', fontSize: '10px', color: 'var(--graphite)', fontWeight: 500, whiteSpace: 'nowrap' }}>Material</th>
-            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--pencil)', fontSize: '10px', color: 'var(--graphite)', fontWeight: 500 }}>E.D.</th>
-            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--pencil)', fontSize: '10px', color: 'var(--graphite)', fontWeight: 500 }}>Wt.</th>
-            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--pencil)', fontSize: '10px', color: 'var(--graphite)', fontWeight: 500 }}>$/kWh</th>
-          </tr>
-        </thead>
-        <tbody>
-          {materialData.map((row, i) => (
-            <tr key={i} style={{ background: row.recommended ? 'rgba(27,73,101,0.06)' : 'transparent' }}>
-              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--parchment)', color: row.recommended ? 'var(--lab-blue)' : 'var(--ink)', fontSize: '10px', whiteSpace: 'nowrap' }}>
-                {row.material}
-              </td>
-              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--parchment)', color: row.recommended ? 'var(--compass-gold)' : 'var(--graphite)', fontSize: '10px' }}>
-                {row.energyDensity}
-              </td>
-              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--parchment)', color: 'var(--graphite)', fontSize: '10px' }}>
-                {row.weight}
-              </td>
-              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--parchment)', color: 'var(--graphite)', fontSize: '10px' }}>
-                {row.costPerKwh}
-              </td>
-            </tr>
+      {!hasNotes && !hasSubmissions && (
+        <p style={{ fontSize: 11, color: 'var(--pencil)', lineHeight: 1.6, margin: 0 }}>
+          Your field notes and work from earlier stages will appear here during the simulation.
+        </p>
+      )}
+
+      {/* Field notes from the quest */}
+      {hasNotes && (
+        <div>
+          {fieldNotes.map((note, i) => (
+            <div key={i} style={{
+              padding: '8px 10px', marginBottom: 6,
+              background: 'var(--parchment)', borderRadius: 6,
+              borderLeft: '2px solid var(--compass-gold)',
+            }}>
+              {note.stageTitle && (
+                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--compass-gold)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+                  {note.stageTitle}
+                </div>
+              )}
+              <p style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}>
+                {note.content}
+              </p>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
 
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--graphite)', lineHeight: 1.5 }}>
-        <span style={{ color: 'var(--compass-gold)' }}>* Highlighted</span> = current top pick
-      </div>
+      {/* Submissions summary */}
+      {hasSubmissions && (
+        <div style={{ borderTop: hasNotes ? '1px solid var(--pencil)' : 'none', paddingTop: hasNotes ? 12 : 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+            Your Work
+          </div>
+          {submissions.map((sub, i) => (
+            <div key={i} style={{
+              padding: '6px 10px', marginBottom: 6,
+              background: 'rgba(27,73,101,0.04)', borderRadius: 6,
+              borderLeft: '2px solid var(--lab-blue)',
+            }}>
+              <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--lab-blue)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+                Stage {sub.stageNumber}: {sub.stageTitle}
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}>
+                {sub.content?.length > 150 ? sub.content.slice(0, 150) + '…' : sub.content}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {keyDecisions.length > 0 && (
-        <div style={{ marginTop: 8, borderTop: '1px solid var(--pencil)', paddingTop: 14 }}>
+      {/* Key decisions */}
+      {hasDecisions && (
+        <div style={{ borderTop: '1px solid var(--pencil)', paddingTop: 12 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
             Key Decisions
           </div>
@@ -571,6 +588,8 @@ export default function SimulationChamber() {
   const [exchangeCount, setExchangeCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [fieldNotes, setFieldNotes] = useState([]);
+  const [studentSubmissions, setStudentSubmissions] = useState([]);
 
   // Refs
   const timerRef = useRef(null);
@@ -602,9 +621,34 @@ export default function SimulationChamber() {
         .eq('id', id)
         .single();
 
+      // Helper to load field notes + submissions for a quest
+      const loadStudentWork = async (questId) => {
+        if (!questId) return;
+        // Get stages for this quest
+        const { data: stages } = await supabase.from('quest_stages').select('id, stage_number, title').eq('quest_id', questId).order('stage_number');
+        const stageMap = {};
+        (stages || []).forEach(s => { stageMap[s.id] = s; });
+
+        // Load reflections (field notes)
+        const { data: reflections } = await supabase.from('quest_reflections').select('*').eq('quest_id', questId).eq('entry_type', 'student').order('created_at');
+        setFieldNotes((reflections || []).map(r => ({
+          content: r.content,
+          stageTitle: stageMap[r.stage_id]?.title || `Stage ${stageMap[r.stage_id]?.stage_number || ''}`,
+        })));
+
+        // Load submissions (text only for sidebar readability)
+        const { data: subs } = await supabase.from('stage_submissions').select('*').eq('quest_id', questId).eq('submission_type', 'text').order('created_at');
+        setStudentSubmissions((subs || []).map(s => ({
+          content: s.content,
+          stageNumber: stageMap[s.stage_id]?.stage_number || '?',
+          stageTitle: stageMap[s.stage_id]?.title || 'Stage',
+        })));
+      };
+
       if (simData) {
         setSimulation(simData);
         setQuest(simData.quests);
+        loadStudentWork(simData.quest_id);
 
         const msgs = [...(simData.simulation_messages || [])].sort(
           (a, b) => new Date(a.created_at) - new Date(b.created_at)
@@ -639,6 +683,7 @@ export default function SimulationChamber() {
         if (simByQuest) {
           setSimulation(simByQuest);
           setQuest(simByQuest.quests);
+          loadStudentWork(simByQuest.quest_id);
           const msgs = [...(simByQuest.simulation_messages || [])].sort(
             (a, b) => new Date(a.created_at) - new Date(b.created_at)
           );
@@ -741,7 +786,7 @@ export default function SimulationChamber() {
     let agentReply = '';
     try {
       agentReply = await ai.simulationChat({
-        systemPrompt: buildSystemPrompt(simulation, quest),
+        systemPrompt: buildSystemPrompt(simulation, quest, fieldNotes.map(n => n.content)),
         messages: conversationHistory,
       });
     } catch {
@@ -776,7 +821,7 @@ export default function SimulationChamber() {
       content: agentReply,
       is_decision_point: isDecisionPoint,
     });
-  }, [inputValue, isTypingDerived, messages, simulation, quest, exchangeCount]);
+  }, [inputValue, isTypingDerived, messages, simulation, quest, exchangeCount, fieldNotes]);
 
   // ---- Decision card click ----
   const handleDecisionSelect = useCallback((option, index) => {
@@ -1104,8 +1149,8 @@ export default function SimulationChamber() {
           <div ref={bottomRef} />
         </main>
 
-        {/* DATA SIDEBAR — desktop only */}
-        <DataSidebar simulation={simulation} />
+        {/* NOTES SIDEBAR — desktop only */}
+        <NotesSidebar fieldNotes={fieldNotes} submissions={studentSubmissions} keyDecisions={simulation?.key_decisions || []} />
       </div>
     </div>
   );

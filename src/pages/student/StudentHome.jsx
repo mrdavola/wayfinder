@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckCircle, Clock, ChevronRight,
-  LogOut, Loader2, AlertCircle, Lock,
+  LogOut, Loader2, AlertCircle, Lock, Sparkles, Plus, X,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { ai } from '../../lib/api';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
@@ -156,6 +157,244 @@ function QuestCard({ quest }) {
   );
 }
 
+// ===================== CREATE MY OWN PROJECT FLOW =====================
+function CreateProjectModal({ student, onClose, onCreated }) {
+  const [step, setStep] = useState(1); // 1=interests, 2=generating, 3=done
+  const [interests, setInterests] = useState('');
+  const [skills, setSkills] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  const handleGenerate = async () => {
+    if (!interests.trim()) return;
+    setStep(2);
+    setGenerating(true);
+    setError('');
+    try {
+      const questData = await ai.generateQuest({
+        students: [{ name: student.name, interests: interests.split(',').map(s => s.trim()).filter(Boolean), age: student.age || '10', grade_band: student.gradeBand || 'K-12' }],
+        standards: skills.trim() || 'teacher discretion',
+        pathway: 'none',
+        type: 'individual',
+        count: 1,
+        additionalContext: 'This is a student-initiated personal project. The student chose these topics themselves. Make it feel like THEIR project, not an assignment. Keep it exciting and exploration-driven.',
+      });
+      setResult(questData);
+      setStep(3);
+    } catch (err) {
+      setError(err.message || 'Failed to generate project');
+      setStep(1);
+    }
+    setGenerating(false);
+  };
+
+  const handleSave = async () => {
+    if (!result) return;
+    setGenerating(true);
+    try {
+      // Get the student's school_id from their profile
+      const { data: studentData } = await supabase.from('students').select('school_id, guide_id').eq('id', student.id).single();
+
+      // Create the quest
+      const { data: quest, error: questErr } = await supabase.from('quests').insert({
+        title: result.quest_title,
+        subtitle: result.quest_subtitle,
+        narrative_hook: result.narrative_hook,
+        total_duration_days: result.total_duration || 10,
+        career_pathway: 'self_directed',
+        status: 'active',
+        school_id: studentData?.school_id,
+        created_by: studentData?.guide_id,
+      }).select().single();
+      if (questErr) throw questErr;
+
+      // Insert stages
+      const stagesData = (result.stages || []).map((s, i) => ({
+        quest_id: quest.id,
+        stage_number: s.stage_number || i + 1,
+        title: s.stage_title,
+        stage_type: s.stage_type || 'research',
+        description: s.description,
+        deliverable: s.deliverable,
+        guiding_questions: s.guiding_questions || [],
+        duration_days: s.duration || 2,
+        status: i === 0 ? 'active' : 'locked',
+        stretch_challenge: s.stretch_challenge || null,
+      }));
+      await supabase.from('quest_stages').insert(stagesData);
+
+      // Assign student to quest
+      await supabase.from('quest_students').insert({ quest_id: quest.id, student_id: student.id });
+
+      // Create simulation if present
+      if (result.career_simulation) {
+        await supabase.from('career_simulations').insert({
+          quest_id: quest.id,
+          scenario_title: result.career_simulation.scenario_title,
+          role: result.career_simulation.role,
+          context: result.career_simulation.context,
+          key_decisions: result.career_simulation.key_decisions,
+          skills_assessed: result.career_simulation.skills_assessed,
+          voice_agent_personality: result.career_simulation.voice_agent_personality,
+        });
+      }
+
+      if (onCreated) onCreated(quest.id);
+    } catch (err) {
+      setError(err.message || 'Failed to save project');
+    }
+    setGenerating(false);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 300,
+      background: 'rgba(26,26,46,0.5)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 24,
+    }} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{
+        background: 'var(--chalk)', borderRadius: 16,
+        padding: '32px 28px', maxWidth: 520, width: '100%',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.15)',
+        animation: 'sh-fade 200ms ease',
+        maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)', margin: 0 }}>
+            {step === 3 ? 'Your Project' : 'Create My Own Project'}
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--graphite)', padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {step === 1 && (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, margin: '0 0 20px' }}>
+              What do you want to learn about? Tell us your interests and we'll design a project just for you.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6, fontFamily: 'var(--font-body)' }}>
+                What interests you?
+              </label>
+              <input
+                type="text"
+                value={interests}
+                onChange={(e) => setInterests(e.target.value)}
+                placeholder="e.g. space exploration, coding, marine biology..."
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '11px 14px', borderRadius: 8,
+                  border: '1.5px solid var(--pencil)', background: 'var(--chalk)',
+                  fontSize: 14, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6, fontFamily: 'var(--font-body)' }}>
+                Any skills you want to practice?
+                <span style={{ fontWeight: 400, color: 'var(--graphite)', marginLeft: 6 }}>(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={skills}
+                onChange={(e) => setSkills(e.target.value)}
+                placeholder="e.g. writing, math, public speaking..."
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '11px 14px', borderRadius: 8,
+                  border: '1.5px solid var(--pencil)', background: 'var(--chalk)',
+                  fontSize: 14, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+                }}
+              />
+            </div>
+            {error && (
+              <div style={{ fontSize: 12, color: 'var(--specimen-red)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertCircle size={13} /> {error}
+              </div>
+            )}
+            <button
+              onClick={handleGenerate}
+              disabled={!interests.trim()}
+              style={{
+                width: '100%', padding: '13px', borderRadius: 10, border: 'none',
+                background: !interests.trim() ? 'var(--pencil)' : 'var(--compass-gold)',
+                color: !interests.trim() ? 'var(--graphite)' : 'var(--ink)',
+                fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-body)',
+                cursor: !interests.trim() ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              <Sparkles size={16} /> Generate My Project
+            </button>
+          </>
+        )}
+
+        {step === 2 && (
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <Loader2 size={32} color="var(--compass-gold)" style={{ animation: 'sh-spin 1s linear infinite', marginBottom: 16 }} />
+            <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>Designing your project...</p>
+            <p style={{ fontSize: 12, color: 'var(--graphite)' }}>This usually takes about 10 seconds.</p>
+          </div>
+        )}
+
+        {step === 3 && result && (
+          <>
+            <div style={{ background: 'var(--parchment)', borderRadius: 10, padding: '16px 18px', marginBottom: 16 }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', margin: '0 0 6px' }}>
+                {result.quest_title}
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, margin: 0 }}>
+                {result.quest_subtitle}
+              </p>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 16px' }}>
+              {result.narrative_hook}
+            </p>
+            <div style={{ fontSize: 12, color: 'var(--graphite)', marginBottom: 16 }}>
+              {(result.stages || []).length} stages · ~{result.total_duration || 10} days
+            </div>
+            {error && (
+              <div style={{ fontSize: 12, color: 'var(--specimen-red)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertCircle size={13} /> {error}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { setStep(1); setResult(null); setError(''); }}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 8,
+                  border: '1px solid var(--pencil)', background: 'transparent',
+                  color: 'var(--ink)', fontSize: 13, fontWeight: 600,
+                  fontFamily: 'var(--font-body)', cursor: 'pointer',
+                }}
+              >
+                Try Again
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={generating}
+                style={{
+                  flex: 2, padding: '12px', borderRadius: 8, border: 'none',
+                  background: generating ? 'var(--pencil)' : 'var(--compass-gold)',
+                  color: generating ? 'var(--graphite)' : 'var(--ink)',
+                  fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-body)',
+                  cursor: generating ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                {generating ? <><Loader2 size={14} style={{ animation: 'sh-spin 1s linear infinite' }} /> Saving...</> : 'Start This Project'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function StudentHome() {
   const navigate = useNavigate();
   const session = getStudentSession();
@@ -163,6 +402,7 @@ export default function StudentHome() {
   const [quests, setQuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showCreateProject, setShowCreateProject] = useState(false);
 
   // PIN-only auth: redirect if no session
   useEffect(() => {
@@ -233,6 +473,14 @@ export default function StudentHome() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: 'var(--compass-gold)', background: 'rgba(184,134,11,0.1)',
+            padding: '3px 8px', borderRadius: 4,
+          }}>
+            Learner View
+          </span>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)' }}>
             Hi, <strong style={{ color: 'var(--ink)' }}>{displayName}</strong>
           </span>
@@ -273,6 +521,39 @@ export default function StudentHome() {
             Pick up where you left off or explore what's next.
           </p>
         </div>
+
+        {/* Create my own project CTA */}
+        {!loading && (
+          <button
+            onClick={() => setShowCreateProject(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              width: '100%', padding: '16px 20px', marginBottom: 28,
+              background: 'rgba(184,134,11,0.06)', border: '1.5px dashed var(--compass-gold)',
+              borderRadius: 12, cursor: 'pointer',
+              transition: 'all 150ms',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(184,134,11,0.12)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(184,134,11,0.06)'; }}
+          >
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(184,134,11,0.15)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Plus size={18} color="var(--compass-gold)" />
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                Create My Own Project
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--graphite)' }}>
+                Choose what you want to learn — AI will design a project just for you
+              </div>
+            </div>
+            <Sparkles size={16} color="var(--compass-gold)" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+          </button>
+        )}
 
         {/* Loading */}
         {loading && (
@@ -325,12 +606,48 @@ export default function StudentHome() {
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)', marginBottom: 8 }}>
               No projects yet
             </h3>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', maxWidth: 320, margin: '0 auto' }}>
-              Your guide hasn't assigned any projects to you yet. Check back soon!
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', maxWidth: 320, margin: '0 auto', marginBottom: 16 }}>
+              Your guide hasn't assigned any projects to you yet — or create your own!
             </p>
           </div>
         )}
+
+        {/* "What's next" after completed projects */}
+        {!loading && completed.length > 0 && (
+          <div style={{
+            textAlign: 'center', padding: '24px', marginTop: 8,
+            background: 'rgba(184,134,11,0.04)', borderRadius: 12,
+            border: '1px solid rgba(184,134,11,0.15)',
+          }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', margin: '0 0 12px' }}>
+              Finished a project? Keep exploring!
+            </p>
+            <button
+              onClick={() => setShowCreateProject(true)}
+              style={{
+                padding: '10px 20px', borderRadius: 8, border: 'none',
+                background: 'var(--compass-gold)', color: 'var(--ink)',
+                fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-body)',
+                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <Sparkles size={14} /> Create My Next Project
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Create project modal */}
+      {showCreateProject && (
+        <CreateProjectModal
+          student={{ id: session?.studentId, name: session?.studentName, gradeBand: session?.gradeBand }}
+          onClose={() => setShowCreateProject(false)}
+          onCreated={(questId) => {
+            setShowCreateProject(false);
+            navigate(`/q/${questId}`);
+          }}
+        />
+      )}
     </div>
   );
 }

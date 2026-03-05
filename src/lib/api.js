@@ -293,6 +293,14 @@ export const templates = {
 // Gemini is the default provider. Anthropic is an optional fallback.
 // In production, proxy through a serverless function rather than calling from browser.
 
+// Content safety preamble — prepended to every AI system prompt
+const SAFETY_PREAMBLE = `SAFETY RULES (non-negotiable):
+- All content MUST be appropriate for school-age children (ages 5-18).
+- NEVER generate, discuss, or reference: violence/weapons, sexual content, drugs/alcohol, self-harm, hate speech, profanity, or any content unsuitable for a K-12 classroom.
+- If a student's input references inappropriate topics, gently redirect to the learning task without engaging with the inappropriate content.
+- Keep all scenarios, examples, and language educational and age-appropriate.
+`;
+
 // Read user's saved AI settings from localStorage
 function getAiSettings() {
   try {
@@ -358,13 +366,18 @@ async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens = 
 
 // ── Route to preferred provider ──────────────────────────────────────────────
 async function callAI(params) {
+  // Prepend safety rules to every system prompt
+  const safeParams = {
+    ...params,
+    systemPrompt: params.systemPrompt ? SAFETY_PREAMBLE + params.systemPrompt : SAFETY_PREAMBLE,
+  };
   return getPreferredProvider() === 'anthropic'
-    ? callAnthropic(params)
-    : callGemini(params);
+    ? callAnthropic(safeParams)
+    : callGemini(safeParams);
 }
 
 export const ai = {
-  generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles }) => {
+  generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles, additionalContext }) => {
     // Build rich student profiles for the prompt
     const studentProfiles = (students || []).map(s => {
       const parts = [`- ${s.name} (age ${s.age || '10'}, ${s.grade_band || 'unknown grade'})`];
@@ -404,7 +417,7 @@ ${studentProfiles || 'No detailed profiles available'}
 - Academic standards: ${standards}${standardsProfileText}
 - Career pathway: ${pathway || 'none'}
 - Quest type: ${type}
-- Student count: ${count || (students || []).length || 1}
+- Student count: ${count || (students || []).length || 1}${additionalContext ? `\n- Additional context from guide: ${additionalContext}` : ''}
 
 Generate a quest as JSON:
 {

@@ -96,6 +96,14 @@ export default function TopBar() {
 
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+          color: 'var(--lab-blue)', background: 'rgba(27,73,101,0.08)',
+          padding: '3px 8px', borderRadius: 4,
+        }}>
+          Guide View
+        </span>
         {schoolName && (
           <span
             className="topbar-school-name"

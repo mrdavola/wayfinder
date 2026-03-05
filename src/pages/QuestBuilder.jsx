@@ -411,6 +411,8 @@ function Step1Students({
   setSelectedStudentIds,
   selectedInterests,
   setSelectedInterests,
+  additionalContext,
+  setAdditionalContext,
   onNext,
 }) {
   const [search, setSearch] = useState('');
@@ -604,9 +606,24 @@ function Step1Students({
           {/* Group: multi-select */}
           {questType === 'group' && (
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 8, fontFamily: 'var(--font-body)' }}>
-                Select students
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: T.ink, fontFamily: 'var(--font-body)' }}>
+                  Select students
+                </label>
+                <button
+                  onClick={() => {
+                    if (selectedStudentIds.length === students.length) setSelectedStudentIds([]);
+                    else setSelectedStudentIds(students.map(s => s.id));
+                  }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 600, color: T.labBlue,
+                    fontFamily: 'var(--font-body)', padding: '2px 0',
+                  }}
+                >
+                  {selectedStudentIds.length === students.length ? 'Deselect all' : 'Select all'}
+                </button>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {students.map((s) => {
                   const checked = selectedStudentIds.includes(s.id);
@@ -692,6 +709,32 @@ function Step1Students({
                 <span style={{ fontWeight: 400, color: T.graphite, marginLeft: 6 }}>(add or remove)</span>
               </label>
               <InterestChipInput interests={selectedInterests} onChange={setSelectedInterests} />
+            </div>
+          )}
+
+          {/* Additional context */}
+          {(questType === 'individual' ? !!selectedStudentId : selectedStudentIds.length > 0) && (
+            <div style={{ marginBottom: 28 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6, fontFamily: 'var(--font-body)' }}>
+                Additional context
+                <span style={{ fontWeight: 400, color: T.graphite, marginLeft: 6 }}>(optional)</span>
+              </label>
+              <textarea
+                value={additionalContext}
+                onChange={(e) => setAdditionalContext(e.target.value)}
+                placeholder="Any extra details for the AI — specific topics to explore, materials available, time constraints, cross-curricular connections..."
+                rows={3}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '10px 14px', borderRadius: 8,
+                  border: `1.5px solid ${T.pencil}`, background: T.chalk,
+                  fontSize: 13, fontFamily: 'var(--font-body)', color: T.ink,
+                  resize: 'vertical', lineHeight: 1.6, outline: 'none',
+                  transition: 'border-color 150ms',
+                }}
+                onFocus={(e) => { e.target.style.borderColor = T.labBlue; }}
+                onBlur={(e) => { e.target.style.borderColor = T.pencil; }}
+              />
             </div>
           )}
 
@@ -2219,7 +2262,7 @@ function Step5Review({
       )}
 
       {/* Action buttons */}
-      {/* ── Guide Playbook ─────────────────────────────────────── */}
+      {/* ── Facilitation Guide ─────────────────────────────────────── */}
       <div style={{ marginBottom: 20, border: `1px solid ${T.parchment}`, borderRadius: 12, overflow: 'hidden' }}>
         <button
           onClick={playbookDays ? () => setPlaybookOpen(!playbookOpen) : handleGeneratePlaybook}
@@ -2231,7 +2274,7 @@ function Step5Review({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Calendar size={16} color={T.labBlue} />
             <span style={{ fontSize: 14, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)' }}>
-              Guide Playbook
+              Facilitation Guide
             </span>
           </div>
           {!playbookDays && !playbookLoading && (
@@ -2444,6 +2487,7 @@ export default function QuestBuilder() {
   // Step 2
   const [selectedStandards, setSelectedStandards] = useState(() => saved.current?.selectedStandards || []);
   const [customTopic, setCustomTopic] = useState(() => saved.current?.customTopic || '');
+  const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
 
   // Step 3
   const [selectedPathways, setSelectedPathways] = useState(() => saved.current?.selectedPathways || []);
@@ -2470,11 +2514,11 @@ export default function QuestBuilder() {
     }
     const data = {
       step, questType, selectedStudentId, selectedStudentIds,
-      selectedInterests, selectedStandards, customTopic,
+      selectedInterests, selectedStandards, customTopic, additionalContext,
       selectedPathways, customCareer, generatedQuest,
     };
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-  }, [step, questType, selectedStudentId, selectedStudentIds, selectedInterests, selectedStandards, customTopic, selectedPathways, customCareer, generatedQuest, launchedQuestId]);
+  }, [step, questType, selectedStudentId, selectedStudentIds, selectedInterests, selectedStandards, customTopic, additionalContext, selectedPathways, customCareer, generatedQuest, launchedQuestId]);
 
   // Refs for generation timers
   const progressRef = useRef(null);
@@ -2620,6 +2664,7 @@ export default function QuestBuilder() {
         type: questType,
         count: selectedStudents.length,
         studentStandardsProfiles,
+        additionalContext,
       });
 
       cancelAnimationFrame(progressRef.current);
@@ -2903,6 +2948,8 @@ export default function QuestBuilder() {
                 setSelectedStudentIds={setSelectedStudentIds}
                 selectedInterests={selectedInterests}
                 setSelectedInterests={setSelectedInterests}
+                additionalContext={additionalContext}
+                setAdditionalContext={setAdditionalContext}
                 onNext={() => setStep(2)}
               />
             )}
