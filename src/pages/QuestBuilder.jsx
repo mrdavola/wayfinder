@@ -46,7 +46,7 @@ const T = {
 
 
 
-const STEP_LABELS = ['Students', 'Skills', 'Pathway', 'Generating', 'Review', 'Launch'];
+const STEP_LABELS = ['Students', 'Skills', 'Pathway', 'Anything Else?', 'Generating', 'Review', 'Launch'];
 
 const LOADING_TEXTS = [
   'Mapping interests to standards...',
@@ -411,8 +411,6 @@ function Step1Students({
   setSelectedStudentIds,
   selectedInterests,
   setSelectedInterests,
-  additionalContext,
-  setAdditionalContext,
   onNext,
 }) {
   const [search, setSearch] = useState('');
@@ -709,32 +707,6 @@ function Step1Students({
                 <span style={{ fontWeight: 400, color: T.graphite, marginLeft: 6 }}>(add or remove)</span>
               </label>
               <InterestChipInput interests={selectedInterests} onChange={setSelectedInterests} />
-            </div>
-          )}
-
-          {/* Additional context */}
-          {(questType === 'individual' ? !!selectedStudentId : selectedStudentIds.length > 0) && (
-            <div style={{ marginBottom: 28 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6, fontFamily: 'var(--font-body)' }}>
-                Additional context
-                <span style={{ fontWeight: 400, color: T.graphite, marginLeft: 6 }}>(optional)</span>
-              </label>
-              <textarea
-                value={additionalContext}
-                onChange={(e) => setAdditionalContext(e.target.value)}
-                placeholder="Any extra details for the AI — specific topics to explore, materials available, time constraints, cross-curricular connections..."
-                rows={3}
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  padding: '10px 14px', borderRadius: 8,
-                  border: `1.5px solid ${T.pencil}`, background: T.chalk,
-                  fontSize: 13, fontFamily: 'var(--font-body)', color: T.ink,
-                  resize: 'vertical', lineHeight: 1.6, outline: 'none',
-                  transition: 'border-color 150ms',
-                }}
-                onFocus={(e) => { e.target.style.borderColor = T.labBlue; }}
-                onBlur={(e) => { e.target.style.borderColor = T.pencil; }}
-              />
             </div>
           )}
 
@@ -1724,15 +1696,57 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={onBack} style={btnSecondary}>Back</button>
         <button onClick={onNext} style={{ ...btnPrimary, flex: 1 }}>
-          Generate Project
+          Next: Final Details
         </button>
       </div>
     </div>
   );
 }
 
-// ── Step 4: Generating ─────────────────────────────────────────────────────────
-function Step4Generating({ progress, loadingText, error, onRegenerate }) {
+// ── Step 4: Anything Else? ───────────────────────────────────────────────────
+function Step4AnythingElse({ additionalContext, setAdditionalContext, onBack, onNext }) {
+  return (
+    <div>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 6px' }}>
+        Anything else?
+      </h2>
+      <p style={{ fontSize: 14, color: T.graphite, fontFamily: 'var(--font-body)', marginBottom: 28, lineHeight: 1.5 }}>
+        Before we generate your project, is there anything specific you'd like to include? This could be materials you have available, time constraints, topics to emphasize, or anything the AI should know.
+      </p>
+
+      <textarea
+        value={additionalContext}
+        onChange={(e) => setAdditionalContext(e.target.value)}
+        placeholder="e.g. We only have 2 weeks, focus on hands-on experiments, we have access to a 3D printer, make sure to tie in our current novel study..."
+        rows={5}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          padding: '14px 16px', borderRadius: 10,
+          border: `1.5px solid ${T.pencil}`, background: T.paper,
+          fontSize: 14, fontFamily: 'var(--font-body)', color: T.ink,
+          resize: 'vertical', lineHeight: 1.6, outline: 'none',
+          transition: 'border-color 150ms',
+        }}
+        onFocus={(e) => { e.target.style.borderColor = T.labBlue; }}
+        onBlur={(e) => { e.target.style.borderColor = T.pencil; }}
+      />
+
+      <p style={{ fontSize: 12, color: T.pencil, fontFamily: 'var(--font-body)', marginTop: 8, marginBottom: 28 }}>
+        This is optional — feel free to skip if everything looks good.
+      </p>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={onBack} style={btnSecondary}>Back</button>
+        <button onClick={onNext} style={{ ...btnPrimary, flex: 1 }}>
+          {additionalContext.trim() ? 'Generate Project' : 'Skip & Generate Project'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 5: Generating ─────────────────────────────────────────────────────────
+function Step5Generating({ progress, loadingText, error, onRegenerate }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0' }}>
       {error ? (
@@ -1811,8 +1825,8 @@ function StageTypeIcon({ type, size = 14 }) {
   return <Icon size={size} color={T.graphite} />;
 }
 
-// ── Step 5: Review ─────────────────────────────────────────────────────────────
-function Step5Review({
+// ── Step 6: Review ─────────────────────────────────────────────────────────────
+function Step6Review({
   generatedQuest,
   setGeneratedQuest,
   selectedStandards,
@@ -2398,8 +2412,8 @@ function Step5Review({
   );
 }
 
-// ── Step 6: Launch ─────────────────────────────────────────────────────────────
-function Step6Launch({ selectedStudents, questId }) {
+// ── Step 7: Launch ─────────────────────────────────────────────────────────────
+function Step7Launch({ selectedStudents, questId }) {
   const names = selectedStudents.map((s) => s.name).join(' & ');
 
   return (
@@ -2472,8 +2486,8 @@ export default function QuestBuilder() {
   // Step state
   const [step, setStep] = useState(() => {
     const s = saved.current;
-    // Only restore to step 5 (review) — don't restore mid-generation
-    return s?.step === 5 && s?.generatedQuest ? 5 : 1;
+    // Only restore to step 6 (review) — don't restore mid-generation
+    return s?.step === 6 && s?.generatedQuest ? 6 : 1;
   });
 
   // Step 1
@@ -2487,23 +2501,25 @@ export default function QuestBuilder() {
   // Step 2
   const [selectedStandards, setSelectedStandards] = useState(() => saved.current?.selectedStandards || []);
   const [customTopic, setCustomTopic] = useState(() => saved.current?.customTopic || '');
-  const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
 
   // Step 3
   const [selectedPathways, setSelectedPathways] = useState(() => saved.current?.selectedPathways || []);
   const [customCareer, setCustomCareer] = useState(() => saved.current?.customCareer || '');
 
-  // Step 4
+  // Step 4 (Anything Else?)
+  const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
+
+  // Step 5 (Generating)
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
   const [progress, setProgress] = useState(0);
   const [genError, setGenError] = useState(null);
 
-  // Step 5
+  // Step 6 (Review)
   const [generatedQuest, setGeneratedQuest] = useState(() => saved.current?.generatedQuest || null);
   const [launching, setLaunching] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
-  // Step 6
+  // Step 7 (Launch)
   const [launchedQuestId, setLaunchedQuestId] = useState(null);
 
   // Persist wizard state to sessionStorage on changes
@@ -2675,7 +2691,7 @@ export default function QuestBuilder() {
       setGeneratedQuest(questData);
 
       // Auto-advance after 600ms
-      setTimeout(() => setStep(5), 600);
+      setTimeout(() => setStep(6), 600);
     } catch (err) {
       cancelAnimationFrame(progressRef.current);
       clearInterval(textRef.current);
@@ -2685,7 +2701,7 @@ export default function QuestBuilder() {
   }, [selectedInterests, selectedStudents, selectedStandards, selectedPathways, customCareer, questType]);
 
   useEffect(() => {
-    if (step === 4) {
+    if (step === 5) {
       runGeneration();
     }
     return () => {
@@ -2793,7 +2809,7 @@ export default function QuestBuilder() {
     const id = await saveQuest('active');
     if (id) {
       setLaunchedQuestId(id);
-      setStep(6);
+      setStep(7);
     }
   };
 
@@ -2827,7 +2843,7 @@ export default function QuestBuilder() {
   };
 
   const handleRegenerate = () => {
-    setStep(4);
+    setStep(5);
   };
 
   const handleSkipPathway = () => {
@@ -2916,13 +2932,13 @@ export default function QuestBuilder() {
         {/* Main content */}
         <div
           style={{
-            maxWidth: step === 5 ? 900 : 640,
+            maxWidth: step === 6 ? 900 : 640,
             margin: '0 auto',
             padding: '40px 24px',
           }}
         >
-          {/* Step indicator (hide on step 4 generating and step 6 launched) */}
-          {step !== 4 && step !== 6 && (
+          {/* Step indicator (hide on step 5 generating and step 7 launched) */}
+          {step !== 5 && step !== 7 && (
             <StepIndicator current={step} />
           )}
 
@@ -2931,7 +2947,7 @@ export default function QuestBuilder() {
             style={{
               backgroundColor: T.chalk,
               borderRadius: 16,
-              padding: step === 4 ? '40px 32px' : '32px',
+              padding: step === 5 ? '40px 32px' : '32px',
               border: `1px solid ${T.parchment}`,
               boxShadow: '0 1px 6px rgba(26,26,46,0.06)',
             }}
@@ -2948,8 +2964,6 @@ export default function QuestBuilder() {
                 setSelectedStudentIds={setSelectedStudentIds}
                 selectedInterests={selectedInterests}
                 setSelectedInterests={setSelectedInterests}
-                additionalContext={additionalContext}
-                setAdditionalContext={setAdditionalContext}
                 onNext={() => setStep(2)}
               />
             )}
@@ -2981,7 +2995,16 @@ export default function QuestBuilder() {
             )}
 
             {step === 4 && (
-              <Step4Generating
+              <Step4AnythingElse
+                additionalContext={additionalContext}
+                setAdditionalContext={setAdditionalContext}
+                onBack={() => setStep(3)}
+                onNext={() => setStep(5)}
+              />
+            )}
+
+            {step === 5 && (
+              <Step5Generating
                 progress={progress}
                 loadingText={LOADING_TEXTS[loadingTextIdx]}
                 error={genError}
@@ -2989,8 +3012,8 @@ export default function QuestBuilder() {
               />
             )}
 
-            {step === 5 && generatedQuest && (
-              <Step5Review
+            {step === 6 && generatedQuest && (
+              <Step6Review
                 generatedQuest={generatedQuest}
                 setGeneratedQuest={setGeneratedQuest}
                 selectedStandards={selectedStandards}
@@ -3006,8 +3029,8 @@ export default function QuestBuilder() {
               />
             )}
 
-            {step === 6 && (
-              <Step6Launch
+            {step === 7 && (
+              <Step7Launch
                 selectedStudents={selectedStudents}
                 questId={launchedQuestId}
               />
