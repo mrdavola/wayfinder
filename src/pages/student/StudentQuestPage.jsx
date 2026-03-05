@@ -503,6 +503,13 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
     return `${m}:${sc}`;
   };
 
+  // Attach stream to video element whenever stream or element changes
+  useEffect(() => {
+    if (videoPreviewRef.current && streamRef.current && (previewActive || recording)) {
+      videoPreviewRef.current.srcObject = streamRef.current;
+    }
+  }, [previewActive, recording]);
+
   // Open camera preview (before recording)
   const openCameraPreview = async () => {
     setError('');
@@ -512,7 +519,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         : { facingMode: 'user' };
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraint });
       streamRef.current = stream;
-      if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
+      // Set previewActive first so the <video> element renders, then useEffect attaches the stream
       setPreviewActive(true);
       // Re-enumerate cameras now that we have permission
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -535,7 +542,10 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         video: { deviceId: { exact: deviceId } },
       });
       streamRef.current = stream;
-      if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
+      });
     } catch (err) {
       setError('Could not switch camera: ' + (err.message || ''));
     }
@@ -813,7 +823,15 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
           ) : (recording || previewActive) ? (
             <div>
               {/* Video preview — expandable */}
-              <div style={{ position: 'relative' }}>
+              <div style={{
+                position: videoExpanded ? 'fixed' : 'relative',
+                inset: videoExpanded ? 0 : 'auto',
+                zIndex: videoExpanded ? 999 : 'auto',
+                background: videoExpanded ? '#000' : 'transparent',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                borderRadius: videoExpanded ? 0 : undefined,
+              }}>
                 <video
                   ref={videoPreviewRef}
                   autoPlay
@@ -821,11 +839,11 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
                   playsInline
                   style={{
                     width: '100%',
-                    maxHeight: videoExpanded ? '80vh' : 220,
-                    objectFit: 'cover',
-                    borderRadius: 8, marginBottom: 8,
+                    maxHeight: videoExpanded ? '100vh' : 220,
+                    objectFit: videoExpanded ? 'contain' : 'cover',
+                    borderRadius: videoExpanded ? 0 : 8,
+                    marginBottom: videoExpanded ? 0 : 8,
                     background: '#000', transform: 'scaleX(-1)',
-                    transition: 'max-height 200ms ease',
                   }}
                 />
                 {/* Countdown overlay */}
@@ -833,7 +851,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
                   <div style={{
                     position: 'absolute', inset: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'rgba(0,0,0,0.5)', borderRadius: 8,
+                    background: 'rgba(0,0,0,0.5)', borderRadius: videoExpanded ? 0 : 8,
                   }}>
                     <span style={{
                       fontFamily: 'var(--font-display)', fontSize: 64,
@@ -844,22 +862,41 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
                     </span>
                   </div>
                 )}
-                {/* Expand button */}
+                {/* Expand/shrink button */}
                 <button
                   onClick={() => setVideoExpanded(v => !v)}
-                  title={videoExpanded ? 'Shrink' : 'Expand'}
+                  title={videoExpanded ? 'Exit fullscreen' : 'Expand'}
                   style={{
-                    position: 'absolute', top: 8, right: 8,
-                    width: 28, height: 28, borderRadius: 6,
-                    background: 'rgba(0,0,0,0.5)', border: 'none',
+                    position: 'absolute', top: videoExpanded ? 16 : 8, right: videoExpanded ? 16 : 8,
+                    width: 32, height: 32, borderRadius: 8,
+                    background: 'rgba(0,0,0,0.6)', border: 'none',
                     color: 'var(--chalk)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 1,
                   }}
                 >
-                  <Maximize2 size={14} />
+                  {videoExpanded ? <X size={16} /> : <Maximize2 size={14} />}
                 </button>
+                {/* Recording indicator in expanded mode */}
+                {videoExpanded && recording && (
+                  <div style={{
+                    position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 16px', borderRadius: 100,
+                    background: 'rgba(0,0,0,0.7)', color: 'var(--chalk)',
+                  }}>
+                    <div className={paused ? '' : 'sq-rec-dot'} style={{ width: 10, height: 10, borderRadius: '50%', background: paused ? 'var(--graphite)' : 'var(--specimen-red)' }} />
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600 }}>{fmtSecs(seconds)}</span>
+                    <button onClick={paused ? resumeRecording : pauseRecording} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'var(--chalk)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {paused ? <><Play size={11} /> Resume</> : <><Pause size={11} /> Pause</>}
+                    </button>
+                    <button onClick={() => { stopRecording(); setVideoExpanded(false); }} style={{ background: 'var(--specimen-red)', border: 'none', color: 'var(--chalk)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                      Stop
+                    </button>
+                  </div>
+                )}
                 {/* Paused overlay */}
-                {paused && (
+                {paused && !videoExpanded && (
                   <div style={{
                     position: 'absolute', inset: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
