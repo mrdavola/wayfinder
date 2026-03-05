@@ -349,7 +349,7 @@ async function callGemini({ systemPrompt, userMessage, messages }) {
 }
 
 // ── Anthropic call (fallback / user choice) ─────────────────────────────────
-async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens = 500 }) {
+async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens = 2048 }) {
   const settings = getAiSettings();
   const apiKey = settings.anthropicKey || import.meta.env.VITE_ANTHROPIC_API_KEY || '';
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
@@ -466,7 +466,7 @@ Rules:
 - Include a stretch_challenge for stages 4+ that pushes deeper analysis or synthesis
 - stretch_challenge should be null for early stages (1-3)`;
 
-    const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.' });
+    const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.', maxTokens: 4096 });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in response');
     return JSON.parse(jsonMatch[0]);

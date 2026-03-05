@@ -5,7 +5,7 @@ import {
   Megaphone, X, Send, Zap, ArrowRight, Loader2, AlertCircle,
   ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
   Paperclip, Video, Download, LogOut, Sparkles, Users,
-  Pause, Play, Maximize2, SwitchCamera,
+  Pause, Play, Maximize2, SwitchCamera, ArrowLeft,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -1303,7 +1303,7 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, showFieldGuide = true }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
@@ -1521,8 +1521,8 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
-      {/* Field Guide chat — always visible for active and completed stages */}
-      {(isActive || isDone) && (
+      {/* Field Guide chat — visible for active/completed stages when allowed */}
+      {(isActive || isDone) && showFieldGuide && (
         <div style={{
           marginBottom: 14,
           background: 'rgba(27,73,101,0.04)',
@@ -2086,7 +2086,7 @@ export default function StudentQuestPage() {
       if (matched?.id) {
         const { data: profile } = await supabase
           .from('students')
-          .select('id, name, age, grade_band, interests, passions, about_me, self_assessment, avatar_emoji')
+          .select('id, name, age, grade_band, interests, passions, about_me, self_assessment, avatar_emoji, allow_ai_guide')
           .eq('id', matched.id)
           .single();
         if (profile) setStudentProfile(profile);
@@ -2249,10 +2249,30 @@ export default function StudentQuestPage() {
         gap: 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <WayfinderLogoIcon size={16} color="var(--compass-gold)" />
-          <span className="sq-topbar-title" style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-            Wayfinder
-          </span>
+          {getStudentSession()?.studentId ? (
+            <button
+              onClick={() => navigate('/student')}
+              title="Back to dashboard"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '4px 6px', borderRadius: 6, color: 'var(--graphite)',
+                transition: 'color 150ms', fontSize: 12, fontFamily: 'var(--font-body)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--graphite)'}
+            >
+              <ArrowLeft size={14} />
+              <span className="sq-topbar-title">Dashboard</span>
+            </button>
+          ) : (
+            <>
+              <WayfinderLogoIcon size={16} color="var(--compass-gold)" />
+              <span className="sq-topbar-title" style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                Wayfinder
+              </span>
+            </>
+          )}
         </div>
 
         <div style={{ flex: 1, maxWidth: 200, minWidth: 60 }}>
@@ -2444,6 +2464,7 @@ export default function StudentQuestPage() {
                   studentProfile={studentProfile}
                   groupRole={groupRole}
                   onReloadSubmissions={loadSubmissions}
+                  showFieldGuide={quest?.career_pathway === 'self_directed' ? (studentProfile?.allow_ai_guide !== false) : true}
                 />
               ) : (
                 <div style={{

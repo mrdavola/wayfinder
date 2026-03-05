@@ -24,12 +24,15 @@ function pathwayColor(pathway) {
   return PATHWAY_COLORS[pathway] || PATHWAY_COLORS.default;
 }
 
-function QuestCard({ quest }) {
+function QuestCard({ quest, onDelete }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const total = Number(quest.total_stages) || 0;
   const done = Number(quest.stages_completed) || 0;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const isComplete = quest.status === 'completed';
-  const color = pathwayColor(quest.career_pathway);
+  const isSelfCreated = quest.career_pathway === 'self_directed';
+  const color = isSelfCreated ? '#B8860B' : pathwayColor(quest.career_pathway);
 
   return (
     <div style={{
@@ -50,7 +53,15 @@ function QuestCard({ quest }) {
       <div style={{ padding: '20px 20px 16px', flex: 1 }}>
         {/* Status badge */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          {quest.career_pathway && (
+          {isSelfCreated ? (
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              color: 'var(--compass-gold)', display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <Sparkles size={11} /> My Project
+            </span>
+          ) : quest.career_pathway && (
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 10,
@@ -126,33 +137,145 @@ function QuestCard({ quest }) {
         )}
       </div>
 
-      {/* Enter button */}
+      {/* Enter button + delete */}
       <div style={{ padding: '0 20px 16px' }}>
-        <Link
-          to={`/q/${quest.id}`}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            width: '100%',
-            padding: '10px',
-            borderRadius: 8,
-            background: isComplete ? 'var(--parchment)' : color,
-            color: isComplete ? 'var(--graphite)' : 'var(--chalk)',
-            fontFamily: 'var(--font-body)',
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: 'none',
-            transition: 'opacity 150ms ease',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-        >
-          {isComplete ? 'View Project' : 'Continue Project'}
-          <ChevronRight size={15} />
-        </Link>
+        {confirmDelete ? (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 12, color: 'var(--specimen-red)', fontWeight: 600, marginBottom: 8 }}>
+              Delete this project? This can't be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                style={{
+                  flex: 1, padding: '9px', borderRadius: 8,
+                  border: '1px solid var(--pencil)', background: 'transparent',
+                  fontSize: 12, fontWeight: 600, color: 'var(--ink)',
+                  fontFamily: 'var(--font-body)', cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setDeleting(true);
+                  await supabase.from('quest_stages').delete().eq('quest_id', quest.id);
+                  await supabase.from('quest_students').delete().eq('quest_id', quest.id);
+                  await supabase.from('career_simulations').delete().eq('quest_id', quest.id);
+                  await supabase.from('quests').delete().eq('id', quest.id);
+                  if (onDelete) onDelete(quest.id);
+                }}
+                disabled={deleting}
+                style={{
+                  flex: 1, padding: '9px', borderRadius: 8, border: 'none',
+                  background: 'var(--specimen-red)', color: 'var(--chalk)',
+                  fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)',
+                  cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                }}
+              >
+                {deleting ? <><Loader2 size={12} style={{ animation: 'sh-spin 1s linear infinite' }} /> Deleting...</> : 'Delete'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link
+              to={`/q/${quest.id}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                flex: 1,
+                padding: '10px',
+                borderRadius: 8,
+                background: isComplete ? 'var(--parchment)' : color,
+                color: isComplete ? 'var(--graphite)' : 'var(--chalk)',
+                fontFamily: 'var(--font-body)',
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: 'none',
+                transition: 'opacity 150ms ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+            >
+              {isComplete ? 'View Project' : 'Continue Project'}
+              <ChevronRight size={15} />
+            </Link>
+            {isSelfCreated && onDelete && (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                title="Delete project"
+                style={{
+                  padding: '10px', borderRadius: 8,
+                  border: '1px solid var(--pencil)', background: 'transparent',
+                  color: 'var(--graphite)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 150ms',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--specimen-red)'; e.currentTarget.style.color = 'var(--specimen-red)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--pencil)'; e.currentTarget.style.color = 'var(--graphite)'; }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ===================== GENERATING STATE =====================
+const GEN_STEPS = [
+  { label: 'Analyzing your interests...', duration: 3000 },
+  { label: 'Finding real-world connections...', duration: 4000 },
+  { label: 'Designing project stages...', duration: 5000 },
+  { label: 'Adding guiding questions...', duration: 3000 },
+  { label: 'Polishing your project...', duration: 5000 },
+];
+
+function GeneratingState() {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let total = 0;
+    const timeouts = GEN_STEPS.map((s, i) => {
+      total += s.duration;
+      return setTimeout(() => setStepIdx(Math.min(i + 1, GEN_STEPS.length - 1)), total);
+    });
+    return () => timeouts.forEach(clearTimeout);
+  }, []);
+
+  const estimateLeft = Math.max(0, 15 - elapsed);
+
+  return (
+    <div style={{ textAlign: 'center', padding: '28px 0' }}>
+      <Loader2 size={32} color="var(--compass-gold)" style={{ animation: 'sh-spin 1s linear infinite', display: 'block', margin: '0 auto 16px' }} />
+      <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600, marginBottom: 6 }}>
+        {GEN_STEPS[stepIdx].label}
+      </p>
+      <div style={{
+        width: '80%', maxWidth: 260, height: 4, background: 'var(--parchment)',
+        borderRadius: 2, margin: '0 auto 12px', overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%', background: 'var(--compass-gold)', borderRadius: 2,
+          width: `${Math.min(95, (elapsed / 18) * 100)}%`,
+          transition: 'width 1s ease',
+        }} />
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0 }}>
+        {estimateLeft > 0 ? `About ${estimateLeft} seconds remaining` : 'Almost there...'}
+      </p>
     </div>
   );
 }
@@ -221,10 +344,12 @@ function CreateProjectModal({ student, onClose, onCreated }) {
         status: i === 0 ? 'active' : 'locked',
         stretch_challenge: s.stretch_challenge || null,
       }));
-      await supabase.from('quest_stages').insert(stagesData);
+      const { error: stagesErr } = await supabase.from('quest_stages').insert(stagesData);
+      if (stagesErr) throw stagesErr;
 
       // Assign student to quest
-      await supabase.from('quest_students').insert({ quest_id: quest.id, student_id: student.id });
+      const { error: assignErr } = await supabase.from('quest_students').insert({ quest_id: quest.id, student_id: student.id });
+      if (assignErr) throw assignErr;
 
       // Create simulation if present
       if (result.career_simulation) {
@@ -241,9 +366,11 @@ function CreateProjectModal({ student, onClose, onCreated }) {
 
       if (onCreated) onCreated(quest.id);
     } catch (err) {
-      setError(err.message || 'Failed to save project');
+      console.error('Save project error:', err);
+      setError(err.message || 'Failed to save project. Please try again.');
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
   };
 
   return (
@@ -332,11 +459,7 @@ function CreateProjectModal({ student, onClose, onCreated }) {
         )}
 
         {step === 2 && (
-          <div style={{ textAlign: 'center', padding: '32px 0' }}>
-            <Loader2 size={32} color="var(--compass-gold)" style={{ animation: 'sh-spin 1s linear infinite', marginBottom: 16, display: 'block', margin: '0 auto 16px' }} />
-            <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>Designing your project...</p>
-            <p style={{ fontSize: 12, color: 'var(--graphite)' }}>This usually takes about 10 seconds.</p>
-          </div>
+          <GeneratingState />
         )}
 
         {step === 3 && result && (
@@ -442,6 +565,10 @@ export default function StudentHome() {
 
   const active = quests.filter((q) => q.status === 'active');
   const completed = quests.filter((q) => q.status === 'completed');
+  const guideActive = active.filter(q => q.career_pathway !== 'self_directed');
+  const myActive = active.filter(q => q.career_pathway === 'self_directed');
+  const guideCompleted = completed.filter(q => q.career_pathway !== 'self_directed');
+  const myCompleted = completed.filter(q => q.career_pathway === 'self_directed');
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', flexDirection: 'column' }}>
@@ -570,26 +697,39 @@ export default function StudentHome() {
           </div>
         )}
 
-        {/* Active quests */}
-        {!loading && active.length > 0 && (
+        {/* Guide-assigned projects in progress */}
+        {!loading && guideActive.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 12, color: 'var(--graphite)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
-              In progress
+              Assigned Projects — In Progress
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-              {active.map((q) => <QuestCard key={q.id} quest={q} />)}
+              {guideActive.map((q) => <QuestCard key={q.id} quest={q} />)}
             </div>
           </div>
         )}
 
-        {/* Completed quests */}
+        {/* Self-created projects in progress */}
+        {!loading && myActive.length > 0 && (
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 12, color: 'var(--graphite)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Sparkles size={12} color="var(--compass-gold)" />
+              My Projects — In Progress
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+              {myActive.map((q) => <QuestCard key={q.id} quest={q} onDelete={(qId) => setQuests(prev => prev.filter(p => p.id !== qId))} />)}
+            </div>
+          </div>
+        )}
+
+        {/* Completed projects */}
         {!loading && completed.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 12, color: 'var(--graphite)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
               Completed
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-              {completed.map((q) => <QuestCard key={q.id} quest={q} />)}
+              {completed.map((q) => <QuestCard key={q.id} quest={q} onDelete={q.career_pathway === 'self_directed' ? (qId) => setQuests(prev => prev.filter(p => p.id !== qId)) : undefined} />)}
             </div>
           </div>
         )}

@@ -352,6 +352,37 @@ export default function StudentProfilePage() {
             )}
           </div>
 
+          {/* AI Field Guide toggle */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 14px', borderRadius: 8,
+            background: T.parchment, marginBottom: 20,
+          }}>
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)',
+              color: T.ink, userSelect: 'none', flex: 1,
+            }}>
+              <input
+                type="checkbox"
+                checked={student.allow_ai_guide !== false}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setStudent(prev => ({ ...prev, allow_ai_guide: val }));
+                  await supabase.from('students').update({ allow_ai_guide: val }).eq('id', student.id);
+                }}
+                style={{ width: 16, height: 16, accentColor: T.labBlue, cursor: 'pointer' }}
+              />
+              <div>
+                <div style={{ fontWeight: 600 }}>AI Field Guide</div>
+                <div style={{ fontSize: 11, color: T.graphite, marginTop: 1 }}>
+                  Allow AI chatbot on student-created projects
+                </div>
+              </div>
+            </label>
+            <Shield size={16} color={student.allow_ai_guide !== false ? T.labBlue : T.pencil} style={{ flexShrink: 0 }} />
+          </div>
+
           {/* Interest chips */}
           {interests.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24 }}>
