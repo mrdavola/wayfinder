@@ -912,9 +912,20 @@ export default function StudentProjectBuilder() {
     setPublishing(true);
     setError('');
     try {
-      const { data: studentData } = await supabase.from('students').select('guide_id').eq('id', session.studentId).single();
+      let guideId = profile?.guide_id;
 
-      if (!studentData?.guide_id) {
+      // Fallback: infer guide from an existing quest the student is assigned to
+      if (!guideId) {
+        const { data: qs } = await supabase
+          .from('quest_students')
+          .select('quest_id, quests(guide_id)')
+          .eq('student_id', session.studentId)
+          .limit(1)
+          .single();
+        guideId = qs?.quests?.guide_id;
+      }
+
+      if (!guideId) {
         throw new Error('Could not find your guide. Please ask your guide to re-share the link.');
       }
 
@@ -925,7 +936,7 @@ export default function StudentProjectBuilder() {
         total_duration_days: result.total_duration || 10,
         career_pathway: 'self_directed',
         status: 'active',
-        guide_id: studentData.guide_id,
+        guide_id: guideId,
       }).select().single();
       if (questErr) throw questErr;
 
