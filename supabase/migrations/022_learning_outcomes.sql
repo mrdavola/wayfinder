@@ -161,14 +161,20 @@ CREATE TABLE IF NOT EXISTS public.stage_edit_history (
 -- RLS
 ALTER TABLE public.stage_edit_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Anyone can insert stage edits"
-  ON public.stage_edit_history FOR INSERT
-  WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "Anyone can insert stage edits"
+    ON public.stage_edit_history FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Anyone can read stage edits"
-  ON public.stage_edit_history FOR SELECT
-  USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Anyone can read stage edits"
+    ON public.stage_edit_history FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Anyone can update stage edits"
-  ON public.stage_edit_history FOR UPDATE
-  USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Anyone can update stage edits"
+    ON public.stage_edit_history FOR UPDATE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
