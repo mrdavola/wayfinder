@@ -1844,9 +1844,9 @@ function AISidebar({ activeStage, questId, studentName, studentProfile, groupRol
           <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', opacity: 0.7 }}>
             may make mistakes
           </span>
-          {/* Close button on mobile overlay */}
+          {/* Close button */}
           <button onClick={onClose} style={{
-            display: isMobileSheet ? 'flex' : 'none', background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', background: 'none', border: 'none', cursor: 'pointer',
             color: 'var(--graphite)', padding: 2,
           }}>
             <X size={14} />
@@ -2167,7 +2167,7 @@ export default function StudentQuestPage() {
   const [challengerText, setChallengerText] = useState(null);
   const [challengerResponse, setChallengerResponse] = useState('');
   const [challengerSubmitted, setChallengerSubmitted] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile overlay
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile overlay + desktop toggle
 
   // Load quest
   useEffect(() => {
@@ -2341,6 +2341,7 @@ export default function StudentQuestPage() {
     setChallengerText(challenge);
     setChallengerResponse('');
     setChallengerSubmitted(false);
+    setSidebarOpen(true); // Auto-open sidebar so student sees the challenger
     // Persist challenger message
     guideMessagesApi.add({
       questId: id, stageId,
@@ -2828,28 +2829,56 @@ export default function StudentQuestPage() {
             </div>
           </div>
         </main>
+
+        {/* AI Sidebar — desktop (inside flex row) */}
+        {!isMobile && sidebarOpen && (
+          <AISidebar
+            activeStage={activeStage}
+            questId={id}
+            studentName={studentName}
+            studentProfile={studentProfile}
+            groupRole={groupRole}
+            guideMessages={guideMessages}
+            guideInput={guideInput}
+            guideSending={guideSending}
+            onSendGuide={handleSendToGuide}
+            onGuideInputChange={setGuideInput}
+            challengerText={challengerText}
+            challengerResponse={challengerResponse}
+            challengerSubmitted={challengerSubmitted}
+            onChallengerRespond={handleChallengerRespond}
+            visible={true}
+            onClose={() => setSidebarOpen(false)}
+          />
+        )}
       </div>
 
-      {/* AI Sidebar — desktop */}
-      {!isMobile && (
-        <AISidebar
-          activeStage={activeStage}
-          questId={id}
-          studentName={studentName}
-          studentProfile={studentProfile}
-          groupRole={groupRole}
-          guideMessages={guideMessages}
-          guideInput={guideInput}
-          guideSending={guideSending}
-          onSendGuide={handleSendToGuide}
-          onGuideInputChange={setGuideInput}
-          challengerText={challengerText}
-          challengerResponse={challengerResponse}
-          challengerSubmitted={challengerSubmitted}
-          onChallengerRespond={handleChallengerRespond}
-          visible={true}
-          onClose={() => {}}
-        />
+      {/* Desktop FAB — show when sidebar is closed */}
+      {!isMobile && !sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          title="AI Field Guide"
+          style={{
+            position: 'fixed', bottom: 24, right: 24, zIndex: 150,
+            width: 52, height: 52, borderRadius: '50%',
+            background: 'var(--lab-blue)', color: 'var(--chalk)',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(27,73,101,0.35)',
+            transition: 'transform 150ms, box-shadow 150ms',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(27,73,101,0.45)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(27,73,101,0.35)'; }}
+        >
+          <MessageCircle size={22} />
+          {challengerText && !challengerSubmitted && (
+            <div style={{
+              position: 'absolute', top: -2, right: -2,
+              width: 14, height: 14, borderRadius: '50%',
+              background: 'var(--specimen-red)', border: '2px solid var(--chalk)',
+            }} />
+          )}
+        </button>
       )}
 
       {/* Mobile FAB + bottom sheet */}
@@ -2868,6 +2897,13 @@ export default function StudentQuestPage() {
               }}
             >
               <MessageCircle size={20} />
+              {challengerText && !challengerSubmitted && (
+                <div style={{
+                  position: 'absolute', top: -2, right: -2,
+                  width: 12, height: 12, borderRadius: '50%',
+                  background: 'var(--specimen-red)', border: '2px solid var(--chalk)',
+                }} />
+              )}
             </button>
           )}
           {sidebarOpen && (
