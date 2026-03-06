@@ -24,7 +24,7 @@ AS $$
 DECLARE
   v_row parent_access%ROWTYPE;
 BEGIN
-  SELECT * INTO v_row FROM parent_access WHERE token = p_token;
+  SELECT * INTO v_row FROM parent_access WHERE access_token = p_token;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Invalid token');
   END IF;
@@ -37,7 +37,7 @@ BEGIN
     core_skill_priorities = p_priorities,
     learning_outcomes = COALESCE(p_learning_outcomes, '[]'::jsonb),
     onboarded_at = now()
-  WHERE token = p_token;
+  WHERE access_token = p_token;
 
   RETURN jsonb_build_object('success', true);
 END;
@@ -54,7 +54,7 @@ AS $$
 BEGIN
   UPDATE parent_access
   SET learning_outcomes = COALESCE(p_outcomes, '[]'::jsonb)
-  WHERE token = p_token;
+  WHERE access_token = p_token;
 
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Invalid token');
@@ -76,49 +76,48 @@ DECLARE
   v_skills jsonb;
   v_snapshots jsonb;
 BEGIN
-  SELECT * INTO v_pa FROM parent_access WHERE token = p_token;
+  SELECT * INTO v_pa FROM public.parent_access WHERE access_token = p_token;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('error', 'Invalid or expired link.');
   END IF;
 
-  SELECT * INTO v_student FROM students WHERE id = v_pa.student_id;
+  SELECT * INTO v_student FROM public.students WHERE id = v_pa.student_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('error', 'Student not found.');
   END IF;
 
-  -- Get quests
-  SELECT COALESCE(jsonb_agg(q ORDER BY q.created_at DESC), '[]'::jsonb)
-  INTO v_quests
+  -- Active quests with progress
+  SELECT COALESCE(jsonb_agg(q), '[]'::jsonb) INTO v_quests
   FROM (
     SELECT
-      qs.id, qs.title, qs.status, qs.parent_summary,
-      qs.created_at,
-      (SELECT COUNT(*) FROM quest_stages WHERE quest_id = qs.id) AS stages_total,
-      (SELECT COUNT(*) FROM quest_stages WHERE quest_id = qs.id AND status = 'completed') AS stages_done
-    FROM quest_students qst
-    JOIN quests qs ON qs.id = qst.quest_id
+      qu.id, qu.title, qu.subtitle, qu.status, qu.parent_summary, qu.career_pathway,
+      (SELECT count(*) FROM quest_stages qs WHERE qs.quest_id = qu.id AND qs.status = 'completed') AS stages_done,
+      (SELECT count(*) FROM quest_stages qs WHERE qs.quest_id = qu.id) AS stages_total
+    FROM quests qu
+    JOIN quest_students qst ON qst.quest_id = qu.id
     WHERE qst.student_id = v_pa.student_id
+      AND qu.status IN ('active', 'completed')
+    ORDER BY qu.created_at DESC
   ) q;
 
-  -- Get skills
-  SELECT COALESCE(jsonb_agg(sk ORDER BY sk.skill_name), '[]'::jsonb)
-  INTO v_skills
+  -- Current skills
+  SELECT COALESCE(jsonb_agg(sk), '[]'::jsonb) INTO v_skills
   FROM (
-    SELECT s.name AS skill_name, ss.proficiency
+    SELECT ss.proficiency, s.name AS skill_name, s.category, ss.updated_at
     FROM student_skills ss
     JOIN skills s ON s.id = ss.skill_id
     WHERE ss.student_id = v_pa.student_id
+    ORDER BY s.sort_order
   ) sk;
 
-  -- Get snapshots
-  SELECT COALESCE(jsonb_agg(sn ORDER BY sn.created_at DESC), '[]'::jsonb)
-  INTO v_snapshots
+  -- Recent snapshots
+  SELECT COALESCE(jsonb_agg(sn), '[]'::jsonb) INTO v_snapshots
   FROM (
-    SELECT s.name AS skill_name, snap.proficiency, snap.created_at
-    FROM skill_snapshots snap
-    JOIN skills s ON s.id = snap.skill_id
-    WHERE snap.student_id = v_pa.student_id
-    ORDER BY snap.created_at DESC
+    SELECT sks.proficiency, sks.snapshot_at AS created_at, s.name AS skill_name
+    FROM skill_snapshots sks
+    JOIN skills s ON s.id = sks.skill_id
+    WHERE sks.student_id = v_pa.student_id
+    ORDER BY sks.snapshot_at DESC
     LIMIT 20
   ) sn;
 
@@ -133,10 +132,12 @@ BEGIN
       'onboarded_at', v_pa.onboarded_at
     ),
     'student', jsonb_build_object(
+      'id', v_student.id,
       'name', v_student.name,
       'age', v_student.age,
       'grade_band', v_student.grade_band,
-      'avatar_emoji', v_student.avatar_emoji
+      'avatar_emoji', v_student.avatar_emoji,
+      'interests', v_student.interests
     ),
     'quests', v_quests,
     'skills', v_skills,
