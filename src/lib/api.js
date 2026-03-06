@@ -390,6 +390,13 @@ export const ai = {
       }
       if (s.parent_expectations) parts.push(`  Parent expectations: ${s.parent_expectations}`);
       if (s.parent_child_loves) parts.push(`  Parent says child loves: ${s.parent_child_loves}`);
+      if (s.parent_learning_outcomes?.length) {
+        const outcomesText = s.parent_learning_outcomes
+          .sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.priority] || 2) - ({ high: 0, medium: 1, low: 2 }[b.priority] || 2))
+          .map(o => `[${o.priority}] ${o.category}: ${o.description}`)
+          .join('; ');
+        parts.push(`  Parent learning outcomes: ${outcomesText}`);
+      }
       return parts.join('\n');
     }).join('\n');
 
@@ -461,7 +468,7 @@ Rules:
 - Quest must be multidisciplinary
 - Incorporate specific student passions into scenarios and stage contexts
 - For group quests, assign roles that leverage individual strengths
-- If parent expectations are provided, weave them naturally into quest goals
+- If parent expectations or learning outcomes are provided, align the quest with high-priority outcomes where natural
 - Calibrate guiding questions to student proficiency levels when available
 - Include a stretch_challenge for stages 4+ that pushes deeper analysis or synthesis
 - stretch_challenge should be null for early stages (1-3)`;
@@ -620,6 +627,43 @@ ${submissionsSummary ? `Their work:\n${submissionsSummary}` : ''}`,
   // Generic chat: messages = [{role:'user'|'assistant', content}], systemPrompt = string
   chat: async (messages, systemPrompt) => {
     return callAI({ systemPrompt, messages });
+  },
+
+  proposeStageEdit: async ({ stage, studentRequest, questContext, studentProfile }) => {
+    const profileStr = studentProfile ? `Student: ${studentProfile.name || 'student'}${studentProfile.interests?.length ? `, interests: ${studentProfile.interests.join(', ')}` : ''}${studentProfile.passions?.length ? `, passions: ${studentProfile.passions.join(', ')}` : ''}` : '';
+
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's stage editor. A student wants to modify a project stage. Your job is to honor their request while ensuring academic skills remain covered.
+
+You MUST respond with ONLY valid JSON:
+{
+  "modified_title": "new title or null if unchanged",
+  "modified_description": "new description or null if unchanged",
+  "modified_deliverable": "new deliverable or null if unchanged",
+  "modified_guiding_questions": ["q1", "q2"] or null if unchanged,
+  "skills_covered": true,
+  "explanation": "1-2 sentences explaining what changed and why"
+}
+
+Rules:
+- Honor the student's creative vision as much as possible
+- Ensure the modified stage still teaches the same academic skills (just through a different lens)
+- If skills cannot be maintained, set skills_covered to false and explain in the explanation
+- Keep language age-appropriate and encouraging
+- The explanation should be addressed to the student
+
+Current stage:
+Title: ${stage.title}
+Description: ${stage.description || ''}
+Deliverable: ${stage.deliverable || ''}
+Guiding questions: ${(stage.guiding_questions || []).join('; ')}
+${questContext?.standards ? `Academic standards: ${questContext.standards}` : ''}
+${profileStr}`,
+      userMessage: `The student says: "${studentRequest}"`,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in AI response');
+    return JSON.parse(jsonMatch[0]);
   },
 
   recommendSkills: async ({ name, age, gradeBand, interests, passions, selfAssessment }) => {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, CheckCircle, BookOpen, Star, Clock, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle, BookOpen, Star, Clock, ArrowRight, Plus, X, PenLine } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
@@ -27,12 +27,123 @@ const SKILL_OPTIONS = [
 ];
 
 // ── Onboarding Form ──
+const OUTCOME_CATEGORIES = [
+  { value: 'academic', label: 'Academic', color: T.fieldGreen },
+  { value: 'social-emotional', label: 'Social-Emotional', color: T.labBlue },
+  { value: 'creative', label: 'Creative', color: T.compassGold },
+  { value: 'life-skills', label: 'Life Skills', color: T.specimenRed },
+];
+
+const OUTCOME_CATEGORY_COLORS = {
+  academic: T.fieldGreen,
+  'social-emotional': T.labBlue,
+  creative: T.compassGold,
+  'life-skills': T.specimenRed,
+};
+
+const PRIORITY_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
+const PRIORITY_COLORS = {
+  high: { bg: '#FEE2E2', text: '#991B1B' },
+  medium: { bg: '#FEF3C7', text: '#92400E' },
+  low: { bg: '#F3F4F6', text: '#6B7280' },
+};
+
+function LearningOutcomeInput({ outcomes, setOutcomes }) {
+  const [newCategory, setNewCategory] = useState('academic');
+  const [newDescription, setNewDescription] = useState('');
+  const [newPriority, setNewPriority] = useState('medium');
+
+  const addOutcome = () => {
+    if (!newDescription.trim()) return;
+    setOutcomes([...outcomes, {
+      id: crypto.randomUUID(),
+      category: newCategory,
+      description: newDescription.trim(),
+      priority: newPriority,
+      created_at: new Date().toISOString(),
+    }]);
+    setNewDescription('');
+  };
+
+  const removeOutcome = (id) => {
+    setOutcomes(outcomes.filter(o => o.id !== id));
+  };
+
+  return (
+    <div>
+      <label style={labelStyle}>Expected Learning Outcomes</label>
+      <p style={{ fontSize: 11, color: T.graphite, margin: '0 0 8px', lineHeight: 1.5 }}>
+        What do you hope your child will learn or grow in this school year?
+      </p>
+      {outcomes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+          {outcomes.map(o => {
+            const catColor = OUTCOME_CATEGORY_COLORS[o.category] || T.graphite;
+            const priStyle = PRIORITY_COLORS[o.priority] || PRIORITY_COLORS.medium;
+            return (
+              <div key={o.id} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 10px', borderRadius: 8,
+                background: T.chalk, border: `1px solid ${T.parchment}`,
+              }}>
+                <div style={{ width: 4, height: 28, borderRadius: 2, background: catColor, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: T.ink, lineHeight: 1.4 }}>{o.description}</div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
+                    <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: catColor }}>{o.category}</span>
+                    <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', padding: '0 4px', borderRadius: 3, background: priStyle.bg, color: priStyle.text }}>{PRIORITY_LABELS[o.priority]}</span>
+                  </div>
+                </div>
+                <button onClick={() => removeOutcome(o.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.pencil, padding: 2 }}>
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+        <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ ...inputStyle, flex: '0 0 auto', width: 'auto', fontSize: 12, padding: '6px 8px' }}>
+          {OUTCOME_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+        <select value={newPriority} onChange={e => setNewPriority(e.target.value)} style={{ ...inputStyle, flex: '0 0 auto', width: 'auto', fontSize: 12, padding: '6px 8px' }}>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input
+          type="text" value={newDescription} onChange={e => setNewDescription(e.target.value)}
+          placeholder="e.g. Improve writing skills through journaling"
+          onKeyDown={e => e.key === 'Enter' && addOutcome()}
+          style={{ ...inputStyle, flex: 1, fontSize: 12, padding: '8px 10px' }}
+        />
+        <button
+          onClick={addOutcome}
+          disabled={!newDescription.trim()}
+          style={{
+            padding: '8px 12px', borderRadius: 8, border: 'none',
+            background: !newDescription.trim() ? T.pencil : T.fieldGreen,
+            color: !newDescription.trim() ? T.graphite : T.chalk,
+            fontSize: 11, fontWeight: 600, cursor: !newDescription.trim() ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}
+        >
+          <Plus size={12} /> Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OnboardingForm({ onComplete, saving }) {
   const [parentName, setParentName] = useState('');
   const [relationship, setRelationship] = useState('');
   const [childLoves, setChildLoves] = useState('');
   const [expectations, setExpectations] = useState('');
   const [priorities, setPriorities] = useState([]);
+  const [learningOutcomes, setLearningOutcomes] = useState([]);
 
   const togglePriority = (skill) => {
     setPriorities(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]);
@@ -115,8 +226,12 @@ function OnboardingForm({ onComplete, saving }) {
           </div>
         </div>
 
+        <div style={{ marginBottom: 20 }}>
+          <LearningOutcomeInput outcomes={learningOutcomes} setOutcomes={setLearningOutcomes} />
+        </div>
+
         <button
-          onClick={() => onComplete({ parentName, relationship, childLoves, expectations, priorities })}
+          onClick={() => onComplete({ parentName, relationship, childLoves, expectations, priorities, learningOutcomes })}
           disabled={saving || !parentName.trim()}
           style={{
             width: '100%', padding: '13px', borderRadius: 10, border: 'none',
@@ -135,7 +250,107 @@ function OnboardingForm({ onComplete, saving }) {
 }
 
 // ── Dashboard View ──
-function DashboardView({ data }) {
+function LearningOutcomesSection({ outcomes, token, onUpdate }) {
+  const [editing, setEditing] = useState(false);
+  const [editOutcomes, setEditOutcomes] = useState(outcomes || []);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await supabase.rpc('update_learning_outcomes', {
+      p_token: token,
+      p_outcomes: editOutcomes,
+    });
+    setSaving(false);
+    setEditing(false);
+    if (onUpdate) onUpdate(editOutcomes);
+  };
+
+  const grouped = (editing ? editOutcomes : (outcomes || [])).reduce((acc, o) => {
+    if (!acc[o.category]) acc[o.category] = [];
+    acc[o.category].push(o);
+    return acc;
+  }, {});
+
+  return (
+    <section style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h3 style={sectionTitle}><BookOpen size={15} style={{ marginRight: 6 }} /> Learning Outcomes</h3>
+        {!editing && (outcomes?.length > 0 || true) && (
+          <button onClick={() => { setEditing(true); setEditOutcomes(outcomes || []); }} style={{
+            padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+            background: 'transparent', color: T.graphite, fontSize: 11, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <PenLine size={11} /> Edit
+          </button>
+        )}
+      </div>
+      {Object.keys(grouped).length === 0 && !editing && (
+        <p style={{ color: T.pencil, fontSize: 13, fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
+          No learning outcomes set yet. Click Edit to add some.
+        </p>
+      )}
+      {Object.entries(grouped).map(([category, items]) => {
+        const catColor = OUTCOME_CATEGORY_COLORS[category] || T.graphite;
+        return (
+          <div key={category} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: catColor, marginBottom: 6 }}>
+              {category}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {items.map(o => {
+                const priStyle = PRIORITY_COLORS[o.priority] || PRIORITY_COLORS.medium;
+                return (
+                  <div key={o.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px', borderRadius: 8,
+                    background: T.chalk, border: `1px solid ${T.parchment}`,
+                    borderLeft: `3px solid ${catColor}`,
+                  }}>
+                    <span style={{ flex: 1, fontSize: 13, color: T.ink, lineHeight: 1.4 }}>{o.description}</span>
+                    <span style={{
+                      fontSize: 9, fontFamily: 'var(--font-mono)', padding: '2px 6px', borderRadius: 4,
+                      background: priStyle.bg, color: priStyle.text, flexShrink: 0,
+                    }}>{PRIORITY_LABELS[o.priority]}</span>
+                    {editing && (
+                      <button onClick={() => setEditOutcomes(editOutcomes.filter(x => x.id !== o.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.pencil, padding: 2 }}>
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+      {editing && (
+        <div style={{ marginTop: 10 }}>
+          <LearningOutcomeInput outcomes={editOutcomes} setOutcomes={setEditOutcomes} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button onClick={handleSave} disabled={saving} style={{
+              padding: '8px 16px', borderRadius: 8, border: 'none',
+              background: saving ? T.pencil : T.fieldGreen, color: saving ? T.graphite : T.chalk,
+              fontSize: 12, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}>
+              {saving ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle size={12} />} Save
+            </button>
+            <button onClick={() => setEditing(false)} style={{
+              padding: '8px 16px', borderRadius: 8, border: `1px solid ${T.pencil}`,
+              background: 'transparent', color: T.graphite, fontSize: 12, cursor: 'pointer',
+            }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DashboardView({ data, token, onOutcomesUpdate }) {
   if (!data) return null;
   const { parent, student, quests, skills, snapshots } = data;
 
@@ -228,6 +443,13 @@ function DashboardView({ data }) {
           </p>
         )}
       </section>
+
+      {/* Learning Outcomes */}
+      <LearningOutcomesSection
+        outcomes={parent?.learning_outcomes || []}
+        token={token}
+        onUpdate={onOutcomesUpdate}
+      />
 
       {/* Skills Overview */}
       <section style={{ marginBottom: 24 }}>
@@ -410,7 +632,7 @@ export default function ParentDashboard() {
     setLoading(false);
   }
 
-  async function handleOnboard({ parentName, relationship, childLoves, expectations, priorities }) {
+  async function handleOnboard({ parentName, relationship, childLoves, expectations, priorities, learningOutcomes }) {
     setSaving(true);
     const { data, error: err } = await supabase.rpc('parent_onboard', {
       p_token: token,
@@ -419,6 +641,7 @@ export default function ParentDashboard() {
       p_expectations: expectations || null,
       p_child_loves: childLoves || null,
       p_priorities: priorities || [],
+      p_learning_outcomes: learningOutcomes || [],
     });
     if (err || !data?.success) {
       setError(err?.message || data?.error || 'Something went wrong.');
@@ -467,7 +690,12 @@ export default function ParentDashboard() {
       {needsOnboarding ? (
         <OnboardingForm onComplete={handleOnboard} saving={saving} />
       ) : (
-        <DashboardView data={dashData} />
+        <DashboardView data={dashData} token={token} onOutcomesUpdate={(outcomes) => {
+          setDashData(prev => ({
+            ...prev,
+            parent: { ...prev.parent, learning_outcomes: outcomes },
+          }));
+        }} />
       )}
     </div>
   );

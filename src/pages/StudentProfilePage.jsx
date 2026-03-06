@@ -93,7 +93,7 @@ export default function StudentProfilePage() {
     // Load parent info
     const { data: parentData } = await supabase
       .from('parent_access')
-      .select('parent_name, relationship, expectations, child_loves, core_skill_priorities, onboarded_at')
+      .select('parent_name, relationship, expectations, child_loves, core_skill_priorities, learning_outcomes, onboarded_at')
       .eq('student_id', id)
       .maybeSingle();
     if (parentData) setParentInfo(parentData);
@@ -843,6 +843,59 @@ export default function StudentProfilePage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </section>
+          )}
+
+          {/* ── Learning Outcomes (from parent) ──────────────────── */}
+          {parentInfo?.learning_outcomes?.length > 0 && (
+            <section style={styles.section}>
+              <div style={styles.sectionTitle}>
+                <BookOpen size={16} color={T.labBlue} style={{ marginRight: 6, verticalAlign: '-3px' }} />
+                Parent Learning Outcomes
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(() => {
+                  const catColors = {
+                    academic: T.fieldGreen,
+                    'social-emotional': T.labBlue,
+                    creative: T.compassGold,
+                    'life-skills': T.specimenRed,
+                  };
+                  const priColors = {
+                    high: { bg: '#FEE2E2', text: '#991B1B' },
+                    medium: { bg: '#FEF3C7', text: '#92400E' },
+                    low: { bg: '#F3F4F6', text: '#6B7280' },
+                  };
+                  const grouped = parentInfo.learning_outcomes.reduce((acc, o) => {
+                    if (!acc[o.category]) acc[o.category] = [];
+                    acc[o.category].push(o);
+                    return acc;
+                  }, {});
+                  return Object.entries(grouped).map(([cat, items]) => (
+                    <div key={cat}>
+                      <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: catColors[cat] || T.graphite, marginBottom: 4 }}>
+                        {cat}
+                      </div>
+                      {items.map(o => {
+                        const ps = priColors[o.priority] || priColors.medium;
+                        return (
+                          <div key={o.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '6px 10px', borderRadius: 6, marginBottom: 3,
+                            background: T.chalk, border: `1px solid ${T.parchment}`,
+                            borderLeft: `3px solid ${catColors[cat] || T.graphite}`,
+                          }}>
+                            <span style={{ flex: 1, fontSize: 12, color: T.ink, lineHeight: 1.4 }}>{o.description}</span>
+                            <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', padding: '1px 5px', borderRadius: 3, background: ps.bg, color: ps.text }}>
+                              {o.priority}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
               </div>
             </section>
           )}

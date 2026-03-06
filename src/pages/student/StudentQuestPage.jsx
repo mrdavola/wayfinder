@@ -5,7 +5,7 @@ import {
   Megaphone, X, Send, Zap, ArrowRight, Loader2, AlertCircle,
   ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
   Paperclip, Video, Download, LogOut, Sparkles, Users,
-  Pause, Play, Maximize2, SwitchCamera, ArrowLeft,
+  Pause, Play, Maximize2, SwitchCamera, ArrowLeft, PenLine,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -1239,9 +1239,9 @@ function StretchChallenge({ text }) {
 }
 
 // ===================== CHALLENGER CARD =====================
-function ChallengerCard({ challenge, questId, stageId, studentName, studentId, onRespond }) {
-  const [response, setResponse] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+function ChallengerCard({ challenge, questId, stageId, studentName, studentId, onRespond, initialResponse, initialSubmitted }) {
+  const [response, setResponse] = useState(initialResponse || '');
+  const [submitted, setSubmitted] = useState(initialSubmitted || false);
 
   const handleSubmit = () => {
     if (!response.trim()) return;
@@ -1252,10 +1252,8 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
       messageType: 'devil_advocate',
     });
     setSubmitted(true);
-    if (onRespond) onRespond();
+    if (onRespond) onRespond(response.trim());
   };
-
-  if (submitted) return null;
 
   return (
     <div className="sq-pop" style={{
@@ -1267,71 +1265,75 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--specimen-red)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           The Challenger
         </span>
+        {submitted && (
+          <span style={{
+            marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 3,
+            fontSize: 10, fontWeight: 600, color: 'var(--field-green)',
+            fontFamily: 'var(--font-mono)',
+          }}>
+            <CheckCircle size={11} color="var(--field-green)" /> Responded
+          </span>
+        )}
       </div>
-      <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px', fontStyle: 'italic' }}>
+      <p style={{ fontSize: 12, color: submitted ? 'var(--graphite)' : 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px', fontStyle: 'italic' }}>
         {challenge}
       </p>
-      <textarea
-        value={response}
-        onChange={(e) => setResponse(e.target.value)}
-        placeholder="Defend your thinking..."
-        rows={2}
-        style={{
-          width: '100%', boxSizing: 'border-box',
-          padding: '8px 10px', borderRadius: 6,
-          border: '1px solid rgba(192,57,43,0.2)', background: 'var(--chalk)',
-          fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--ink)',
-          resize: 'vertical', lineHeight: 1.5, marginBottom: 8,
-        }}
-      />
-      <button
-        onClick={handleSubmit}
-        disabled={!response.trim()}
-        style={{
-          padding: '6px 14px', borderRadius: 6, border: 'none',
-          background: !response.trim() ? 'var(--pencil)' : 'var(--specimen-red)',
-          color: !response.trim() ? 'var(--graphite)' : 'var(--chalk)',
-          fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)',
-          cursor: !response.trim() ? 'not-allowed' : 'pointer',
-          display: 'flex', alignItems: 'center', gap: 5,
-        }}
-      >
-        <Zap size={11} /> Respond to Challenge
-      </button>
+      {submitted ? (
+        <div style={{
+          background: 'var(--parchment)', borderRadius: 6, padding: '8px 10px',
+          borderLeft: '2px solid var(--field-green)',
+        }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Your response</div>
+          <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}>{response}</p>
+        </div>
+      ) : (
+        <>
+          <textarea
+            value={response}
+            onChange={(e) => setResponse(e.target.value)}
+            placeholder="Defend your thinking..."
+            rows={2}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '8px 10px', borderRadius: 6,
+              border: '1px solid rgba(192,57,43,0.2)', background: 'var(--chalk)',
+              fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+              resize: 'vertical', lineHeight: 1.5, marginBottom: 8,
+            }}
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={!response.trim()}
+            style={{
+              padding: '6px 14px', borderRadius: 6, border: 'none',
+              background: !response.trim() ? 'var(--pencil)' : 'var(--specimen-red)',
+              color: !response.trim() ? 'var(--graphite)' : 'var(--chalk)',
+              fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)',
+              cursor: !response.trim() ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <Zap size={11} /> Respond to Challenge
+          </button>
+        </>
+      )}
     </div>
   );
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, showFieldGuide = true }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
 
-  const [guideMessages, setGuideMessages] = useState([]);
-  const [guideInput, setGuideInput] = useState('');
-  const [guideSending, setGuideSending] = useState(false);
-  const [guideLoaded, setGuideLoaded] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [challengerText, setChallengerText] = useState(null);
   const [revising, setRevising] = useState(false);
-  const guideBottomRef = useRef(null);
-
-  useEffect(() => {
-    guideBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [guideMessages]);
-
-  // Load persisted messages on mount
-  useEffect(() => {
-    if (!questId || !stage.id || !studentName || guideLoaded) return;
-    guideMessagesApi.list(questId, stage.id, studentName).then(({ data }) => {
-      if (data?.length) {
-        setGuideMessages(data.filter(m => m.message_type === 'field_guide').map(m => ({ role: m.role, content: m.content })));
-      }
-      setGuideLoaded(true);
-    });
-  }, [questId, stage.id, studentName, guideLoaded]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestText, setSuggestText] = useState('');
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestResult, setSuggestResult] = useState(null);
 
   // Load existing feedback for completed stages
   useEffect(() => {
@@ -1342,55 +1344,50 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
     });
   }, [isDone, questId, studentName, stage.id]);
 
-  // Client-side safety filter for student messages
-  const UNSAFE_PATTERNS = /\b(kill|murder|suicide|bomb|weapon|gun|shoot|drug|cocaine|heroin|meth|sex|porn|nude|naked|rape|assault|hate|racist|slur)\b/i;
-
-  const handleSendToGuide = async () => {
-    const trimmed = guideInput.trim();
-    if (!trimmed || guideSending) return;
-    setGuideInput('');
-    setGuideSending(true);
-
-    const studentId = studentProfile?.id || null;
-    const isFlagged = UNSAFE_PATTERNS.test(trimmed);
-
-    // Persist user message (flag if unsafe)
-    guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'user', content: trimmed, flagged: isFlagged });
-
-    // If flagged, don't send to AI — respond with redirect
-    if (isFlagged) {
-      const redirect = "That's not something I can help with. Let's get back to your project! What were you working on?";
-      const updated = [...guideMessages, { role: 'user', content: trimmed }, { role: 'assistant', content: redirect }];
-      setGuideMessages(updated);
-      guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'assistant', content: redirect });
-      setGuideSending(false);
-      return;
-    }
-
-    const updated = [...guideMessages, { role: 'user', content: trimmed }];
-    setGuideMessages(updated);
-
+  const handleSuggestEdit = async () => {
+    if (!suggestText.trim() || suggestLoading) return;
+    setSuggestLoading(true);
     try {
-      const reply = await ai.questHelp({
-        stageTitle: stage.title,
-        stageDescription: stage.description || '',
-        guidingQuestions: stage.guiding_questions || [],
-        deliverable: stage.deliverable || '',
-        studentProfile: {
-          ...(studentProfile || {}),
-          name: studentName,
-          groupRole: groupRole || null,
-        },
-        messages: updated,
+      const result = await ai.proposeStageEdit({
+        stage: { title: stage.title, description: stage.description, deliverable: stage.deliverable, guiding_questions: stage.guiding_questions },
+        studentRequest: suggestText.trim(),
+        questContext: { title: '', standards: '', skills: [] },
+        studentProfile: studentProfile || { name: studentName },
       });
-      setGuideMessages([...updated, { role: 'assistant', content: reply }]);
-      guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'assistant', content: reply });
+      setSuggestResult(result);
     } catch {
-      const fallback = "That's a great observation! What evidence from the stage supports that? What might challenge your thinking?";
-      setGuideMessages([...updated, { role: 'assistant', content: fallback }]);
-      guideMessagesApi.add({ questId, stageId: stage.id, studentId, studentName, role: 'assistant', content: fallback });
+      setSuggestResult({ explanation: 'Could not generate a suggestion right now. Try again later.' });
     }
-    setGuideSending(false);
+    setSuggestLoading(false);
+  };
+
+  const handleAcceptEdit = async () => {
+    if (!suggestResult) return;
+    const updates = {};
+    if (suggestResult.modified_title) updates.title = suggestResult.modified_title;
+    if (suggestResult.modified_description) updates.description = suggestResult.modified_description;
+    if (suggestResult.modified_deliverable) updates.deliverable = suggestResult.modified_deliverable;
+    if (suggestResult.modified_guiding_questions) updates.guiding_questions = suggestResult.modified_guiding_questions;
+
+    // Save edit history
+    await supabase.from('stage_edit_history').insert({
+      stage_id: stage.id,
+      student_name: studentName,
+      original_content: { title: stage.title, description: stage.description, deliverable: stage.deliverable, guiding_questions: stage.guiding_questions },
+      proposed_content: updates,
+      student_request: suggestText,
+      accepted: true,
+    });
+
+    // Update stage
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('quest_stages').update(updates).eq('id', stage.id);
+    }
+
+    setSuggestOpen(false);
+    setSuggestText('');
+    setSuggestResult(null);
+    if (onSuggestEdit) onSuggestEdit();
   };
 
   const readText = [
@@ -1521,90 +1518,114 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
-      {/* Field Guide chat — visible for active/completed stages when allowed */}
-      {(isActive || isDone) && showFieldGuide && (
-        <div style={{
-          marginBottom: 14,
-          background: 'rgba(27,73,101,0.04)',
-          border: '1px solid rgba(27,73,101,0.15)',
-          borderRadius: 10, overflow: 'hidden',
-        }}>
-          <div style={{
-            padding: '8px 12px',
-            background: 'rgba(27,73,101,0.06)',
-            borderBottom: '1px solid rgba(27,73,101,0.1)',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            <MessageCircle size={13} color="var(--lab-blue)" />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--lab-blue)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              AI Field Guide
-            </span>
-            <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', opacity: 0.7 }}>
-              may make mistakes
-            </span>
-          </div>
-          <div style={{
-            maxHeight: 260, overflowY: 'auto', padding: '10px 12px',
-            display: 'flex', flexDirection: 'column', gap: 8,
-          }}>
-            {guideMessages.length === 0 && (
-              <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
-                Need help? Ask your AI Field Guide a question — it'll help you explore and think deeper, not just give you answers. Always double-check important facts with your teacher.
-              </p>
-            )}
-            {guideMessages.map((msg, i) => (
-              <div key={i} style={{
-                fontSize: 12, lineHeight: 1.55,
-                padding: '6px 10px', borderRadius: 8,
-                background: msg.role === 'user' ? 'var(--parchment)' : 'rgba(27,73,101,0.06)',
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '88%',
-              }}>
-                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: msg.role === 'user' ? 'var(--graphite)' : 'var(--lab-blue)', marginBottom: 2 }}>
-                  {msg.role === 'user' ? 'You' : 'Field Guide'}
-                </div>
-                <div style={{ color: msg.role === 'user' ? 'var(--ink)' : 'var(--lab-blue)' }}>
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-            {guideSending && (
-              <div style={{ fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Loader2 size={11} className="sq-spin" /> Field Guide is thinking...
-              </div>
-            )}
-            <div ref={guideBottomRef} />
-          </div>
-          <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid rgba(27,73,101,0.1)' }}>
-            <input
-              type="text"
-              value={guideInput}
-              onChange={e => setGuideInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSendToGuide()}
-              placeholder="Ask a question..."
-              disabled={guideSending}
-              className="sq-journal-input"
-              style={{
-                flex: 1, padding: '8px 12px', borderRadius: 8,
-                border: '1px solid rgba(27,73,101,0.2)',
-                background: 'var(--chalk)', fontSize: 12,
-                fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none',
-              }}
-            />
+      {/* Suggest a change — active stages only */}
+      {isActive && (
+        <div style={{ marginBottom: 14 }}>
+          {!suggestOpen ? (
             <button
-              onClick={handleSendToGuide}
-              disabled={guideSending || !guideInput.trim()}
+              onClick={() => setSuggestOpen(true)}
               style={{
-                padding: '8px 12px', borderRadius: 8, border: 'none',
-                background: guideSending || !guideInput.trim() ? 'var(--parchment)' : 'var(--lab-blue)',
-                color: guideSending || !guideInput.trim() ? 'var(--pencil)' : 'var(--chalk)',
-                cursor: guideSending || !guideInput.trim() ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center',
+                padding: '6px 12px', borderRadius: 6, border: '1px solid var(--pencil)',
+                background: 'transparent', color: 'var(--graphite)', fontSize: 11,
+                fontWeight: 500, fontFamily: 'var(--font-body)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5,
               }}
             >
-              {guideSending ? <Loader2 size={12} className="sq-spin" /> : <Send size={12} />}
+              <Sparkles size={11} /> Suggest a change
             </button>
-          </div>
+          ) : (
+            <div style={{
+              background: 'rgba(184,134,11,0.04)', border: '1px solid rgba(184,134,11,0.2)',
+              borderRadius: 10, padding: '14px 16px',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                Suggest a change to this stage
+              </div>
+              {!suggestResult ? (
+                <>
+                  <textarea
+                    value={suggestText}
+                    onChange={e => setSuggestText(e.target.value)}
+                    placeholder="What would you like to change? e.g. 'I want to focus on marine biology instead of general ecology'"
+                    rows={2}
+                    style={{
+                      width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6,
+                      border: '1px solid rgba(184,134,11,0.2)', background: 'var(--chalk)',
+                      fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+                      resize: 'vertical', lineHeight: 1.5, marginBottom: 8,
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={handleSuggestEdit}
+                      disabled={!suggestText.trim() || suggestLoading}
+                      style={{
+                        padding: '6px 14px', borderRadius: 6, border: 'none',
+                        background: !suggestText.trim() || suggestLoading ? 'var(--pencil)' : 'var(--compass-gold)',
+                        color: !suggestText.trim() || suggestLoading ? 'var(--graphite)' : 'var(--ink)',
+                        fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)',
+                        cursor: !suggestText.trim() || suggestLoading ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      {suggestLoading ? <><Loader2 size={11} className="sq-spin" /> Thinking...</> : <><Sparkles size={11} /> Submit suggestion</>}
+                    </button>
+                    <button onClick={() => { setSuggestOpen(false); setSuggestText(''); }} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--graphite)', fontSize: 11, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, margin: '0 0 10px' }}>
+                    {suggestResult.explanation}
+                  </p>
+                  {suggestResult.modified_title && (
+                    <div style={{ marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>NEW TITLE: </span>
+                      <span style={{ fontSize: 12, color: 'var(--ink)' }}>{suggestResult.modified_title}</span>
+                    </div>
+                  )}
+                  {suggestResult.modified_description && (
+                    <div style={{ marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>NEW DESCRIPTION: </span>
+                      <span style={{ fontSize: 12, color: 'var(--ink)' }}>{suggestResult.modified_description}</span>
+                    </div>
+                  )}
+                  {suggestResult.modified_deliverable && (
+                    <div style={{ marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>NEW DELIVERABLE: </span>
+                      <span style={{ fontSize: 12, color: 'var(--ink)' }}>{suggestResult.modified_deliverable}</span>
+                    </div>
+                  )}
+                  {suggestResult.skills_covered === false && (
+                    <p style={{ fontSize: 11, color: 'var(--specimen-red)', fontStyle: 'italic', margin: '6px 0' }}>
+                      Note: Some academic skills may not be fully covered by this change.
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                    <button
+                      onClick={handleAcceptEdit}
+                      style={{
+                        padding: '6px 14px', borderRadius: 6, border: 'none',
+                        background: 'var(--field-green)', color: 'var(--chalk)',
+                        fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      <CheckCircle size={11} /> Accept changes
+                    </button>
+                    <button
+                      onClick={() => { setSuggestResult(null); setSuggestText(''); setSuggestOpen(false); }}
+                      style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--graphite)', fontSize: 11, cursor: 'pointer' }}
+                    >
+                      Nevermind
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1696,7 +1717,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                     studentWork: submissionContent || '',
                     studentProfile: studentProfile || { name: studentName },
                   });
-                  setChallengerText(challenge);
+                  if (onChallengerTriggered) onChallengerTriggered(challenge);
                   // Persist challenger message
                   guideMessagesApi.add({
                     questId, stageId: stage.id,
@@ -1783,20 +1804,141 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
-      {/* Devil's Advocate */}
-      {challengerText && (
-        <ChallengerCard
-          challenge={challengerText}
-          questId={questId}
-          stageId={stage.id}
-          studentName={studentName}
-          studentId={studentProfile?.id || null}
-          onRespond={() => setChallengerText(null)}
-        />
-      )}
         </>
       )}
     </div>
+  );
+}
+
+// ===================== AI SIDEBAR =====================
+function AISidebar({ activeStage, questId, studentName, studentProfile, groupRole,
+  guideMessages, guideInput, guideSending, onSendGuide, onGuideInputChange,
+  challengerText, challengerResponse, challengerSubmitted, onChallengerRespond,
+  visible, onClose, isMobileSheet,
+}) {
+  const guideBottomRef = useRef(null);
+  useEffect(() => { guideBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [guideMessages]);
+
+  if (!visible) return null;
+
+  return (
+    <aside style={{
+      width: isMobileSheet ? '100%' : 320,
+      flexShrink: 0, background: 'var(--chalk)',
+      borderLeft: isMobileSheet ? 'none' : '1px solid var(--pencil)',
+      display: 'flex', flexDirection: 'column',
+      ...(isMobileSheet ? { flex: 1 } : { position: 'sticky', top: 48, height: 'calc(100vh - 48px)' }),
+      zIndex: 50,
+    }}>
+      {/* Field Guide section */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{
+          padding: '10px 14px',
+          borderBottom: '1px solid var(--pencil)',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <MessageCircle size={13} color="var(--lab-blue)" />
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--lab-blue)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            AI Field Guide
+          </span>
+          <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', opacity: 0.7 }}>
+            may make mistakes
+          </span>
+          {/* Close button on mobile overlay */}
+          <button onClick={onClose} style={{
+            display: isMobileSheet ? 'flex' : 'none', background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--graphite)', padding: 2,
+          }}>
+            <X size={14} />
+          </button>
+        </div>
+        <div style={{
+          flex: 1, overflowY: 'auto', padding: '10px 12px',
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          {!activeStage && (
+            <p style={{ fontSize: 12, color: 'var(--pencil)', margin: 0, fontStyle: 'italic', textAlign: 'center', marginTop: 20 }}>
+              Select a stage to chat with your Field Guide.
+            </p>
+          )}
+          {activeStage && guideMessages.length === 0 && (
+            <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
+              Need help? Ask your AI Field Guide a question — it'll help you explore and think deeper, not just give you answers. Always double-check important facts with your teacher.
+            </p>
+          )}
+          {guideMessages.map((msg, i) => (
+            <div key={i} style={{
+              fontSize: 12, lineHeight: 1.55,
+              padding: '6px 10px', borderRadius: 8,
+              background: msg.role === 'user' ? 'var(--parchment)' : 'rgba(27,73,101,0.06)',
+              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              maxWidth: '88%',
+            }}>
+              <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: msg.role === 'user' ? 'var(--graphite)' : 'var(--lab-blue)', marginBottom: 2 }}>
+                {msg.role === 'user' ? 'You' : 'Field Guide'}
+              </div>
+              <div style={{ color: msg.role === 'user' ? 'var(--ink)' : 'var(--lab-blue)' }}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {guideSending && (
+            <div style={{ fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Loader2 size={11} className="sq-spin" /> Field Guide is thinking...
+            </div>
+          )}
+          <div ref={guideBottomRef} />
+        </div>
+        {activeStage && (
+          <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid rgba(27,73,101,0.1)' }}>
+            <input
+              type="text"
+              value={guideInput}
+              onChange={e => onGuideInputChange(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && onSendGuide()}
+              placeholder="Ask a question..."
+              disabled={guideSending}
+              className="sq-journal-input"
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 8,
+                border: '1px solid rgba(27,73,101,0.2)',
+                background: 'var(--chalk)', fontSize: 12,
+                fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none',
+              }}
+            />
+            <button
+              onClick={onSendGuide}
+              disabled={guideSending || !guideInput.trim()}
+              style={{
+                padding: '8px 12px', borderRadius: 8, border: 'none',
+                background: guideSending || !guideInput.trim() ? 'var(--parchment)' : 'var(--lab-blue)',
+                color: guideSending || !guideInput.trim() ? 'var(--pencil)' : 'var(--chalk)',
+                cursor: guideSending || !guideInput.trim() ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              {guideSending ? <Loader2 size={12} className="sq-spin" /> : <Send size={12} />}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Challenger section */}
+      {challengerText && (
+        <div style={{ borderTop: '1px solid var(--pencil)', flexShrink: 0 }}>
+          <ChallengerCard
+            challenge={challengerText}
+            questId={questId}
+            stageId={activeStage?.id}
+            studentName={studentName}
+            studentId={studentProfile?.id || null}
+            onRespond={onChallengerRespond}
+            initialResponse={challengerResponse || ''}
+            initialSubmitted={challengerSubmitted}
+          />
+        </div>
+      )}
+    </aside>
   );
 }
 
@@ -2017,6 +2159,16 @@ export default function StudentQuestPage() {
   const [reflectionLoading, setReflectionLoading] = useState(false);
   const [reflectionSaved, setReflectionSaved] = useState(false);
 
+  // AI Sidebar state (lifted from StageCard)
+  const [guideMessages, setGuideMessages] = useState([]);
+  const [guideInput, setGuideInput] = useState('');
+  const [guideSending, setGuideSending] = useState(false);
+  const [guideLoaded, setGuideLoaded] = useState(null); // track which stage was loaded
+  const [challengerText, setChallengerText] = useState(null);
+  const [challengerResponse, setChallengerResponse] = useState('');
+  const [challengerSubmitted, setChallengerSubmitted] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile overlay
+
   // Load quest
   useEffect(() => {
     if (!id) return;
@@ -2103,6 +2255,111 @@ export default function StudentQuestPage() {
     };
     loadProfile();
   }, [studentName, assignedStudents, id]);
+
+  // Load guide messages when active stage changes
+  useEffect(() => {
+    const stageId = activeCard;
+    if (!id || !stageId || !studentName) return;
+    if (guideLoaded === stageId) return;
+    setGuideMessages([]);
+    setChallengerText(null);
+    setChallengerResponse('');
+    setChallengerSubmitted(false);
+    guideMessagesApi.list(id, stageId, studentName).then(({ data }) => {
+      if (data?.length) {
+        const fieldGuideMessages = data.filter(m => m.message_type === 'field_guide').map(m => ({ role: m.role, content: m.content }));
+        setGuideMessages(fieldGuideMessages);
+        // Check for existing challenger messages
+        const challengerMsg = data.find(m => m.message_type === 'devil_advocate' && m.role === 'challenger');
+        const challengerResp = data.find(m => m.message_type === 'devil_advocate' && m.role === 'user');
+        if (challengerMsg) {
+          setChallengerText(challengerMsg.content);
+          if (challengerResp) {
+            setChallengerResponse(challengerResp.content);
+            setChallengerSubmitted(true);
+          }
+        }
+      }
+      setGuideLoaded(stageId);
+    });
+  }, [id, activeCard, studentName, guideLoaded]);
+
+  // Client-side safety filter for student messages
+  const UNSAFE_PATTERNS = /\b(kill|murder|suicide|bomb|weapon|gun|shoot|drug|cocaine|heroin|meth|sex|porn|nude|naked|rape|assault|hate|racist|slur)\b/i;
+
+  const handleSendToGuide = useCallback(async () => {
+    const trimmed = guideInput.trim();
+    if (!trimmed || guideSending || !activeCard) return;
+    const stageId = activeCard;
+    const stage = stages.find(s => s.id === stageId);
+    if (!stage) return;
+    setGuideInput('');
+    setGuideSending(true);
+
+    const studentId = studentProfile?.id || null;
+    const isFlagged = UNSAFE_PATTERNS.test(trimmed);
+
+    guideMessagesApi.add({ questId: id, stageId, studentId, studentName, role: 'user', content: trimmed, flagged: isFlagged });
+
+    if (isFlagged) {
+      const redirect = "That's not something I can help with. Let's get back to your project! What were you working on?";
+      const updated = [...guideMessages, { role: 'user', content: trimmed }, { role: 'assistant', content: redirect }];
+      setGuideMessages(updated);
+      guideMessagesApi.add({ questId: id, stageId, studentId, studentName, role: 'assistant', content: redirect });
+      setGuideSending(false);
+      return;
+    }
+
+    const updated = [...guideMessages, { role: 'user', content: trimmed }];
+    setGuideMessages(updated);
+
+    try {
+      const reply = await ai.questHelp({
+        stageTitle: stage.title,
+        stageDescription: stage.description || '',
+        guidingQuestions: stage.guiding_questions || [],
+        deliverable: stage.deliverable || '',
+        studentProfile: {
+          ...(studentProfile || {}),
+          name: studentName,
+          groupRole: groupRole || null,
+        },
+        messages: updated,
+      });
+      setGuideMessages([...updated, { role: 'assistant', content: reply }]);
+      guideMessagesApi.add({ questId: id, stageId, studentId, studentName, role: 'assistant', content: reply });
+    } catch {
+      const fallback = "That's a great observation! What evidence from the stage supports that? What might challenge your thinking?";
+      setGuideMessages([...updated, { role: 'assistant', content: fallback }]);
+      guideMessagesApi.add({ questId: id, stageId, studentId, studentName, role: 'assistant', content: fallback });
+    }
+    setGuideSending(false);
+  }, [guideInput, guideSending, activeCard, stages, guideMessages, studentProfile, studentName, groupRole, id]);
+
+  const handleChallengerTriggered = useCallback((challenge) => {
+    const stageId = activeCard;
+    setChallengerText(challenge);
+    setChallengerResponse('');
+    setChallengerSubmitted(false);
+    // Persist challenger message
+    guideMessagesApi.add({
+      questId: id, stageId,
+      studentId: studentProfile?.id || null, studentName,
+      role: 'challenger', content: challenge,
+      messageType: 'devil_advocate',
+    });
+  }, [activeCard, id, studentProfile, studentName]);
+
+  const handleChallengerRespond = useCallback((responseText) => {
+    setChallengerResponse(responseText);
+    setChallengerSubmitted(true);
+  }, []);
+
+  const handleStageEdited = useCallback(async () => {
+    // Reload stages after edit
+    const { data: updated } = await supabase.from('quest_stages').select('*').eq('quest_id', id).order('stage_number');
+    setStages(updated || []);
+  }, [id]);
 
   const handleEnter = (name, studentId) => {
     sessionStorage.setItem(`wayfinder_student_${id}`, name);
@@ -2373,7 +2630,7 @@ export default function StudentQuestPage() {
           <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 36, alignItems: 'flex-start' }}>
             {/* SVG map — hidden on mobile */}
             {!isMobile && (
-              <div style={{ flexShrink: 0, width: 320 }}>
+              <div style={{ flexShrink: 0, width: 280 }}>
                 {stages.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pencil)', fontSize: 13 }}>
                     No stages yet — check back soon!
@@ -2464,7 +2721,8 @@ export default function StudentQuestPage() {
                   studentProfile={studentProfile}
                   groupRole={groupRole}
                   onReloadSubmissions={loadSubmissions}
-                  showFieldGuide={quest?.career_pathway === 'self_directed' ? (studentProfile?.allow_ai_guide !== false) : true}
+                  onChallengerTriggered={handleChallengerTriggered}
+                  onSuggestEdit={handleStageEdited}
                 />
               ) : (
                 <div style={{
@@ -2571,6 +2829,94 @@ export default function StudentQuestPage() {
           </div>
         </main>
       </div>
+
+      {/* AI Sidebar — desktop */}
+      {!isMobile && (
+        <AISidebar
+          activeStage={activeStage}
+          questId={id}
+          studentName={studentName}
+          studentProfile={studentProfile}
+          groupRole={groupRole}
+          guideMessages={guideMessages}
+          guideInput={guideInput}
+          guideSending={guideSending}
+          onSendGuide={handleSendToGuide}
+          onGuideInputChange={setGuideInput}
+          challengerText={challengerText}
+          challengerResponse={challengerResponse}
+          challengerSubmitted={challengerSubmitted}
+          onChallengerRespond={handleChallengerRespond}
+          visible={true}
+          onClose={() => {}}
+        />
+      )}
+
+      {/* Mobile FAB + bottom sheet */}
+      {isMobile && (
+        <>
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                position: 'fixed', bottom: 20, right: 20, zIndex: 150,
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'var(--lab-blue)', color: 'var(--chalk)',
+                border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(27,73,101,0.3)',
+              }}
+            >
+              <MessageCircle size={20} />
+            </button>
+          )}
+          {sidebarOpen && (
+            <div style={{
+              position: 'fixed', bottom: 0, left: 0, right: 0,
+              height: '70vh', zIndex: 200,
+              background: 'var(--chalk)',
+              borderTop: '1px solid var(--pencil)',
+              borderRadius: '16px 16px 0 0',
+              boxShadow: '0 -4px 28px rgba(0,0,0,0.15)',
+              display: 'flex', flexDirection: 'column',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--pencil)' }} />
+              </div>
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <AISidebar
+                  activeStage={activeStage}
+                  questId={id}
+                  studentName={studentName}
+                  studentProfile={studentProfile}
+                  groupRole={groupRole}
+                  guideMessages={guideMessages}
+                  guideInput={guideInput}
+                  guideSending={guideSending}
+                  onSendGuide={handleSendToGuide}
+                  onGuideInputChange={setGuideInput}
+                  challengerText={challengerText}
+                  challengerResponse={challengerResponse}
+                  challengerSubmitted={challengerSubmitted}
+                  onChallengerRespond={handleChallengerRespond}
+                  visible={true}
+                  onClose={() => setSidebarOpen(false)}
+                  isMobileSheet
+                />
+              </div>
+            </div>
+          )}
+          {sidebarOpen && (
+            <div
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 199,
+                background: 'rgba(0,0,0,0.3)',
+              }}
+            />
+          )}
+        </>
+      )}
 
       {/* Field notes panel */}
       {journalOpen && (
