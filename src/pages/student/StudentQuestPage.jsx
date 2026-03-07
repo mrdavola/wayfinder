@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   CheckCircle, BookOpen, Search, Wrench, FlaskConical, Mic,
@@ -28,6 +28,8 @@ import TrustBadge from '../../components/ui/TrustBadge';
 import { getTrustTier } from '../../lib/trustDomains';
 import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths } from '../../lib/api';
+import EnterWorldButton from '../../components/immersive/EnterWorldButton';
+const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
 
 // ===================== MARKDOWN HELPER =====================
 function renderMarkdown(text) {
@@ -2316,6 +2318,8 @@ export default function StudentQuestPage() {
   const [challengerResponse, setChallengerResponse] = useState('');
   const [challengerSubmitted, setChallengerSubmitted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 1024); // auto-open on desktop
+  const [immersiveMode, setImmersiveMode] = useState(false);
+  const [worldRegenerating, setWorldRegenerating] = useState(false);
 
   // Boss encounter (full-screen challenger modal)
   const [bossEncounterActive, setBossEncounterActive] = useState(false);
@@ -2763,7 +2767,24 @@ export default function StudentQuestPage() {
     // Reload stages after edit
     const { data: updated } = await supabase.from('quest_stages').select('*').eq('quest_id', id).order('stage_number');
     setStages(updated || []);
-  }, [id]);
+
+    // Regenerate world scene in background if quest has one
+    if (quest?.world_scene_url && updated?.length > 0) {
+      setWorldRegenerating(true);
+      ai.generateFullWorldScene({
+        questId: id,
+        questTitle: quest.title,
+        stages: updated,
+        studentInterests: studentProfile?.passions,
+        careerPathway: quest.career_pathway,
+        gradeBand: quest.grade_band,
+      }).then(result => {
+        if (result?.sceneUrl) {
+          setQuest(prev => prev ? { ...prev, world_scene_url: result.sceneUrl, world_hotspots: result.hotspots } : prev);
+        }
+      }).catch(() => {}).finally(() => setWorldRegenerating(false));
+    }
+  }, [id, quest, studentProfile]);
 
   const handleEnter = (name, studentId) => {
     sessionStorage.setItem(`wayfinder_student_${id}`, name);
@@ -2915,6 +2936,15 @@ export default function StudentQuestPage() {
   // Auto-select first active stage on mobile (so students see content immediately)
   const isMobile = window.innerWidth < 768;
   const isDesktop = window.innerWidth > 1024;
+
+  // Lock body scroll when immersive 3D world is active
+  useEffect(() => {
+    if (immersiveMode) {
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = ''; };
+    }
+  }, [immersiveMode]);
+
   useEffect(() => {
     if (!isMobile || activeCard || stages.length === 0) return;
     const firstActive = stages.find(s => s.status === 'active') || stages.find(s => s.status !== 'locked') || stages[0];
@@ -3159,6 +3189,28 @@ export default function StudentQuestPage() {
           )}
         </div>
       </div>
+
+      {/* Enter World button — shown when quest has a world scene */}
+      {quest?.world_scene_url && !immersiveMode && (
+        <div style={{ padding: isMobile ? '8px 14px 0' : '12px 22px 0', position: 'relative' }}>
+          <EnterWorldButton
+            sceneUrl={quest.world_scene_url}
+            onClick={() => setImmersiveMode(true)}
+          />
+          {worldRegenerating && (
+            <div style={{
+              position: 'absolute', bottom: 8, right: isMobile ? 22 : 30,
+              padding: '4px 12px', borderRadius: 12,
+              background: 'rgba(0,0,0,0.7)', color: 'var(--compass-gold)',
+              fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <Loader2 size={12} style={{ animation: 'sq-spin 1s linear infinite' }} />
+              Updating your world...
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Mobile stage navigator */}
       {isMobile && stages.length > 0 && (
@@ -3557,6 +3609,26 @@ export default function StudentQuestPage() {
           badgeEarned={xpToast.badgeEarned}
           onDone={() => setXpToast(null)}
         />
+      )}
+
+      {/* Immersive 3D World */}
+      {immersiveMode && quest?.world_scene_url && (
+        <Suspense fallback={null}>
+          <ImmersiveWorldView
+            sceneUrl={quest.world_scene_url}
+            hotspots={quest.world_hotspots || []}
+            stages={stages}
+            activeStageId={activeCard}
+            onStageSelect={(stageId) => {
+              setImmersiveMode(false);
+              handleNodeClick(stageId);
+            }}
+            onExit={() => setImmersiveMode(false)}
+            isMobile={isMobile}
+            studentName={studentName}
+            xp={xpData?.total_points}
+          />
+        </Suspense>
       )}
     </div>
   );
