@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Year Plan', to: '/yearplan' },
   { label: 'Library', to: '/library' },
+  { label: 'Community', to: '/community' },
   { label: 'Students', to: '/students' },
 ];
 

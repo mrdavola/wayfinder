@@ -28,6 +28,7 @@ import ModerationPage from './pages/ModerationPage';
 import YearPlan from './pages/YearPlan';
 import CareerExplorer from './pages/CareerExplorer';
 import MasteryMap from './pages/MasteryMap';
+import CommunityRepository from './pages/CommunityRepository';
 import './index.css';
 
 export default function App() {
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/students/:id" element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>} />
           <Route path="/yearplan" element={<ProtectedRoute><YearPlan /></ProtectedRoute>} />
           <Route path="/yearplan/:planId" element={<ProtectedRoute><YearPlan /></ProtectedRoute>} />
+          <Route path="/community" element={<ProtectedRoute><CommunityRepository /></ProtectedRoute>} />
           <Route path="/moderation" element={<ProtectedRoute><ModerationPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
