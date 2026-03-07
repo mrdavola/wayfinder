@@ -3091,86 +3091,106 @@ export default function QuestBuilder() {
             }
           }
 
-          // Save expedition challenges
-          const challengesToSave = [];
-          savedStages.forEach(saved => {
-            const originalStage = generatedQuest.stages.find(s => s.stage_number === saved.stage_number);
-            if (originalStage?.expedition_challenge) {
-              const ec = originalStage.expedition_challenge;
-              challengesToSave.push({
-                stage_id: saved.id,
-                challenge_type: ec.challenge_type || 'estimate',
-                challenge_text: ec.challenge_text,
-                challenge_config: ec.challenge_config || {},
-                target_skill_ids: ec.target_skills || [],
-                difficulty: ec.difficulty || 'standard',
-                ep_reward: 15,
-              });
-            }
-          });
-          if (challengesToSave.length > 0) {
-            await expeditionChallenges.bulkCreate(challengesToSave);
-          }
-
-          // Save branch relationships for branching quests
-          if (isBranching && generatedQuest?.is_branching) {
-            // Set is_branching on the quest
-            await supabase.from('quests').update({ is_branching: true }).eq('id', quest.id);
-
-            // Build stage ID map (stage_id string → saved UUID)
-            const stageIdMap = {};
+          // Save expedition challenges (non-blocking)
+          try {
+            const challengesToSave = [];
             savedStages.forEach(saved => {
-              const originalStage = generatedQuest.stages.find(s =>
-                s.stage_id === String(saved.stage_number) || s.stage_title === saved.title
-              );
-              if (originalStage) stageIdMap[originalStage.stage_id] = saved.id;
-            });
-
-            // Save branches
-            const branchRows = [];
-            generatedQuest.stages.forEach(stage => {
-              if (stage.branches?.length > 0) {
-                const parentId = stageIdMap[stage.stage_id];
-                if (!parentId) return;
-                stage.branches.forEach((branch, idx) => {
-                  branchRows.push({
-                    stage_id: parentId,
-                    branch_index: idx,
-                    branch_label: branch.label,
-                    branch_description: branch.description,
-                    next_stage_id: stageIdMap[branch.next_stage] || null,
-                    narrative_variant: branch.narrative_variant || null,
-                  });
+              const originalStage = generatedQuest.stages.find(s => s.stage_number === saved.stage_number);
+              if (originalStage?.expedition_challenge) {
+                const ec = originalStage.expedition_challenge;
+                challengesToSave.push({
+                  stage_id: saved.id,
+                  challenge_type: ec.challenge_type || 'estimate',
+                  challenge_text: ec.challenge_text,
+                  challenge_config: ec.challenge_config || {},
+                  target_skill_ids: ec.target_skills || [],
+                  difficulty: ec.difficulty || 'standard',
+                  ep_reward: 15,
                 });
               }
             });
+            if (challengesToSave.length > 0) {
+              await expeditionChallenges.bulkCreate(challengesToSave);
+            }
+          } catch (e) {
+            console.warn('Expedition challenges save failed (non-blocking):', e);
+          }
 
-            if (branchRows.length > 0) {
-              await stageBranches.bulkCreate(branchRows);
+          // Save branch relationships for branching quests (non-blocking)
+          if (isBranching && generatedQuest?.is_branching) {
+            try {
+              // Set is_branching on the quest
+              await supabase.from('quests').update({ is_branching: true }).eq('id', quest.id);
+
+              // Build stage ID map (stage_id string → saved UUID)
+              const stageIdMap = {};
+              savedStages.forEach(saved => {
+                const originalStage = generatedQuest.stages?.find(s =>
+                  s.stage_id === String(saved.stage_number) || s.stage_title === saved.title
+                );
+                if (originalStage?.stage_id) stageIdMap[originalStage.stage_id] = saved.id;
+              });
+
+              // Save branches
+              const branchRows = [];
+              (generatedQuest.stages || []).forEach(stage => {
+                if (stage.branches?.length > 0 && stage.stage_id) {
+                  const parentId = stageIdMap[stage.stage_id];
+                  if (!parentId) return;
+                  stage.branches.forEach((branch, idx) => {
+                    branchRows.push({
+                      stage_id: parentId,
+                      branch_index: idx,
+                      branch_label: branch.label || '',
+                      branch_description: branch.description || '',
+                      next_stage_id: stageIdMap[branch.next_stage] || null,
+                      narrative_variant: branch.narrative_variant || null,
+                    });
+                  });
+                }
+              });
+
+              if (branchRows.length > 0) {
+                await stageBranches.bulkCreate(branchRows);
+              }
+            } catch (e) {
+              console.warn('Branch relationships save failed (non-blocking):', e);
             }
           }
         }
       }
 
-      // Save simulation
+      // Save simulation (non-blocking)
       if (selectedPathways.length > 0 && generatedQuest.career_simulation) {
-        await supabase.from('career_simulations').insert({
-          quest_id: quest.id,
-          ...generatedQuest.career_simulation,
-          status: 'locked',
-        });
+        try {
+          await supabase.from('career_simulations').insert({
+            quest_id: quest.id,
+            ...generatedQuest.career_simulation,
+            status: 'locked',
+          });
+        } catch (e) {
+          console.warn('Simulation save failed (non-blocking):', e);
+        }
       }
 
-      // Assign students
+      // Assign students (non-blocking)
       if (selectedStudentIdsForSave.length) {
-        await supabase.from('quest_students').insert(
-          selectedStudentIdsForSave.map((sid) => ({ quest_id: quest.id, student_id: sid }))
-        );
+        try {
+          await supabase.from('quest_students').insert(
+            selectedStudentIdsForSave.map((sid) => ({ quest_id: quest.id, student_id: sid }))
+          );
+        } catch (e) {
+          console.warn('Student assignment failed (non-blocking):', e);
+        }
       }
 
-      // Save guide playbook if generated
+      // Save guide playbook if generated (non-blocking)
       if (generatedQuest.playbookDays?.length > 0) {
-        await guidePlaybook.bulkUpsert(quest.id, generatedQuest.playbookDays);
+        try {
+          await guidePlaybook.bulkUpsert(quest.id, generatedQuest.playbookDays);
+        } catch (e) {
+          console.warn('Playbook save failed (non-blocking):', e);
+        }
       }
 
       // Link back to year plan if generated from one
@@ -3190,18 +3210,30 @@ export default function QuestBuilder() {
   };
 
   const handleLaunch = async () => {
-    const id = await saveQuest('active');
-    if (id) {
-      setLaunchedQuestId(id);
-      setStep(7);
+    try {
+      const id = await saveQuest('active');
+      if (id) {
+        setLaunchedQuestId(id);
+        setStep(7);
+      }
+    } catch (err) {
+      console.error('handleLaunch error:', err);
+      setSaveError('Launch failed unexpectedly. Please try again.');
+      setLaunching(false);
     }
   };
 
   const handleDraft = async () => {
-    const id = await saveQuest('draft');
-    if (id) {
-      setLaunchedQuestId(id);
-      navigate('/dashboard');
+    try {
+      const id = await saveQuest('draft');
+      if (id) {
+        setLaunchedQuestId(id);
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('handleDraft error:', err);
+      setSaveError('Save as draft failed unexpectedly. Please try again.');
+      setLaunching(false);
     }
   };
 
