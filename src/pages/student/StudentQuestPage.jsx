@@ -6,11 +6,19 @@ import {
   ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
   Paperclip, Video, Download, LogOut, Sparkles, Users,
   Pause, Play, Maximize2, SwitchCamera, ArrowLeft, PenLine,
+  Volume2, VolumeX,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
-import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi } from '../../lib/api';
+import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog } from '../../lib/api';
 import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
+import TreasureMap from '../../components/map/TreasureMap';
+import XPToast from '../../components/xp/XPToast';
+import XPBar from '../../components/xp/XPBar';
+import ExplorerRankBadge from '../../components/xp/ExplorerRankBadge';
+import PuzzleGate from '../../components/stages/PuzzleGate';
+import ChoiceFork from '../../components/stages/ChoiceFork';
+import EvidenceBoard from '../../components/stages/EvidenceBoard';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
 // ===================== STYLES =====================
@@ -1322,7 +1330,7 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
@@ -1481,6 +1489,19 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       ) : (
         <>
+      {/* Narrative hook from landmark */}
+      {landmark?.narrative_hook && !isLocked && (
+        <div style={{
+          padding: '12px 16px', marginBottom: 16, borderRadius: 8,
+          background: 'linear-gradient(135deg, var(--parchment) 0%, #EDE8DC 100%)',
+          borderLeft: '3px solid var(--compass-gold)',
+          fontFamily: 'var(--font-display)', fontSize: 15, fontStyle: 'italic',
+          color: 'var(--ink)', lineHeight: 1.5,
+        }}>
+          {landmark.narrative_hook}
+        </div>
+      )}
+
       {/* Description */}
       {stage.description && (
         <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.7, margin: '0 0 14px' }}>
@@ -1632,6 +1653,17 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       {/* Stretch challenge */}
       {stage.stretch_challenge && isActive && (
         <StretchChallenge text={stage.stretch_challenge} />
+      )}
+
+      {/* Interactive stage types */}
+      {stage.stage_type === 'puzzle_gate' && interactiveData?.config && (
+        <PuzzleGate config={interactiveData.config} onComplete={() => onComplete?.(stage.id)} />
+      )}
+      {stage.stage_type === 'choice_fork' && interactiveData?.config && (
+        <ChoiceFork config={interactiveData.config} onChoose={(idx) => onComplete?.(stage.id)} />
+      )}
+      {stage.stage_type === 'evidence_board' && interactiveData?.config && (
+        <EvidenceBoard config={interactiveData.config} onComplete={() => onComplete?.(stage.id)} />
       )}
 
       {/* Work submission — show for active stage OR completed stage if this student hasn't submitted */}
@@ -2169,6 +2201,12 @@ export default function StudentQuestPage() {
   const [challengerSubmitted, setChallengerSubmitted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile overlay + desktop toggle
 
+  // XP & Gamification state
+  const [xpData, setXpData] = useState({ total_points: 0, current_rank: 'apprentice', current_streak: 0 });
+  const [xpToast, setXpToast] = useState(null);
+  const [mapLandmarks, setMapLandmarks] = useState([]);
+  const [interactiveData, setInteractiveData] = useState(null);
+
   // Load quest
   useEffect(() => {
     if (!id) return;
@@ -2256,6 +2294,17 @@ export default function StudentQuestPage() {
     loadProfile();
   }, [studentName, assignedStudents, id]);
 
+  // Load XP data + landmarks when student and quest are known
+  useEffect(() => {
+    if (!studentProfile?.id) return;
+    xp.getStudentXP(studentProfile.id).then(setXpData);
+  }, [studentProfile?.id]);
+
+  useEffect(() => {
+    if (!quest?.id) return;
+    landmarksApi.getForQuest(quest.id).then(setMapLandmarks);
+  }, [quest?.id]);
+
   // Load guide messages when active stage changes
   useEffect(() => {
     const stageId = activeCard;
@@ -2283,6 +2332,17 @@ export default function StudentQuestPage() {
       setGuideLoaded(stageId);
     });
   }, [id, activeCard, studentName, guideLoaded]);
+
+  // Load interactive data for active stage
+  useEffect(() => {
+    if (!activeCard) { setInteractiveData(null); return; }
+    const activeStg = stages.find(s => s.id === activeCard);
+    if (activeStg && ['puzzle_gate', 'choice_fork', 'evidence_board'].includes(activeStg.stage_type)) {
+      interactiveStages.get(activeCard).then(setInteractiveData);
+    } else {
+      setInteractiveData(null);
+    }
+  }, [activeCard, stages]);
 
   // Client-side safety filter for student messages
   const UNSAFE_PATTERNS = /\b(kill|murder|suicide|bomb|weapon|gun|shoot|drug|cocaine|heroin|meth|sex|porn|nude|naked|rape|assault|hate|racist|slur)\b/i;
@@ -2351,10 +2411,17 @@ export default function StudentQuestPage() {
     });
   }, [activeCard, id, studentProfile, studentName]);
 
-  const handleChallengerRespond = useCallback((responseText) => {
+  const handleChallengerRespond = useCallback(async (responseText) => {
     setChallengerResponse(responseText);
     setChallengerSubmitted(true);
-  }, []);
+    if (studentProfile?.id) {
+      const result = await xp.award(studentProfile.id, 'challenger_response', id, activeCard);
+      if (result) {
+        setXpData(prev => ({ ...prev, total_points: result.total_points, current_rank: result.new_rank }));
+        setXpToast({ points: xp.EP_VALUES.challenger_response });
+      }
+    }
+  }, [studentProfile?.id, id, activeCard]);
 
   const handleStageEdited = useCallback(async () => {
     // Reload stages after edit
@@ -2407,7 +2474,25 @@ export default function StudentQuestPage() {
     setActiveCard(nextActive ? nextActive.id : null);
     setConfetti(true);
     setTimeout(() => setConfetti(false), 800);
-  }, [id, stages, studentName, loadSubmissions]);
+
+    // Award XP
+    if (studentProfile?.id) {
+      const result = await xp.award(studentProfile.id, 'stage_complete', id, stageId);
+      if (result) {
+        setXpData(prev => ({ ...prev, total_points: result.total_points, current_rank: result.new_rank, current_streak: result.current_streak }));
+        setXpToast({ points: xp.EP_VALUES.stage_complete, rankUp: result.rank_changed, newRank: result.new_rank });
+        const newBadges = await badgesApi.checkAndAward(studentProfile.id);
+        if (newBadges.length > 0) {
+          setXpToast(prev => prev ? { ...prev, badgeEarned: newBadges[0].badges?.name } : null);
+        }
+      }
+      // Log if quest completed
+      if (allDone) {
+        await xp.award(studentProfile.id, 'project_complete', id, null);
+        explorerLog.add(studentProfile.id, 'project_complete', `${studentName} completed "${quest.title}"!`);
+      }
+    }
+  }, [id, stages, studentName, loadSubmissions, studentProfile, quest]);
 
   const addReflection = useCallback(async (content) => {
     await supabase.from('reflection_entries').insert({ quest_id: id, content, entry_type: 'student' });
@@ -2533,8 +2618,11 @@ export default function StudentQuestPage() {
           )}
         </div>
 
-        <div style={{ flex: 1, maxWidth: 200, minWidth: 60 }}>
-          <ProgressBar stages={stages} />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, maxWidth: 280, minWidth: 60 }}>
+          <ExplorerRankBadge rank={xpData.current_rank} size="sm" showLabel={!isMobile} />
+          <div style={{ flex: 1, minWidth: 60 }}>
+            <XPBar totalPoints={xpData.total_points} currentRank={xpData.current_rank} />
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -2631,13 +2719,21 @@ export default function StudentQuestPage() {
           <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 36, alignItems: 'flex-start' }}>
             {/* SVG map — hidden on mobile */}
             {!isMobile && (
-              <div style={{ flexShrink: 0, width: 280 }}>
+              <div style={{ flexShrink: 0, width: 320 }}>
                 {stages.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pencil)', fontSize: 13 }}>
                     No stages yet — check back soon!
                   </div>
                 ) : (
-                  <JourneyMap stages={stages} activeCard={activeCard} onNodeClick={handleNodeClick} />
+                  <TreasureMap
+                    stages={stages}
+                    landmarks={mapLandmarks}
+                    activeCard={activeCard}
+                    onNodeClick={handleNodeClick}
+                    studentName={studentName}
+                    studentEmoji={studentProfile?.avatar_emoji}
+                    recentlyCompleted={confetti ? activeCard : null}
+                  />
                 )}
               </div>
             )}
@@ -2724,6 +2820,8 @@ export default function StudentQuestPage() {
                   onReloadSubmissions={loadSubmissions}
                   onChallengerTriggered={handleChallengerTriggered}
                   onSuggestEdit={handleStageEdited}
+                  landmark={mapLandmarks.find(l => l.stage_id === activeStage.id)}
+                  interactiveData={interactiveData}
                 />
               ) : (
                 <div style={{
@@ -2961,6 +3059,17 @@ export default function StudentQuestPage() {
           onAdd={addReflection}
           onClose={() => setJournalOpen(false)}
           studentName={studentName}
+        />
+      )}
+
+      {/* XP Toast */}
+      {xpToast && (
+        <XPToast
+          points={xpToast.points}
+          rankUp={xpToast.rankUp}
+          newRank={xpToast.newRank}
+          badgeEarned={xpToast.badgeEarned}
+          onDone={() => setXpToast(null)}
         />
       )}
     </div>
