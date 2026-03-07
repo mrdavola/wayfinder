@@ -1024,6 +1024,62 @@ Rules:
     if (!jsonMatch) throw new Error('No JSON in AI response');
     return JSON.parse(jsonMatch[0]);
   },
+
+  async generateLandmarks(stages) {
+    const systemPrompt = `You assign treasure map landmarks to project stages. Each stage becomes a location on an illustrated map.
+
+LANDMARK TYPES (pick the most thematically appropriate):
+cave, lighthouse, bridge, volcano, camp, observatory, waterfall, ruins, tower, harbor, forest, mountain_peak
+
+AMBIENT SOUNDS (optional, pick one or null):
+campfire, ocean, wind, rain, birds, cave_drip, river
+
+Return ONLY valid JSON array.`;
+
+    const userMessage = `Assign landmarks to these stages:\n${stages.map(s =>
+      `Stage ${s.stage_number}: "${s.title}" (${s.stage_type}) — ${(s.description || '').slice(0, 100)}`
+    ).join('\n')}
+
+Return JSON array:
+[{"stage_number": 1, "landmark_type": "lighthouse", "landmark_name": "The Beacon of Discovery", "narrative_hook": "A warm light cuts through the fog...", "ambient_sound": "ocean"}]`;
+
+    const raw = await callAI({ systemPrompt, userMessage });
+    try {
+      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  },
+
+  async generateInteractiveData(stage, interactiveType) {
+    const systemPrompt = `You generate interactive puzzle/challenge data for educational project stages. The content must test understanding of the stage's learning goals while feeling like an adventure game element — NOT a school quiz.
+
+For puzzle_gate: Create a sorting/matching/sequencing challenge.
+For choice_fork: Create 2-3 meaningful choices that branch the adventure.
+For evidence_board: Create detective-style clue cards and board zones.
+
+Return ONLY valid JSON.`;
+
+    const typeInstructions = {
+      puzzle_gate: `Create a puzzle for stage "${stage.title}".
+Return: {"puzzle_type": "sort", "instruction": "Sort these into the correct categories", "categories": ["Cat A", "Cat B"], "items": [{"text": "item text", "correct_category": "Cat A"}]}`,
+      choice_fork: `Create a meaningful choice for stage "${stage.title}".
+Return: {"prompt": "narrative choice text", "choices": [{"label": "Option text", "description": "What this path means", "difficulty": "standard"}]}`,
+      evidence_board: `Create an evidence board for stage "${stage.title}".
+Return: {"prompt": "The case to build", "clue_cards": [{"id": "c1", "type": "fact", "text": "clue content", "source": "source if applicable"}], "board_zones": ["Zone 1", "Zone 2", "Zone 3"]}`,
+    };
+
+    const userMessage = `Stage: "${stage.title}" (${stage.stage_type})
+Description: ${stage.description}
+Deliverable: ${stage.deliverable}
+Academic skills: ${(stage.academic_skills || []).join(', ') || 'general'}
+
+${typeInstructions[interactiveType] || ''}`;
+
+    const raw = await callAI({ systemPrompt, userMessage });
+    try {
+      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    } catch { return {}; }
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================
@@ -1421,5 +1477,230 @@ export const guidePlaybook = {
       .from('guide_playbook')
       .upsert(rows, { onConflict: 'quest_id,day_number' })
       .select();
+  },
+};
+
+// ===================== XP & PROGRESSION =====================
+
+const EP_VALUES = {
+  stage_complete: 50,
+  quality_bonus_min: 10,
+  quality_bonus_max: 30,
+  challenger_response: 25,
+  reflection: 20,
+  peer_help: 15,
+  project_complete: 200,
+  streak_bonus: 10,
+};
+
+const RANK_THRESHOLDS = [
+  { rank: 'expedition_leader', min: 6000 },
+  { rank: 'navigator', min: 3000 },
+  { rank: 'trailblazer', min: 1500 },
+  { rank: 'pathfinder', min: 600 },
+  { rank: 'scout', min: 200 },
+  { rank: 'apprentice', min: 0 },
+];
+
+export const xp = {
+  EP_VALUES,
+  RANK_THRESHOLDS,
+
+  async award(studentId, eventType, questId = null, stageId = null, metadata = {}) {
+    const points = EP_VALUES[eventType] || 0;
+    if (!points) return null;
+    const { data, error } = await supabase.rpc('award_xp', {
+      p_student_id: studentId,
+      p_event_type: eventType,
+      p_points: points,
+      p_quest_id: questId,
+      p_stage_id: stageId,
+      p_metadata: metadata,
+    });
+    if (error) { console.error('XP award error:', error); return null; }
+    return data;
+  },
+
+  async awardQualityBonus(studentId, qualityScore, questId = null, stageId = null) {
+    const points = Math.round(EP_VALUES.quality_bonus_min + qualityScore * (EP_VALUES.quality_bonus_max - EP_VALUES.quality_bonus_min));
+    const { data, error } = await supabase.rpc('award_xp', {
+      p_student_id: studentId,
+      p_event_type: 'quality_bonus',
+      p_points: points,
+      p_quest_id: questId,
+      p_stage_id: stageId,
+      p_metadata: { quality_score: qualityScore },
+    });
+    if (error) { console.error('Quality bonus error:', error); return null; }
+    return data;
+  },
+
+  async getStudentXP(studentId) {
+    const { data, error } = await supabase
+      .from('student_xp')
+      .select('*')
+      .eq('student_id', studentId)
+      .single();
+    if (error && error.code !== 'PGRST116') { console.error('Get XP error:', error); }
+    return data || { total_points: 0, current_rank: 'apprentice', current_streak: 0, longest_streak: 0 };
+  },
+
+  async getRecentEvents(studentId, limit = 20) {
+    const { data, error } = await supabase
+      .from('xp_events')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) { console.error('Get events error:', error); return []; }
+    return data || [];
+  },
+
+  getRankForPoints(points) {
+    return RANK_THRESHOLDS.find(r => points >= r.min)?.rank || 'apprentice';
+  },
+
+  getNextRank(currentRank) {
+    const idx = RANK_THRESHOLDS.findIndex(r => r.rank === currentRank);
+    return idx > 0 ? RANK_THRESHOLDS[idx - 1] : null;
+  },
+};
+
+// ===================== BADGES =====================
+
+export const badgesApi = {
+  async getAll() {
+    const { data, error } = await supabase.from('badges').select('*').order('sort_order');
+    if (error) { console.error('Get badges error:', error); return []; }
+    return data || [];
+  },
+
+  async getStudentBadges(studentId) {
+    const { data, error } = await supabase
+      .from('student_badges')
+      .select('*, badges(*)')
+      .eq('student_id', studentId)
+      .order('earned_at', { ascending: false });
+    if (error) { console.error('Get student badges error:', error); return []; }
+    return data || [];
+  },
+
+  async award(studentId, badgeSlug) {
+    const { data: badge } = await supabase.from('badges').select('id').eq('slug', badgeSlug).single();
+    if (!badge) return null;
+    const { data, error } = await supabase
+      .from('student_badges')
+      .upsert({ student_id: studentId, badge_id: badge.id }, { onConflict: 'student_id,badge_id' })
+      .select('*, badges(*)')
+      .single();
+    if (error) { console.error('Award badge error:', error); return null; }
+    return data;
+  },
+
+  async checkAndAward(studentId) {
+    const [earned, allBadges, xpData, events] = await Promise.all([
+      this.getStudentBadges(studentId),
+      this.getAll(),
+      xp.getStudentXP(studentId),
+      xp.getRecentEvents(studentId, 1000),
+    ]);
+    const earnedSlugs = new Set(earned.map(b => b.badges?.slug));
+    const newBadges = [];
+    for (const badge of allBadges) {
+      if (earnedSlugs.has(badge.slug)) continue;
+      const c = badge.criteria;
+      let qualifies = false;
+      switch (c.type) {
+        case 'project_complete': qualifies = events.filter(e => e.event_type === 'project_complete').length >= c.count; break;
+        case 'reflection_count': qualifies = events.filter(e => e.event_type === 'reflection').length >= c.count; break;
+        case 'challenger_response': qualifies = events.filter(e => e.event_type === 'challenger_response').length >= c.count; break;
+        case 'peer_help': qualifies = events.filter(e => e.event_type === 'peer_help').length >= c.count; break;
+        case 'streak': qualifies = xpData.longest_streak >= c.days; break;
+        case 'rank_reached': qualifies = xpData.current_rank === c.rank || RANK_THRESHOLDS.findIndex(r => r.rank === xpData.current_rank) <= RANK_THRESHOLDS.findIndex(r => r.rank === c.rank); break;
+        case 'stage_complete': qualifies = events.filter(e => e.event_type === 'stage_complete').length >= c.count; break;
+        case 'text_submission': qualifies = events.filter(e => e.event_type === 'stage_complete' && e.metadata?.submission_type === 'text').length >= c.count; break;
+      }
+      if (qualifies) {
+        const awarded = await this.award(studentId, badge.slug);
+        if (awarded) newBadges.push(awarded);
+      }
+    }
+    return newBadges;
+  },
+};
+
+// ===================== LANDMARKS =====================
+
+export const landmarksApi = {
+  async getForQuest(questId) {
+    const { data, error } = await supabase
+      .from('stage_landmarks')
+      .select('*, quest_stages!inner(quest_id)')
+      .eq('quest_stages.quest_id', questId);
+    if (error) { console.error('Get landmarks error:', error); return []; }
+    return data || [];
+  },
+
+  async upsert(stageId, landmarkData) {
+    const { data, error } = await supabase
+      .from('stage_landmarks')
+      .upsert({ stage_id: stageId, ...landmarkData }, { onConflict: 'stage_id' })
+      .select().single();
+    if (error) { console.error('Upsert landmark error:', error); }
+    return data;
+  },
+
+  async bulkUpsert(landmarkRows) {
+    const { data, error } = await supabase
+      .from('stage_landmarks')
+      .upsert(landmarkRows, { onConflict: 'stage_id' });
+    if (error) { console.error('Bulk upsert landmarks error:', error); }
+    return data;
+  },
+};
+
+// ===================== INTERACTIVE STAGE DATA =====================
+
+export const interactiveStages = {
+  async get(stageId) {
+    const { data, error } = await supabase
+      .from('stage_interactive_data')
+      .select('*')
+      .eq('stage_id', stageId)
+      .single();
+    if (error && error.code !== 'PGRST116') { console.error('Get interactive data error:', error); }
+    return data;
+  },
+
+  async upsert(stageId, interactiveType, config) {
+    const { data, error } = await supabase
+      .from('stage_interactive_data')
+      .upsert({ stage_id: stageId, interactive_type: interactiveType, config }, { onConflict: 'stage_id' })
+      .select().single();
+    if (error) { console.error('Upsert interactive error:', error); }
+    return data;
+  },
+};
+
+// ===================== EXPLORER LOG =====================
+
+export const explorerLog = {
+  async getForSchool(schoolId, limit = 50) {
+    const { data, error } = await supabase
+      .from('explorer_log')
+      .select('*, students!inner(name, school_id, avatar_emoji)')
+      .eq('students.school_id', schoolId)
+      .eq('public', true)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) { console.error('Get explorer log error:', error); return []; }
+    return data || [];
+  },
+
+  async add(studentId, eventType, message) {
+    const { error } = await supabase
+      .from('explorer_log')
+      .insert({ student_id: studentId, event_type: eventType, message });
+    if (error) { console.error('Add log error:', error); }
   },
 };
