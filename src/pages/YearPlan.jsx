@@ -318,8 +318,85 @@ export default function YearPlan() {
               </div>
             )}
 
-            {view === 'timeline' && <div style={{ textAlign: 'center', padding: 40, color: 'var(--pencil)', fontSize: 13 }}>Timeline view — coming in next iteration</div>}
-            {view === 'calendar' && <div style={{ textAlign: 'center', padding: 40, color: 'var(--pencil)', fontSize: 13 }}>Calendar view — coming in next iteration</div>}
+            {view === 'timeline' && (
+              <div style={{ position: 'relative', paddingLeft: 30 }}>
+                {/* Vertical line */}
+                <div style={{ position: 'absolute', left: 14, top: 0, bottom: 0, width: 2, background: 'var(--pencil)' }} />
+                {items.length === 0 && !generating && (
+                  <div style={{ textAlign: 'center', padding: 40, color: 'var(--pencil)', fontSize: 13 }}>No projects in the plan yet. Click "Suggest Projects with AI" to get started.</div>
+                )}
+                {items.map((item, i) => {
+                  const isGenerated = !!item.quest_id;
+                  return (
+                    <div key={item.id} style={{ position: 'relative', marginBottom: 20, paddingLeft: 20 }}>
+                      {/* Dot on timeline */}
+                      <div style={{
+                        position: 'absolute', left: -22, top: 6, width: 10, height: 10, borderRadius: '50%',
+                        background: isGenerated ? 'var(--field-green)' : item.status === 'completed' ? 'var(--lab-blue)' : 'var(--pencil)',
+                        border: '2px solid var(--chalk)',
+                      }} />
+                      <div style={{ background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 8, padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{item.title}</span>
+                          {item.month_target && (
+                            <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>
+                              {item.month_target}
+                            </span>
+                          )}
+                          <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                            background: isGenerated ? 'rgba(75,139,59,0.1)' : 'rgba(184,134,11,0.1)',
+                            color: isGenerated ? 'var(--field-green)' : 'var(--compass-gold)',
+                            fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                          }}>
+                            {isGenerated ? 'Generated' : item.status || 'planned'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 11, color: 'var(--graphite)', margin: 0, lineHeight: 1.4 }}>
+                          {item.description?.slice(0, 120)}{item.description?.length > 120 ? '...' : ''}
+                        </p>
+                        <div style={{ marginTop: 6, fontSize: 10, color: 'var(--pencil)' }}>
+                          {item.estimated_weeks} weeks
+                          {item.interest_tags?.length > 0 && ` · ${item.interest_tags.join(', ')}`}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {view === 'calendar' && (() => {
+              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              const itemsByMonth = {};
+              items.forEach(item => {
+                const month = item.month_target || 'Unscheduled';
+                if (!itemsByMonth[month]) itemsByMonth[month] = [];
+                itemsByMonth[month].push(item);
+              });
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                  {months.map(month => (
+                    <div key={month} style={{
+                      background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 8,
+                      padding: 10, minHeight: 80,
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>
+                        {month}
+                      </div>
+                      {(itemsByMonth[month] || []).map(item => (
+                        <div key={item.id} style={{
+                          padding: '4px 8px', marginBottom: 4, borderRadius: 6, fontSize: 10,
+                          background: item.quest_id ? 'rgba(75,139,59,0.08)' : 'rgba(27,73,101,0.06)',
+                          color: 'var(--ink)', fontWeight: 500,
+                        }}>
+                          {item.title}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             {view === 'map' && <div style={{ textAlign: 'center', padding: 40, color: 'var(--pencil)', fontSize: 13 }}>Journey Map view — coming in next iteration</div>}
           </div>
 
