@@ -26,6 +26,7 @@ import GroupBuilderPage from './pages/GroupBuilderPage';
 import ParentDashboard from './pages/parent/ParentDashboard';
 import ModerationPage from './pages/ModerationPage';
 import YearPlan from './pages/YearPlan';
+import CareerExplorer from './pages/CareerExplorer';
 import './index.css';
 
 export default function App() {
@@ -45,6 +46,9 @@ export default function App() {
           <Route path="/student/login" element={<StudentLogin />} />
           <Route path="/student" element={<StudentHome />} />
           <Route path="/student/project/new" element={<StudentProjectBuilder />} />
+
+          {/* Career Explorer */}
+          <Route path="/careers/:studentId" element={<CareerExplorer />} />
 
           {/* Parent portal */}
           <Route path="/parent" element={<ParentDashboard />} />

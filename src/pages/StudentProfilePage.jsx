@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi } from '../lib/api';
@@ -350,6 +350,18 @@ export default function StudentProfilePage() {
                 </button>
               </div>
             )}
+          </div>
+
+          {/* Career Explorer link */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <Link to={`/careers/${id}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                borderRadius: 8, border: '1px solid ' + T.pencil, background: T.chalk,
+                color: T.ink, fontSize: 12, fontWeight: 600, textDecoration: 'none',
+              }}>
+              <Briefcase size={13} /> Career Explorer
+            </Link>
           </div>
 
           {/* AI Field Guide toggle */}
