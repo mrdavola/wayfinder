@@ -28,6 +28,17 @@ import { getTrustTier } from '../../lib/trustDomains';
 import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths } from '../../lib/api';
 
+// ===================== MARKDOWN HELPER =====================
+function renderMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n/g, '<br/>');
+}
+
 // ===================== STYLES =====================
 const injectStyles = () => {
   if (document.getElementById('student-quest-styles')) return;
@@ -700,7 +711,9 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
 
       onSubmitComplete(stageId, type === 'text' ? textContent : `[${type} submission: ${fileName || 'recording'}]`);
     } catch (err) {
+      console.error('Submission error:', err);
       setError(err.message || 'Submission failed. Please try again.');
+    } finally {
       setUploading(false);
     }
   };
@@ -1194,9 +1207,9 @@ function FeedbackCard({ feedback }) {
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
         <Star size={11} fill="var(--field-green)" color="var(--field-green)" /> Field Guide Feedback
       </div>
-      <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px' }}>
-        {feedback.feedback_text || feedback.feedback}
-      </p>
+      <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px' }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(feedback.feedback_text || feedback.feedback) }}
+      />
       {(feedback.skills_demonstrated?.length > 0) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
           {feedback.skills_demonstrated.map((s, i) => (
@@ -1209,14 +1222,16 @@ function FeedbackCard({ feedback }) {
         </div>
       )}
       {feedback.encouragement && (
-        <p style={{ fontSize: 11, color: 'var(--field-green)', fontWeight: 600, margin: '0 0 6px', lineHeight: 1.5 }}>
-          {feedback.encouragement}
-        </p>
+        <div style={{ fontSize: 11, color: 'var(--field-green)', fontWeight: 600, margin: '0 0 6px', lineHeight: 1.5 }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(feedback.encouragement) }}
+        />
       )}
       {(feedback.next_steps) && (
         <div style={{ background: 'rgba(184,134,11,0.06)', borderRadius: 6, padding: '8px 10px', borderLeft: '2px solid var(--compass-gold)' }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>What to explore next</div>
-          <p style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}>{feedback.next_steps}</p>
+          <div style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(feedback.next_steps) }}
+          />
         </div>
       )}
     </div>
@@ -1245,9 +1260,9 @@ function StretchChallenge({ text }) {
         <span style={{ marginLeft: 'auto', fontSize: 10 }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, margin: '8px 0 0', paddingTop: 8, borderTop: '1px solid rgba(27,73,101,0.1)' }}>
-          {text}
-        </p>
+        <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, margin: '8px 0 0', paddingTop: 8, borderTop: '1px solid rgba(27,73,101,0.1)' }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
+        />
       )}
     </div>
   );
@@ -1290,9 +1305,9 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
           </span>
         )}
       </div>
-      <p style={{ fontSize: 12, color: submitted ? 'var(--graphite)' : 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px', fontStyle: 'italic' }}>
-        {challenge}
-      </p>
+      <div style={{ fontSize: 12, color: submitted ? 'var(--graphite)' : 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px', fontStyle: 'italic' }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(challenge) }}
+      />
       {submitted ? (
         <div style={{
           background: 'var(--parchment)', borderRadius: 6, padding: '8px 10px',
@@ -1516,9 +1531,9 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           borderLeft: '3px solid var(--compass-gold)',
           fontFamily: 'var(--font-display)', fontSize: 15, fontStyle: 'italic',
           color: 'var(--ink)', lineHeight: 1.5,
-        }}>
-          {landmark.narrative_hook}
-        </div>
+        }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(landmark.narrative_hook) }}
+        />
       )}
 
       {/* Expedition Challenge */}
@@ -1728,11 +1743,13 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           questId={questId}
           studentName={studentName}
           onSubmitComplete={async (stageId, submissionContent) => {
-            // Trigger AI feedback non-blocking
-            setFeedbackLoading(true);
+            // Advance stage FIRST — submission is already saved to Supabase
             // Only advance stage if not already completed (group member already submitted)
             if (!isDone) onComplete(stageId);
             else if (onReloadSubmissions) onReloadSubmissions();
+
+            // AI review chain is best-effort — failures must not block the student
+            setFeedbackLoading(true);
             try {
               const result = await ai.reviewSubmission({
                 stageTitle: stage.title,
@@ -1743,25 +1760,29 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               });
               setFeedback(result);
               // Persist feedback
-              feedbackApi.add({
-                questId, stageId: stage.id, studentName,
-                feedbackText: result.feedback,
-                skillsDemonstrated: result.skills_demonstrated,
-                encouragement: result.encouragement,
-                nextSteps: result.next_steps,
-              });
+              try {
+                feedbackApi.add({
+                  questId, stageId: stage.id, studentName,
+                  feedbackText: result.feedback,
+                  skillsDemonstrated: result.skills_demonstrated,
+                  encouragement: result.encouragement,
+                  nextSteps: result.next_steps,
+                });
+              } catch (e) { console.error('Failed to persist feedback:', e); }
               // Silently log skill assessments from submission review
               if (result?.skill_ratings?.length > 0 && studentProfile?.id) {
-                const assessments = result.skill_ratings.map(sr => ({
-                  student_id: studentProfile.id,
-                  skill_name: sr.skill_name,
-                  quest_id: questId,
-                  stage_id: stage.id,
-                  assessment_type: 'submission_review',
-                  rating: sr.rating,
-                  evidence: sr.evidence,
-                }));
-                skillAssessments.bulkLog(assessments);
+                try {
+                  const assessments = result.skill_ratings.map(sr => ({
+                    student_id: studentProfile.id,
+                    skill_name: sr.skill_name,
+                    quest_id: questId,
+                    stage_id: stage.id,
+                    assessment_type: 'submission_review',
+                    rating: sr.rating,
+                    evidence: sr.evidence,
+                  }));
+                  skillAssessments.bulkLog(assessments);
+                } catch (e) { console.error('Failed to log skill assessments:', e); }
               }
               // Chain mastery assessment (non-blocking)
               if (result.skills_demonstrated?.length && studentProfile?.id) {
@@ -1775,7 +1796,6 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                   });
                   if (mastery.updates?.length) {
                     for (const update of mastery.updates) {
-                      // Find matching skill by name
                       const allSkills = studentSkillsData?.data || [];
                       const match = allSkills.find(s => s.skill_name?.toLowerCase() === update.skill_name?.toLowerCase());
                       if (match) {
@@ -1795,7 +1815,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                       }
                     }
                   }
-                } catch { /* mastery assessment is best-effort */ }
+                } catch (e) { console.error('Mastery assessment failed (best-effort):', e); }
               }
               // Trigger Devil's Advocate at checkpoints
               const isShortResponse = (submissionContent || '').length < 100;
@@ -1809,17 +1829,19 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                     studentProfile: studentProfile || { name: studentName },
                   });
                   if (onChallengerTriggered) onChallengerTriggered(challenge);
-                  // Persist challenger message
                   guideMessagesApi.add({
                     questId, stageId: stage.id,
                     studentId: studentProfile?.id || null, studentName,
                     role: 'challenger', content: challenge,
                     messageType: 'devil_advocate',
                   });
-                } catch { /* challenger is optional */ }
+                } catch (e) { console.error('Challenger failed (optional):', e); }
               }
-            } catch { /* feedback is non-blocking */ }
-            setFeedbackLoading(false);
+            } catch (e) {
+              console.error('AI review failed — submission was saved successfully:', e);
+            } finally {
+              setFeedbackLoading(false);
+            }
           }}
         />
       )}
@@ -1981,9 +2003,13 @@ function AISidebar({ activeStage, questId, studentName, studentProfile, groupRol
               <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', color: msg.role === 'user' ? 'var(--graphite)' : 'var(--lab-blue)', marginBottom: 2 }}>
                 {msg.role === 'user' ? 'You' : 'Field Guide'}
               </div>
-              <div style={{ color: msg.role === 'user' ? 'var(--ink)' : 'var(--lab-blue)' }}>
-                {msg.content}
-              </div>
+              {msg.role === 'user' ? (
+                <div style={{ color: 'var(--ink)' }}>{msg.content}</div>
+              ) : (
+                <div style={{ color: 'var(--lab-blue)' }}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                />
+              )}
             </div>
           ))}
           {guideSending && (
