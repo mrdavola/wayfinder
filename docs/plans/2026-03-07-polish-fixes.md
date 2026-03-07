@@ -194,9 +194,74 @@
 
 ---
 
-## Part D: Student Quest Page Layout Overhaul (Tasks 9-11)
+## Part D: Challenger Boss Encounters (Task 9)
 
-### Task 9: Horizontal animated trail map (replace vertical)
+### Task 9: Make the Challenger a prominent "mini boss" encounter
+
+**Problem:** The Devil's Advocate / Challenger is too subtle — it's a small card in the sidebar that's easy to ignore. It should feel like a boss encounter that pops up, demands attention, and tests what the student actually knows. This is one of the most important learning moments.
+
+**Files:**
+- `src/pages/student/StudentQuestPage.jsx` — challenger trigger logic + UI
+- `src/components/gamified/ChallengerEncounter.jsx` — NEW component
+- `src/lib/api.js` — `ai.devilsAdvocate()` prompt improvements
+
+**Current behavior:** ChallengerCard appears inline in the AI sidebar. Easy to miss. Feels optional.
+
+**New behavior — Boss Encounter:**
+
+1. **Dramatic entrance:** When triggered, the Challenger takes over the screen with a modal/overlay:
+   - Dark semi-transparent backdrop
+   - Challenger avatar (use a distinct icon — maybe a flame or lightning bolt)
+   - Animated entrance (slide up from bottom or fade in with scale)
+   - Sound cue (optional, via Web Speech or a subtle CSS animation pulse)
+   - Bold title: "CHALLENGER APPEARS" or the challenger's name
+
+2. **The challenge itself:**
+   - Large, readable challenge text — a pointed question that tests understanding
+   - NOT a quiz. It's more like: "You said X, but what about Y? How do you explain that?"
+   - The AI should reference what the student actually submitted/said
+   - Timer or urgency visual (pulsing border, not a countdown — no test anxiety)
+
+3. **Student response:**
+   - Large textarea for their response
+   - "Stand Your Ground" button (not "Submit" — this is a boss fight)
+   - EP reward shown upfront: "Defeat this challenge: +30 EP"
+
+4. **Result:**
+   - If strong response: "CHALLENGER DEFEATED" with celebration animation, EP awarded, skill assessment logged
+   - If weak response: "The Challenger isn't convinced..." with a follow-up question or hint. They can try again (no penalty, reduced EP on retry)
+   - Response and result persist — show "Challenged" badge on the stage with collapsed response
+
+5. **Trigger points (more aggressive than current):**
+   - After EVERY stage completion (not just checkpoints)
+   - After short/low-effort submissions (< 50 words)
+   - When the student advances quickly through multiple stages
+   - Random chance (~30%) even on good submissions to keep them on their toes
+   - The AI should adapt difficulty: harder challenges for students who keep defeating them
+
+6. **AI prompt improvements:**
+   - The Challenger should have personality — skeptical but fair, like a tough mentor
+   - Reference the student's actual work: "You wrote about X, but you didn't mention Y. Can you explain why?"
+   - Grade-level adapted language (same as Task 7)
+   - Should feel like a real conversation, not a generated quiz question
+
+**Component structure:**
+```
+ChallengerEncounter (modal overlay)
+├── ChallengerAvatar (animated icon/character)
+├── ChallengeText (the question)
+├── ResponseArea (textarea + submit)
+├── ResultDisplay (defeated/retry)
+└── EPReward (points earned)
+```
+
+**Commit:** `feat: redesign Challenger as prominent boss encounter with modal overlay`
+
+---
+
+## Part E: Student Quest Page Layout Overhaul (Tasks 10-12)
+
+### Task 10: Horizontal animated trail map (replace vertical)
 
 **Problem:** The vertical trail map on the student quest page takes too much space and doesn't feel like a journey. Should be horizontal with animation between stages.
 
@@ -219,7 +284,7 @@
 
 ---
 
-### Task 10: Better spacing and readability for stage content
+### Task 11: Better spacing and readability for stage content
 
 **Problem:** Stage content (description, questions, deliverable) is too cramped. Doesn't breathe.
 
@@ -238,7 +303,7 @@
 
 ---
 
-### Task 11: Optimize student quest page for web (wider screens)
+### Task 12: Optimize student quest page for web (wider screens)
 
 **Problem:** The page doesn't use wider screen space well. Content is narrow and centered awkwardly.
 
@@ -277,6 +342,7 @@
 1. **Task 0 FIRST** — rewrite AI tone (this changes the entire feel of the product)
 2. **Tasks 1-4** — critical bugs (Launch/Submit spinners, hide broken links, strip markdown) — parallelizable
 3. **Tasks 5-8** — AI quality (standards, guiding questions, age-adaptation, simulations) — parallelizable
-4. **Tasks 9-11** — layout overhaul (horizontal trail, spacing, responsive) — sequential
+4. **Task 9** — Challenger boss encounters (big feature, do alone)
+5. **Tasks 10-12** — layout overhaul (horizontal trail, spacing, responsive) — sequential
 
-Total: 12 tasks. Task 0 is the most impactful single change.
+Total: 13 tasks. Task 0 is the most impactful single change. Task 9 is the biggest new feature.
