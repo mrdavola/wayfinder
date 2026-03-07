@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ShieldCheck, AlertTriangle, ShieldAlert, UserCheck, ExternalLink } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, ShieldAlert, UserCheck } from 'lucide-react';
 import { getTrustColor, getTrustLabel } from '../../lib/trustDomains';
 
 const TIER_ICONS = {
@@ -53,17 +53,7 @@ export default function TrustBadge({ tier, url, sourceName, onOverride }) {
             fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', zIndex: 100,
             boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
           }}>
-          <div style={{ fontWeight: 600, marginBottom: url ? 4 : 0 }}>{label}</div>
-          {url && (
-            <a href={url} target="_blank" rel="noopener noreferrer"
-              style={{
-                color: '#7CB9E8', fontSize: 10, display: 'flex', alignItems: 'center', gap: 3,
-                textDecoration: 'underline', cursor: 'pointer',
-              }}
-              onClick={(e) => e.stopPropagation()}>
-              View source <ExternalLink size={9} />
-            </a>
-          )}
+          <div style={{ fontWeight: 600, marginBottom: 0 }}>{label}</div>
           {onOverride && tier !== 'verified_by_guide' && tier !== 'incorrect' && (
             <div style={{ marginTop: 4, display: 'flex', gap: 6 }}>
               <button onClick={() => onOverride('verified_by_guide')}
