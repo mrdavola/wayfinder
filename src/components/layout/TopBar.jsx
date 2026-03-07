@@ -13,6 +13,7 @@ function getInitials(fullName) {
 
 const NAV_LINKS = [
   { label: 'Dashboard', to: '/dashboard' },
+  { label: 'Year Plan', to: '/yearplan' },
   { label: 'Library', to: '/library' },
   { label: 'Students', to: '/students' },
 ];

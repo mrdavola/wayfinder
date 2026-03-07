@@ -25,6 +25,7 @@ import StudentProfilePage from './pages/StudentProfilePage';
 import GroupBuilderPage from './pages/GroupBuilderPage';
 import ParentDashboard from './pages/parent/ParentDashboard';
 import ModerationPage from './pages/ModerationPage';
+import YearPlan from './pages/YearPlan';
 import './index.css';
 
 export default function App() {
@@ -62,6 +63,8 @@ export default function App() {
           <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
           <Route path="/students/groups" element={<ProtectedRoute><GroupBuilderPage /></ProtectedRoute>} />
           <Route path="/students/:id" element={<ProtectedRoute><StudentProfilePage /></ProtectedRoute>} />
+          <Route path="/yearplan" element={<ProtectedRoute><YearPlan /></ProtectedRoute>} />
+          <Route path="/yearplan/:planId" element={<ProtectedRoute><YearPlan /></ProtectedRoute>} />
           <Route path="/moderation" element={<ProtectedRoute><ModerationPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
