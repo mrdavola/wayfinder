@@ -2213,6 +2213,42 @@ function Step6Review({
         </div>
       </div>
 
+      {/* Branching narrative preview */}
+      {generatedQuest?.is_branching && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 8 }}>
+            Branching Narrative Preview
+          </div>
+          <div style={{ background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 12, padding: 12 }}>
+            <svg viewBox={`0 0 800 ${Math.max(200, 30 + stages.length * 40 + 20)}`} style={{ width: '100%', height: 'auto' }}>
+              {stages.map((stage, i) => {
+                const y = 30 + i * 40;
+                const isFork = stage.stage_type === 'choice_fork';
+                return (
+                  <g key={stage.stage_id || i}>
+                    {i > 0 && (
+                      <line x1={400} y1={30 + (i - 1) * 40 + (stages[i - 1]?.stage_type === 'choice_fork' ? 8 : 5)} x2={400} y2={y - (isFork ? 8 : 5)} stroke="var(--pencil)" strokeWidth={1.5} strokeDasharray="4 3" />
+                    )}
+                    <circle cx={400} cy={y} r={isFork ? 8 : 5}
+                      fill={isFork ? 'var(--compass-gold)' : 'var(--lab-blue)'}
+                    />
+                    <text x={420} y={y + 4} fontSize="10" fill="var(--ink)" fontFamily="var(--font-body)">
+                      {stage.stage_id || i + 1}. {stage.stage_title}
+                      {isFork ? ' (Branch Point)' : ''}
+                    </text>
+                    {stage.branches?.map((b, bi) => (
+                      <text key={bi} x={440} y={y + 14 + bi * 12} fontSize="8" fill="var(--graphite)" fontStyle="italic">
+                        → {b.label} → Stage {b.next_stage}
+                      </text>
+                    ))}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      )}
+
       {/* Stage cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
         {stages.map((stage, i) => {
@@ -2268,6 +2304,15 @@ function Step6Review({
                     <span style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-mono)' }}>
                       {stage.duration} days
                     </span>
+                    {stage.branches?.length > 0 && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                        background: 'rgba(184,134,11,0.1)', color: 'var(--compass-gold)',
+                        fontFamily: 'var(--font-mono)',
+                      }}>
+                        {stage.branches.length} {stage.branches.length === 1 ? 'branch' : 'branches'}
+                      </span>
+                    )}
                     {(stage.academic_skills_embedded || []).slice(0, 2).map((skill) => {
                       const std = findStandardById(skill);
                       return std ? (
