@@ -25,6 +25,8 @@ import CampfireChat from '../../components/social/CampfireChat';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 import TrustBadge from '../../components/ui/TrustBadge';
 import { getTrustTier } from '../../lib/trustDomains';
+import BranchingMap from '../../components/map/BranchingMap';
+import { stageBranches, studentPaths } from '../../lib/api';
 
 // ===================== STYLES =====================
 const injectStyles = () => {
@@ -2301,6 +2303,11 @@ export default function StudentQuestPage() {
   const [nudgeMessage, setNudgeMessage] = useState('');
   const [showBuddyChat, setShowBuddyChat] = useState(false);
 
+  // Branching quest state
+  const [questBranches, setQuestBranches] = useState([]);
+  const [studentChoices, setStudentChoices] = useState([]);
+  const [isBranchingQuest, setIsBranchingQuest] = useState(false);
+
   // Load quest
   useEffect(() => {
     if (!id) return;
@@ -2420,6 +2427,22 @@ export default function StudentQuestPage() {
       setNudgeMessage('');
     }
   };
+
+  // Load branching data
+  useEffect(() => {
+    if (!quest?.id || !quest?.is_branching) return;
+    setIsBranchingQuest(true);
+    const studentId = studentProfile?.id;
+    const loadBranches = async () => {
+      const [branches, choices] = await Promise.all([
+        stageBranches.getForQuest(quest.id),
+        studentId ? studentPaths.getForQuest(studentId, quest.id) : Promise.resolve([]),
+      ]);
+      setQuestBranches(branches);
+      setStudentChoices(choices);
+    };
+    loadBranches();
+  }, [quest?.id, quest?.is_branching, studentProfile?.id]);
 
   useEffect(() => {
     if (!quest?.id) return;
@@ -2671,6 +2694,22 @@ export default function StudentQuestPage() {
   const handleNodeClick = useCallback((stageId) => {
     setActiveCard(prev => prev === stageId ? null : stageId);
   }, []);
+
+  const handleBranchChoice = async (stageId, branchIndex) => {
+    const studentId = studentProfile?.id;
+    if (studentId) {
+      await studentPaths.recordChoice(studentId, quest.id, stageId, branchIndex);
+    }
+    setStudentChoices(prev => [...prev.filter(c => c.stage_id !== stageId), { stage_id: stageId, chosen_branch_index: branchIndex }]);
+
+    const branch = questBranches.find(b => b.stage_id === stageId && b.branch_index === branchIndex);
+    if (branch?.next_stage_id) {
+      await supabase.from('quest_stages').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', stageId);
+      await supabase.from('quest_stages').update({ status: 'active' }).eq('id', branch.next_stage_id);
+      const { data: refreshed } = await supabase.from('quest_stages').select('*').eq('quest_id', quest.id).order('stage_number');
+      setStages(refreshed || []);
+    }
+  };
 
   const completeStage = useCallback(async (stageId) => {
     await supabase.from('quest_stages').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', stageId);
@@ -3037,6 +3076,17 @@ export default function StudentQuestPage() {
                   <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pencil)', fontSize: 13 }}>
                     No stages yet — check back soon!
                   </div>
+                ) : isBranchingQuest ? (
+                  <BranchingMap
+                    stages={stages}
+                    branches={questBranches}
+                    studentChoices={studentChoices}
+                    landmarks={mapLandmarks}
+                    activeStageId={stages.find(s => s.status === 'active')?.id}
+                    onStageClick={(stage) => {
+                      handleNodeClick(stage.id);
+                    }}
+                  />
                 ) : (
                   <TreasureMap
                     stages={stages}
@@ -3122,6 +3172,7 @@ export default function StudentQuestPage() {
               )}
 
               {activeStage ? (
+                <>
                 <StageCard
                   stage={activeStage}
                   onComplete={completeStage}
@@ -3139,6 +3190,29 @@ export default function StudentQuestPage() {
                   expeditionResponse={stageChallenges[activeStage.id] ? challengeResponseMap[stageChallenges[activeStage.id]?.id] : null}
                   onChallengeEvaluate={handleChallengeEvaluate}
                 />
+                {activeStage.stage_type === 'choice_fork' && isBranchingQuest && activeStage.status === 'active' && (
+                  <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                    {questBranches
+                      .filter(b => b.stage_id === activeStage.id)
+                      .sort((a, b) => a.branch_index - b.branch_index)
+                      .map(branch => (
+                        <button key={branch.id} onClick={() => handleBranchChoice(activeStage.id, branch.branch_index)}
+                          style={{
+                            padding: '14px 18px', borderRadius: 10, textAlign: 'left',
+                            border: '1.5px solid var(--compass-gold)', background: 'rgba(184,134,11,0.04)',
+                            cursor: 'pointer', fontFamily: 'var(--font-body)',
+                          }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>
+                            {branch.branch_label}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--graphite)', lineHeight: 1.4 }}>
+                            {branch.branch_description}
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                )}
+                </>
               ) : (
                 <div style={{
                   background: 'var(--parchment)', border: '1.5px dashed var(--compass-gold)',
