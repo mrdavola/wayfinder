@@ -1955,11 +1955,11 @@ function AISidebar({ activeStage, questId, studentName, studentProfile, groupRol
 
   return (
     <aside style={{
-      width: isMobileSheet ? '100%' : 320,
+      width: isMobileSheet ? '100%' : 360,
       flexShrink: 0, background: 'var(--chalk)',
       borderLeft: isMobileSheet ? 'none' : '1px solid var(--pencil)',
       display: 'flex', flexDirection: 'column',
-      ...(isMobileSheet ? { flex: 1 } : { position: 'sticky', top: 48, height: 'calc(100vh - 48px)' }),
+      ...(isMobileSheet ? { flex: 1 } : { height: 'calc(100vh - 48px)', overflowY: 'auto' }),
       zIndex: 50,
     }}>
       {/* Field Guide section */}
@@ -2315,7 +2315,7 @@ export default function StudentQuestPage() {
   const [challengerText, setChallengerText] = useState(null);
   const [challengerResponse, setChallengerResponse] = useState('');
   const [challengerSubmitted, setChallengerSubmitted] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile overlay + desktop toggle
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 1024); // auto-open on desktop
 
   // Boss encounter (full-screen challenger modal)
   const [bossEncounterActive, setBossEncounterActive] = useState(false);
@@ -2914,6 +2914,7 @@ export default function StudentQuestPage() {
 
   // Auto-select first active stage on mobile (so students see content immediately)
   const isMobile = window.innerWidth < 768;
+  const isDesktop = window.innerWidth > 1024;
   useEffect(() => {
     if (!isMobile || activeCard || stages.length === 0) return;
     const firstActive = stages.find(s => s.status === 'active') || stages.find(s => s.status !== 'locked') || stages[0];
@@ -3164,38 +3165,38 @@ export default function StudentQuestPage() {
         <MobileStageNav stages={stages} activeCard={activeCard} onNodeClick={handleNodeClick} />
       )}
 
-      {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Horizontal trail map — full width, above content */}
-        {!isMobile && stages.length > 0 && (
-          <div style={{ padding: '12px 22px 0', flexShrink: 0 }}>
-            {isBranchingQuest ? (
-              <BranchingMap
-                stages={stages}
-                branches={questBranches}
-                studentChoices={studentChoices}
-                landmarks={mapLandmarks}
-                activeStageId={stages.find(s => s.status === 'active')?.id}
-                onStageClick={(stage) => {
-                  handleNodeClick(stage.id);
-                }}
-              />
-            ) : (
-              <TreasureMap
-                stages={stages}
-                landmarks={mapLandmarks}
-                activeCard={activeCard}
-                onNodeClick={handleNodeClick}
-                studentName={studentName}
-                studentEmoji={studentProfile?.avatar_emoji}
-                recentlyCompleted={confetti ? activeCard : null}
-              />
-            )}
-          </div>
-        )}
+      {/* Horizontal trail map — full width, above content */}
+      {!isMobile && stages.length > 0 && (
+        <div style={{ padding: '12px 22px 0', flexShrink: 0 }}>
+          {isBranchingQuest ? (
+            <BranchingMap
+              stages={stages}
+              branches={questBranches}
+              studentChoices={studentChoices}
+              landmarks={mapLandmarks}
+              activeStageId={stages.find(s => s.status === 'active')?.id}
+              onStageClick={(stage) => {
+                handleNodeClick(stage.id);
+              }}
+            />
+          ) : (
+            <TreasureMap
+              stages={stages}
+              landmarks={mapLandmarks}
+              activeCard={activeCard}
+              onNodeClick={handleNodeClick}
+              studentName={studentName}
+              studentEmoji={studentProfile?.avatar_emoji}
+              recentlyCompleted={confetti ? activeCard : null}
+            />
+          )}
+        </div>
+      )}
 
+      {/* Main content — two-column on desktop */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
         <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 14px' : '28px 22px' }}>
-          <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          <div style={{ maxWidth: isDesktop ? 'none' : 680, margin: '0 auto' }}>
             {/* Stage card + hint */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Completion banner */}
