@@ -1338,6 +1338,55 @@ Evaluate as JSON:
       return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
     } catch { return { is_successful: false, narrative_feedback: 'The path ahead is unclear. Try again, explorer.', skill_ratings: [], ep_awarded: 0 }; }
   },
+
+  async balanceYearPlan(planItems, allOutcomes, studentProfile) {
+    const systemPrompt = `You are an educational planner ensuring balanced skill coverage across a year of projects.
+
+RULES:
+- Every outcome should be addressed by at least one project
+- No single project should carry more than 40% of total outcomes
+- Flag overloaded projects (too many outcomes) and gap areas (uncovered outcomes)
+- Suggest specific swaps or additions to improve balance
+- Keep suggestions aligned with the student's interests
+
+Return ONLY valid JSON.`;
+
+    const userMessage = `Student: ${studentProfile?.name || 'Learner'}
+Interests: ${studentProfile?.interests?.join(', ') || studentProfile?.passions?.join(', ') || 'various'}
+
+Target Outcomes (${allOutcomes.length} total):
+${allOutcomes.map(o => `- [${o.category || 'general'}] ${o.description || o}`).join('\n')}
+
+Current Plan Items (${planItems.length} projects):
+${planItems.map((item, i) => `${i + 1}. "${item.title}" — covers: ${(item.target_standards || []).join(', ') || 'none specified'} — ${item.estimated_weeks || '?'} weeks`).join('\n')}
+
+Analyze balance and return JSON:
+{
+  "coverage_matrix": {
+    "outcome_description": ["project_title_1", "project_title_2"]
+  },
+  "coverage_pct": 85,
+  "domain_breakdown": {
+    "math": { "covered": 3, "total": 5, "status": "good|warning|gap" },
+    "ela": { "covered": 1, "total": 4, "status": "gap" }
+  },
+  "overloaded_projects": ["project_title that has too many outcomes"],
+  "gap_outcomes": ["outcome not covered by any project"],
+  "suggestions": [
+    {
+      "type": "swap|add|redistribute",
+      "description": "Replace Project 3 with a writing-focused project to cover ELA gaps",
+      "affected_items": ["project_title"],
+      "new_coverage": ["outcome1", "outcome2"]
+    }
+  ]
+}`;
+
+    const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
+    try {
+      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    } catch { return { coverage_pct: 0, domain_breakdown: {}, gap_outcomes: [], suggestions: [] }; }
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================
