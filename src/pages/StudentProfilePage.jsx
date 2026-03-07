@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi } from '../lib/api';
+import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi, skillAssessments } from '../lib/api';
 import { STANDARDS_FRAMEWORKS, getStandardsByGradeBand } from '../data/standardsFrameworks';
 import TopBar from '../components/layout/TopBar';
 
@@ -46,10 +46,16 @@ export default function StudentProfilePage() {
   const [stdInitLoading, setStdInitLoading] = useState(false);
   const [projectIdeas, setProjectIdeas] = useState([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
+  const [assessmentData, setAssessmentData] = useState({});
 
   useEffect(() => {
     if (id && user) loadAll();
   }, [id, user]);
+
+  useEffect(() => {
+    if (!student?.id) return;
+    skillAssessments.getForStudentGrouped(student.id).then(setAssessmentData);
+  }, [student?.id]);
 
   async function loadAll() {
     setLoading(true);
@@ -972,6 +978,56 @@ export default function StudentProfilePage() {
               </div>
             )}
           </section>
+
+          {/* ── Skill Insights (guide-facing) ──────────────────────── */}
+          {Object.keys(assessmentData).length > 0 && (
+            <div style={{ marginTop: 32 }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', marginBottom: 4 }}>
+                Skill Insights
+              </h2>
+              <p style={{ fontSize: 11, color: 'var(--graphite)', marginBottom: 16 }}>
+                Gathered from expedition challenges, project submissions, and Field Guide conversations.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+                {Object.entries(assessmentData).map(([skillName, { latest, history }]) => {
+                  const ratingLabels = ['', 'Emerging', 'Developing', 'Proficient', 'Advanced'];
+                  const ratingColors = ['', 'var(--specimen-red)', 'var(--compass-gold)', 'var(--lab-blue)', 'var(--field-green)'];
+                  return (
+                    <div key={skillName} style={{
+                      background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 10,
+                      padding: '14px 16px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{skillName}</span>
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                          background: `color-mix(in srgb, ${ratingColors[latest.rating]} 12%, transparent)`,
+                          color: ratingColors[latest.rating],
+                          fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                        }}>
+                          {ratingLabels[latest.rating]}
+                        </span>
+                      </div>
+                      <div style={{ height: 4, background: 'var(--parchment)', borderRadius: 2, marginBottom: 8 }}>
+                        <div style={{
+                          height: '100%', borderRadius: 2, transition: 'width 0.5s ease',
+                          width: `${(latest.rating / 4) * 100}%`,
+                          background: ratingColors[latest.rating],
+                        }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--graphite)', lineHeight: 1.4 }}>
+                        <strong>Latest evidence:</strong> {latest.evidence || 'No details recorded'}
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--pencil)', marginTop: 4 }}>
+                        {history.length} observation{history.length !== 1 ? 's' : ''} across{' '}
+                        {new Set(history.map(h => h.assessment_type)).size} source{new Set(history.map(h => h.assessment_type)).size !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
         </div>
       </main>
