@@ -1204,6 +1204,42 @@ Suggest adjustments as JSON:
       return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
     } catch { return { assessment: 'Unable to assess at this time.', swap_suggestions: [], additions: [], coverage_after: null }; }
   },
+
+  async discoverCareers(studentProfile, completedQuests) {
+    const systemPrompt = `You connect a student's project work to real career paths. Be inspiring, specific, and grounded.
+
+RULES:
+- Reference real careers, not made-up titles
+- Explain WHY this student would be a good fit based on their demonstrated skills and interests
+- Include real resources (Bureau of Labor Statistics, career videos, professional organizations) with URLs
+- Keep it encouraging — these are possibilities, not prescriptions
+- Age-appropriate descriptions for ages 8-14
+
+Return ONLY valid JSON.`;
+
+    const userMessage = `Student: ${studentProfile.name}
+Interests: ${studentProfile.interests?.join(', ') || studentProfile.passions?.join(', ') || 'various'}
+About: ${studentProfile.about_me || ''}
+Skills shown: ${studentProfile.skills?.map(s => s.name).join(', ') || 'various'}
+
+Completed projects:
+${completedQuests.map(q => `- "${q.title}" (${q.career_pathway || 'general'})`).join('\n') || 'None yet'}
+
+Suggest 5-8 career connections as JSON:
+[{
+  "career_title": "Environmental Engineer",
+  "description": "1-2 sentences about what they do, kid-friendly",
+  "reason": "Why this fits YOU specifically, referencing their work",
+  "category": "discovered",
+  "source_urls": [{"title": "BLS: Environmental Engineers", "url": "https://...", "trust_level": "trusted"}]
+}]`;
+
+    const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
+    try {
+      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================
@@ -1951,5 +1987,39 @@ export const yearPlanItems = {
 
   async linkToQuest(itemId, questId) {
     return this.update(itemId, { quest_id: questId, status: 'active' });
+  },
+};
+
+// ===================== CAREER INSIGHTS =====================
+
+export const careerInsights = {
+  async getForStudent(studentId) {
+    const { data, error } = await supabase
+      .from('student_career_insights')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (error) { console.error('Get career insights error:', error); return []; }
+    return data || [];
+  },
+
+  async add(studentId, insight) {
+    const { data, error } = await supabase
+      .from('student_career_insights')
+      .insert({ student_id: studentId, ...insight })
+      .select()
+      .single();
+    if (error) { console.error('Add career insight error:', error); return null; }
+    return data;
+  },
+
+  async bulkAdd(studentId, insights) {
+    const rows = insights.map(i => ({ student_id: studentId, ...i }));
+    const { data, error } = await supabase
+      .from('student_career_insights')
+      .insert(rows)
+      .select();
+    if (error) { console.error('Bulk add career insights error:', error); return []; }
+    return data || [];
   },
 };
