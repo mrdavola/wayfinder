@@ -1555,6 +1555,20 @@ Generate a BRANCHING quest as JSON:
       return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
     } catch { return null; }
   },
+
+  evaluateChallenge: async ({ challengeText, studentResponse }) => {
+    const raw = await callAI({
+      systemPrompt: `You evaluate student responses to intellectual challenges. Be encouraging but honest. A "success" means the student showed genuine thought, not perfection. Return ONLY valid JSON with no extra text:
+{ "success": boolean, "feedback": "1-2 sentence warm evaluation", "ep": number_between_20_and_40 }`,
+      userMessage: `Challenge given: "${challengeText}"\n\nStudent's response: "${studentResponse}"\n\nDid the student engage thoughtfully? Return JSON.`,
+      maxTokens: 256,
+    });
+    try {
+      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    } catch {
+      return { success: true, feedback: 'Solid response! Keep thinking critically.', ep: 20 };
+    }
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================

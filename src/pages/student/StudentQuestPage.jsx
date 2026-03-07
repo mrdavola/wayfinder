@@ -12,6 +12,7 @@ import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
 import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments, buddyPairs, buddyMessages } from '../../lib/api';
 import ExpeditionChallenge from '../../components/gamified/ExpeditionChallenge';
+import ChallengerEncounter from '../../components/gamified/ChallengerEncounter';
 import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
 import TreasureMap from '../../components/map/TreasureMap';
 import XPToast from '../../components/xp/XPToast';
@@ -2311,6 +2312,11 @@ export default function StudentQuestPage() {
   const [challengerSubmitted, setChallengerSubmitted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile overlay + desktop toggle
 
+  // Boss encounter (full-screen challenger modal)
+  const [bossEncounterActive, setBossEncounterActive] = useState(false);
+  const [bossEncounterData, setBossEncounterData] = useState(null); // { text, stageId }
+  const [bossEncounterResult, setBossEncounterResult] = useState(null); // { success, feedback, epAwarded }
+
   // XP & Gamification state
   const [xpData, setXpData] = useState({ total_points: 0, current_rank: 'apprentice', current_streak: 0 });
   const [xpToast, setXpToast] = useState(null);
@@ -2677,10 +2683,14 @@ export default function StudentQuestPage() {
 
   const handleChallengerTriggered = useCallback((challenge) => {
     const stageId = activeCard;
+    // Set sidebar state (for history / past challenges display)
     setChallengerText(challenge);
     setChallengerResponse('');
     setChallengerSubmitted(false);
-    setSidebarOpen(true); // Auto-open sidebar so student sees the challenger
+    // Launch boss encounter modal
+    setBossEncounterData({ text: challenge, stageId });
+    setBossEncounterActive(true);
+    setBossEncounterResult(null);
     // Persist challenger message
     guideMessagesApi.add({
       questId: id, stageId,
@@ -2691,6 +2701,7 @@ export default function StudentQuestPage() {
   }, [activeCard, id, studentProfile, studentName]);
 
   const handleChallengerRespond = useCallback(async (responseText) => {
+    // Update sidebar state
     setChallengerResponse(responseText);
     setChallengerSubmitted(true);
     if (studentProfile?.id) {
@@ -2701,6 +2712,47 @@ export default function StudentQuestPage() {
       }
     }
   }, [studentProfile?.id, id, activeCard]);
+
+  const handleBossEncounterRespond = useCallback(async (responseText) => {
+    if (!bossEncounterData) return;
+    try {
+      const parsed = await ai.evaluateChallenge({
+        challengeText: bossEncounterData.text,
+        studentResponse: responseText,
+      });
+      const epAwarded = parsed.success ? (parsed.ep || 30) : 0;
+      setBossEncounterResult({
+        success: parsed.success,
+        feedback: parsed.feedback,
+        epAwarded,
+      });
+      // Award EP if successful
+      if (parsed.success && studentProfile?.id) {
+        try {
+          const result = await xp.award(studentProfile.id, 'challenger_response', id, bossEncounterData.stageId);
+          if (result) {
+            setXpData(prev => ({ ...prev, total_points: result.total_points, current_rank: result.new_rank }));
+            setXpToast({ points: epAwarded });
+          }
+        } catch (e) { console.error('EP award failed:', e); }
+      }
+      // Update sidebar state too
+      setChallengerResponse(responseText);
+      setChallengerSubmitted(true);
+      // Save the student's response
+      guideMessagesApi.add({
+        questId: id, stageId: bossEncounterData.stageId,
+        studentId: studentProfile?.id || null, studentName,
+        role: 'user', content: responseText,
+        messageType: 'devil_advocate',
+      });
+    } catch (err) {
+      console.error('Challenger evaluation failed:', err);
+      setBossEncounterResult({ success: true, feedback: 'Solid response! Keep thinking critically.', epAwarded: 20 });
+      setChallengerResponse(responseText);
+      setChallengerSubmitted(true);
+    }
+  }, [bossEncounterData, studentProfile, id, studentName]);
 
   const handleStageEdited = useCallback(async () => {
     // Reload stages after edit
@@ -2888,6 +2940,22 @@ export default function StudentQuestPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', fontFamily: 'var(--font-body)', display: 'flex', flexDirection: 'column' }}>
+      {/* Boss encounter — full-screen challenger modal */}
+      {bossEncounterActive && bossEncounterData && (
+        <ChallengerEncounter
+          challengeText={bossEncounterData.text}
+          epReward={30}
+          studentName={studentName}
+          defeated={bossEncounterResult}
+          onRespond={handleBossEncounterRespond}
+          onDismiss={() => {
+            setBossEncounterActive(false);
+            setBossEncounterData(null);
+            setBossEncounterResult(null);
+          }}
+        />
+      )}
+
       <ConfettiBurst active={confetti} />
 
       {/* Top bar */}
