@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Star, Search, Loader2, Copy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { communityProjects, communityReviews } from '../lib/api';
+import { communityProjects, communityReviews, yearPlanPackages } from '../lib/api';
 import TopBar from '../components/layout/TopBar';
 
 const SORT_OPTIONS = [
@@ -20,6 +20,8 @@ export default function CommunityRepository() {
   const [reviews, setReviews] = useState([]);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
+  const [viewMode, setViewMode] = useState('projects');
+  const [packages, setPackages] = useState([]);
 
   useEffect(() => {
     if (!profile?.school_id) return;
@@ -29,6 +31,11 @@ export default function CommunityRepository() {
       setLoading(false);
     });
   }, [profile?.school_id, sortBy]);
+
+  useEffect(() => {
+    if (!profile?.school_id || viewMode !== 'packages') return;
+    yearPlanPackages.list(profile.school_id).then(setPackages);
+  }, [profile?.school_id, viewMode]);
 
   const filtered = projects.filter(p =>
     !search || p.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -77,6 +84,21 @@ export default function CommunityRepository() {
           Projects shared by guides at your school. Browse, rate, and use as templates.
         </p>
 
+        <div style={{ display: 'flex', gap: 0, border: '1px solid var(--pencil)', borderRadius: 6, overflow: 'hidden', marginBottom: 16 }}>
+          <button onClick={() => setViewMode('projects')} style={{
+            flex: 1, padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            background: viewMode === 'projects' ? 'var(--ink)' : 'var(--chalk)',
+            color: viewMode === 'projects' ? 'var(--chalk)' : 'var(--graphite)',
+            fontFamily: 'var(--font-body)',
+          }}>Projects</button>
+          <button onClick={() => setViewMode('packages')} style={{
+            flex: 1, padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            background: viewMode === 'packages' ? 'var(--ink)' : 'var(--chalk)',
+            color: viewMode === 'packages' ? 'var(--chalk)' : 'var(--graphite)',
+            fontFamily: 'var(--font-body)',
+          }}>Year Plan Packages</button>
+        </div>
+
         {/* Filters */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: '1 1 200px' }}>
@@ -105,7 +127,45 @@ export default function CommunityRepository() {
           </div>
         </div>
 
-        {loading ? (
+        {viewMode === 'packages' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {packages.map(pkg => (
+              <div key={pkg.id} style={{
+                background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 12,
+                padding: '16px 18px',
+              }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: 'var(--ink)', margin: '0 0 4px' }}>
+                  {pkg.title}
+                </h3>
+                <p style={{ fontSize: 11, color: 'var(--graphite)', margin: '0 0 8px', lineHeight: 1.4 }}>
+                  {pkg.description}
+                </p>
+                <div style={{ display: 'flex', gap: 8, fontSize: 10, color: 'var(--graphite)', marginBottom: 8 }}>
+                  <span>{(pkg.items_snapshot || []).length} projects</span>
+                  <span>{pkg.total_weeks} weeks</span>
+                  <span>Imported {pkg.import_count}x</span>
+                </div>
+                <button onClick={async () => {
+                  sessionStorage.setItem('package_import', JSON.stringify(pkg));
+                  window.location.href = '/yearplan';
+                }} style={{
+                  padding: '6px 14px', borderRadius: 8, border: 'none',
+                  background: 'var(--lab-blue)', color: 'white', fontSize: 11,
+                  fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)',
+                }}>
+                  Import Plan
+                </button>
+              </div>
+            ))}
+            {packages.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--pencil)', gridColumn: '1 / -1' }}>
+                <p style={{ fontSize: 13 }}>No year plan packages shared yet.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === 'projects' && (loading ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <Loader2 size={20} color="var(--graphite)" style={{ animation: 'spin 1s linear infinite' }} />
           </div>
@@ -154,10 +214,10 @@ export default function CommunityRepository() {
               </div>
             ))}
           </div>
-        )}
+        ))}
 
         {/* Selected Project Detail */}
-        {selectedProject && (
+        {viewMode === 'projects' && selectedProject && (
           <div style={{
             marginTop: 24, background: 'var(--chalk)', border: '1px solid var(--pencil)',
             borderRadius: 14, padding: '20px 24px',

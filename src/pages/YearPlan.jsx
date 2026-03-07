@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { yearPlans, yearPlanItems, ai } from '../lib/api';
+import { yearPlans, yearPlanItems, yearPlanPackages, ai } from '../lib/api';
 import TrustBadge from '../components/ui/TrustBadge';
 import { getTrustTier } from '../lib/trustDomains';
 import TopBar from '../components/layout/TopBar';
@@ -26,6 +26,7 @@ export default function YearPlan() {
   const [suggestions, setSuggestions] = useState([]);
   const [balanceData, setBalanceData] = useState(null);
   const [balancing, setBalancing] = useState(false);
+  const [exported, setExported] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -121,6 +122,30 @@ export default function YearPlan() {
 
   const allOutcomes = activePlan?.target_outcomes || [];
   const items = activePlan?.year_plan_items || [];
+  const selectedStudent = activePlan?.students;
+
+  const handleExportPackage = async () => {
+    if (!activePlan || !profile?.school_id || exported) return;
+    const snapshot = items.map(item => ({
+      title: item.title,
+      description: item.description,
+      target_standards: item.target_standards,
+      estimated_weeks: item.estimated_weeks,
+      interest_tags: item.interest_tags,
+      month_target: item.month_target,
+      ai_rationale: item.ai_rationale,
+      domain_coverage: item.domain_coverage || {},
+    }));
+    const pkg = await yearPlanPackages.create(activePlan.id, profile.school_id, user.id, {
+      title: activePlan.title || `${selectedStudent?.name || 'Student'}'s Year Plan`,
+      description: `${items.length} projects, ${items.reduce((s, i) => s + (i.estimated_weeks || 0), 0)} weeks`,
+      gradeBand: selectedStudent?.grade_band,
+      itemsSnapshot: snapshot,
+      targetOutcomes: activePlan.target_outcomes || [],
+      totalWeeks: items.reduce((s, i) => s + (i.estimated_weeks || 0), 0),
+    });
+    if (pkg) setExported(true);
+  };
   const coveredCodes = new Set(items.flatMap(i => (i.target_standards || []).map(s => s.code)));
   const coveragePct = allOutcomes.length > 0
     ? Math.round((allOutcomes.filter(o => coveredCodes.has(o.standard_code || o.code)).length / allOutcomes.length) * 100)
@@ -425,6 +450,16 @@ export default function YearPlan() {
                   </>
                 )}
               </div>
+              <button onClick={handleExportPackage} disabled={exported || items.length === 0} style={{
+                marginTop: 12, width: '100%', padding: '8px 12px', borderRadius: 8,
+                border: '1px solid var(--pencil)',
+                background: exported ? 'rgba(75,139,59,0.06)' : 'var(--chalk)',
+                color: exported ? 'var(--field-green)' : 'var(--ink)',
+                fontSize: 11, fontWeight: 600, cursor: exported ? 'default' : 'pointer',
+                fontFamily: 'var(--font-body)',
+              }}>
+                {exported ? 'Shared to Community!' : 'Share as Package'}
+              </button>
             </div>
           </div>
         </div>
