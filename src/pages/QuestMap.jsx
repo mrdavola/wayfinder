@@ -10,7 +10,8 @@ import {
 import SpeakButton from '../components/ui/SpeakButton';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ai, guidePlaybook as guidePlaybookApi } from '../lib/api';
+import { ai, guidePlaybook as guidePlaybookApi, landmarksApi } from '../lib/api';
+import TreasureMap from '../components/map/TreasureMap';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 
 // ===================== CONSTANTS =====================
@@ -1289,6 +1290,7 @@ export default function QuestMap() {
   const [error, setError] = useState(null);
 
   const [playbookOpen, setPlaybookOpen] = useState(false);
+  const [mapLandmarks, setMapLandmarks] = useState([]);
 
   const [stageSubmissions, setStageSubmissions] = useState({}); // keyed by stage_id
 
@@ -1355,6 +1357,13 @@ export default function QuestMap() {
 
     if (id) fetchQuest();
   }, [id]);
+
+  // Load landmarks for treasure map
+  useEffect(() => {
+    if (quest?.id) {
+      landmarksApi.getForQuest(quest.id).then(setMapLandmarks);
+    }
+  }, [quest?.id]);
 
   // ---- Mark stage complete ----
   const completeStage = useCallback(async (stageId) => {
@@ -1634,11 +1643,11 @@ export default function QuestMap() {
 
             {/* SVG Map column */}
             <div style={{ flexShrink: 0, width: 360 }}>
-              <JourneyMap
+              <TreasureMap
                 stages={stages}
+                landmarks={mapLandmarks}
                 activeCard={activeCard}
                 onNodeClick={handleNodeClick}
-                confettiNode={confettiNode}
               />
             </div>
 

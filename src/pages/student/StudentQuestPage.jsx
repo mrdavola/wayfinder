@@ -19,6 +19,8 @@ import ExplorerRankBadge from '../../components/xp/ExplorerRankBadge';
 import PuzzleGate from '../../components/stages/PuzzleGate';
 import ChoiceFork from '../../components/stages/ChoiceFork';
 import EvidenceBoard from '../../components/stages/EvidenceBoard';
+import useAmbientSound from '../../hooks/useAmbientSound';
+import CampfireChat from '../../components/social/CampfireChat';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
 // ===================== STYLES =====================
@@ -1970,6 +1972,18 @@ function AISidebar({ activeStage, questId, studentName, studentProfile, groupRol
           />
         </div>
       )}
+
+      {/* Campfire Chat for group projects */}
+      {groupRole && activeStage && (
+        <div style={{ borderTop: '1px solid var(--pencil)', padding: 12, flexShrink: 0 }}>
+          <CampfireChat
+            questId={questId}
+            stageId={activeStage.id}
+            studentName={studentName}
+            studentId={studentProfile?.id}
+          />
+        </div>
+      )}
     </aside>
   );
 }
@@ -2206,6 +2220,7 @@ export default function StudentQuestPage() {
   const [xpToast, setXpToast] = useState(null);
   const [mapLandmarks, setMapLandmarks] = useState([]);
   const [interactiveData, setInteractiveData] = useState(null);
+  const { enabled: soundEnabled, toggle: toggleSound, play: playSound, stop: stopSound } = useAmbientSound();
 
   // Load quest
   useEffect(() => {
@@ -2344,6 +2359,17 @@ export default function StudentQuestPage() {
     }
   }, [activeCard, stages]);
 
+  // Play ambient sound for active stage's landmark
+  useEffect(() => {
+    if (!activeCard) { stopSound(); return; }
+    const landmark = mapLandmarks.find(l => l.stage_id === activeCard);
+    if (landmark?.ambient_sound) {
+      playSound(landmark.ambient_sound);
+    } else {
+      stopSound();
+    }
+  }, [activeCard, mapLandmarks, soundEnabled]);
+
   // Client-side safety filter for student messages
   const UNSAFE_PATTERNS = /\b(kill|murder|suicide|bomb|weapon|gun|shoot|drug|cocaine|heroin|meth|sex|porn|nude|naked|rape|assault|hate|racist|slur)\b/i;
 
@@ -2481,9 +2507,20 @@ export default function StudentQuestPage() {
       if (result) {
         setXpData(prev => ({ ...prev, total_points: result.total_points, current_rank: result.new_rank, current_streak: result.current_streak }));
         setXpToast({ points: xp.EP_VALUES.stage_complete, rankUp: result.rank_changed, newRank: result.new_rank });
+        if (result.rank_changed) {
+          explorerLog.add(studentProfile.id, 'rank_up',
+            `${studentName} reached the rank of ${result.new_rank.replace('_', ' ')}!`
+          );
+        }
+        explorerLog.add(studentProfile.id, 'stage_complete',
+          `${studentName} completed a stage in "${quest.title}"`
+        );
         const newBadges = await badgesApi.checkAndAward(studentProfile.id);
         if (newBadges.length > 0) {
           setXpToast(prev => prev ? { ...prev, badgeEarned: newBadges[0].badges?.name } : null);
+          explorerLog.add(studentProfile.id, 'badge_earned',
+            `${studentName} earned the "${newBadges[0].badges?.name}" badge!`
+          );
         }
       }
       // Log if quest completed
@@ -2657,6 +2694,19 @@ export default function StudentQuestPage() {
             }}
           >
             <LogOut size={12} />
+          </button>
+          <button
+            onClick={toggleSound}
+            title={soundEnabled ? 'Mute ambient sound' : 'Enable ambient sound'}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 26, height: 26, borderRadius: '50%',
+              border: '1px solid var(--pencil)', background: 'transparent',
+              color: 'var(--graphite)', cursor: 'pointer',
+              transition: 'all 150ms',
+            }}
+          >
+            {soundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
           </button>
           <button
             onClick={() => setJournalOpen(v => !v)}

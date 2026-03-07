@@ -25,7 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai, questGroups as questGroupsApi, guidePlaybook } from '../lib/api';
+import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 
@@ -2830,7 +2830,7 @@ export default function QuestBuilder() {
 
       // Save stages
       if (generatedQuest.stages?.length) {
-        const VALID_STAGE_TYPES = ['research', 'build', 'experiment', 'simulate', 'reflect', 'present'];
+        const VALID_STAGE_TYPES = ['research', 'build', 'experiment', 'simulate', 'reflect', 'present', 'puzzle_gate', 'choice_fork', 'evidence_board'];
         // Map common AI-returned aliases to valid types
         const STAGE_TYPE_MAP = {
           create: 'build', investigate: 'research', explore: 'research',
@@ -2844,7 +2844,7 @@ export default function QuestBuilder() {
           return STAGE_TYPE_MAP[lower] || 'research';
         };
 
-        const { error: stagesError } = await supabase.from('quest_stages').insert(
+        const { data: savedStages, error: stagesError } = await supabase.from('quest_stages').insert(
           generatedQuest.stages.map((s, i) => ({
             quest_id: quest.id,
             stage_number: s.stage_number || i + 1,
@@ -2860,8 +2860,42 @@ export default function QuestBuilder() {
             stretch_challenge: s.stretch_challenge || null,
             status: i === 0 ? 'active' : 'locked',
           }))
-        );
+        ).select();
         if (stagesError) throw stagesError;
+
+        // Generate treasure map landmarks (non-blocking)
+        if (savedStages?.length) {
+          try {
+            const landmarkData = await ai.generateLandmarks(savedStages);
+            if (landmarkData.length > 0) {
+              const landmarkRows = landmarkData.map(l => {
+                const matchingStage = savedStages.find(s => s.stage_number === l.stage_number);
+                return matchingStage ? {
+                  stage_id: matchingStage.id,
+                  landmark_type: l.landmark_type,
+                  landmark_name: l.landmark_name,
+                  narrative_hook: l.narrative_hook,
+                  ambient_sound: l.ambient_sound || null,
+                } : null;
+              }).filter(Boolean);
+              await landmarksApi.bulkUpsert(landmarkRows);
+            }
+          } catch (e) {
+            console.warn('Landmark generation failed (non-blocking):', e);
+          }
+
+          // Generate interactive data for special stage types
+          for (const stage of savedStages) {
+            if (['puzzle_gate', 'choice_fork', 'evidence_board'].includes(stage.stage_type)) {
+              try {
+                const config = await ai.generateInteractiveData(stage, stage.stage_type);
+                await interactiveStages.upsert(stage.id, stage.stage_type, config);
+              } catch (e) {
+                console.warn(`Interactive data generation failed for stage ${stage.stage_number}:`, e);
+              }
+            }
+          }
+        }
       }
 
       // Save simulation

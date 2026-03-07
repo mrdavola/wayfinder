@@ -5,6 +5,7 @@ import {
   LogOut, Loader2, AlertCircle, Lock, Sparkles, Plus, X,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { explorerLog } from '../../lib/api';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
@@ -235,6 +236,7 @@ export default function StudentHome() {
   const [quests, setQuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [logEntries, setLogEntries] = useState([]);
 
   // PIN-only auth: redirect if no session
   useEffect(() => {
@@ -264,6 +266,17 @@ export default function StudentHome() {
       setLoading(false);
     }
   }
+
+  // Load explorer log for the student's school
+  useEffect(() => {
+    if (!session?.studentId) return;
+    (async () => {
+      const { data: student } = await supabase.from('students').select('school_id').eq('id', session.studentId).single();
+      if (student?.school_id) {
+        explorerLog.getForSchool(student.school_id, 20).then(setLogEntries);
+      }
+    })();
+  }, [session?.studentId]);
 
   async function handleSignOut() {
     clearStudentSession();
@@ -458,6 +471,30 @@ export default function StudentHome() {
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', maxWidth: 320, margin: '0 auto', marginBottom: 16 }}>
               Your guide hasn't assigned any projects to you yet — or create your own!
             </p>
+          </div>
+        )}
+
+        {/* Explorer Log */}
+        {!loading && logEntries.length > 0 && (
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 12, color: 'var(--graphite)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
+              Explorer Log
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {logEntries.slice(0, 10).map(entry => (
+                <div key={entry.id} style={{
+                  padding: '8px 14px', borderRadius: 8, background: 'var(--parchment)',
+                  fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span>{entry.students?.avatar_emoji || '\u{1F9ED}'}</span>
+                  <span>{entry.message}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--pencil)', flexShrink: 0 }}>
+                    {new Date(entry.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
