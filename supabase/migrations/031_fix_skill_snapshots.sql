@@ -7,9 +7,13 @@ ALTER TABLE skill_snapshots ADD COLUMN IF NOT EXISTS quest_id UUID REFERENCES qu
 ALTER TABLE skill_snapshots ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
 -- Add anon read policy so MasteryMap can load from student sessions
-CREATE POLICY IF NOT EXISTS skill_snapshots_anon_read
-  ON skill_snapshots FOR SELECT TO anon USING (true);
+DO $$ BEGIN
+  CREATE POLICY skill_snapshots_anon_read ON skill_snapshots FOR SELECT TO anon USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Add anon insert policy for student quest pages
-CREATE POLICY IF NOT EXISTS skill_snapshots_anon_insert
-  ON skill_snapshots FOR INSERT TO anon WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY skill_snapshots_anon_insert ON skill_snapshots FOR INSERT TO anon WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

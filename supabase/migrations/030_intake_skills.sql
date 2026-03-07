@@ -59,10 +59,10 @@ BEGIN
     SELECT key, value #>> '{}' FROM jsonb_each(p_self_assessment)
   LOOP
     INSERT INTO student_skills (student_id, skill_id, proficiency, source)
-    VALUES (v_student.id, v_skill_id::UUID, v_proficiency, 'self_assessment')
+    VALUES (v_student.id, v_skill_id::UUID, v_proficiency, 'self')
     ON CONFLICT (student_id, skill_id) DO UPDATE SET
       proficiency = EXCLUDED.proficiency,
-      source = 'self_assessment',
+      source = 'self',
       updated_at = now();
   END LOOP;
 
@@ -85,7 +85,7 @@ SELECT
   s.id AS student_id,
   (kv.key)::UUID AS skill_id,
   kv.value #>> '{}' AS proficiency,
-  'self_assessment' AS source
+  'self' AS source
 FROM students s,
   jsonb_each(s.self_assessment) AS kv(key, value)
 WHERE s.self_assessment IS NOT NULL
