@@ -1748,6 +1748,19 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                 encouragement: result.encouragement,
                 nextSteps: result.next_steps,
               });
+              // Silently log skill assessments from submission review
+              if (result?.skill_ratings?.length > 0 && studentProfile?.id) {
+                const assessments = result.skill_ratings.map(sr => ({
+                  student_id: studentProfile.id,
+                  skill_name: sr.skill_name,
+                  quest_id: questId,
+                  stage_id: stage.id,
+                  assessment_type: 'submission_review',
+                  rating: sr.rating,
+                  evidence: sr.evidence,
+                }));
+                skillAssessments.bulkLog(assessments);
+              }
               // Chain mastery assessment (non-blocking)
               if (result.skills_demonstrated?.length && studentProfile?.id) {
                 try {
@@ -1874,6 +1887,19 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                   encouragement: result.encouragement,
                   nextSteps: result.next_steps,
                 });
+                // Silently log skill assessments from submission review
+                if (result?.skill_ratings?.length > 0 && studentProfile?.id) {
+                  const assessments = result.skill_ratings.map(sr => ({
+                    student_id: studentProfile.id,
+                    skill_name: sr.skill_name,
+                    quest_id: questId,
+                    stage_id: stage.id,
+                    assessment_type: 'submission_review',
+                    rating: sr.rating,
+                    evidence: sr.evidence,
+                  }));
+                  skillAssessments.bulkLog(assessments);
+                }
               }).catch(() => {}).finally(() => setFeedbackLoading(false));
             }}
           />

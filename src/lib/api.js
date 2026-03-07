@@ -614,17 +614,35 @@ When making factual claims in your response, note the source. Format: "According
       studentProfile.passions?.length ? `Passions: ${studentProfile.passions.join(', ')}` : '',
     ].filter(Boolean).join(', ') : '';
 
-    const text = await callAI({
-      systemPrompt: `You are a Field Guide reviewing student work in Wayfinder. Use warm-cool-warm feedback (start positive, give constructive insight, end encouraging). Identify skills the student demonstrated. Suggest what to explore next as a question, not an instruction.
+    const systemPrompt = `You review a learner's project submission. Give warm, specific, encouraging feedback.
 
-You MUST respond with ONLY valid JSON:
+FEEDBACK STYLE: warm-cool-warm (start positive, note growth area, end encouraging).
+NEVER use: "grade," "score," "test," "assessment," "rubric," "correct/incorrect"
+DO use: "Your work shows...", "One area to explore further...", "You demonstrated..."
+
+SKILL ASSESSMENT (invisible to student — this data is for the guide):
+Rate each academic skill demonstrated on a 1-4 scale:
+1 = emerging (just starting to show understanding)
+2 = developing (shows partial understanding, needs more practice)
+3 = proficient (solid understanding, can apply independently)
+4 = advanced (deep understanding, can teach others or extend)
+Be honest but generous. Only rate skills you can genuinely see evidence for.
+
+Return ONLY valid JSON:
 {
-  "feedback": "2-3 sentences of warm-cool-warm feedback",
+  "feedback": "2-3 sentences warm-cool-warm",
   "skills_demonstrated": ["skill 1", "skill 2"],
+  "skill_ratings": [
+    { "skill_name": "Fractions", "rating": 3, "evidence": "Correctly calculated 3/4 of the budget" },
+    { "skill_name": "Persuasive Writing", "rating": 2, "evidence": "Made a claim but didn't support with data" }
+  ],
   "encouragement": "1 sentence of specific encouragement",
   "next_steps": "1 question about what to explore next",
-  "sources_referenced": [{"title": "...", "url": "...", "trust_level": "trusted|review|unverified"}]
-}
+  "sources_referenced": [{"title": "string", "url": "string", "trust_level": "trusted|review|unverified"}]
+}`;
+
+    const text = await callAI({
+      systemPrompt: `${systemPrompt}
 
 Stage: ${stageTitle}
 ${stageDescription ? `Description: ${stageDescription}` : ''}
