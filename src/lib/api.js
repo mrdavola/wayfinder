@@ -1271,6 +1271,41 @@ Suggest 5-8 career connections as JSON:
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   },
+
+  async evaluateChallenge(challenge, studentResponse, studentProfile) {
+    const systemPrompt = `You evaluate an explorer's response to an expedition challenge. You are NOT a teacher grading a test. You are a field guide checking if the explorer can proceed.
+
+RULES:
+- NEVER use words like "correct," "incorrect," "grade," "score," "test," or "quiz"
+- Frame feedback as expedition narrative: "The bridge holds!" or "The signal clears!" for success
+- For failure: "The bridge wobbles... try adjusting your estimate" or "The signal is still garbled."
+- Be encouraging. Explorers learn by trying.
+
+Return ONLY valid JSON.`;
+
+    const userMessage = `Challenge type: ${challenge.challenge_type}
+Challenge: "${challenge.challenge_text}"
+Config: ${JSON.stringify(challenge.challenge_config)}
+Target skills: ${JSON.stringify(challenge.target_skill_ids || [])}
+Explorer: ${studentProfile?.name || 'Explorer'} (age ${studentProfile?.age || '10-14'})
+
+Explorer's response: "${studentResponse}"
+
+Evaluate as JSON:
+{
+  "is_successful": true/false,
+  "narrative_feedback": "1-2 sentences, adventure-framed. What the explorer sees.",
+  "skill_ratings": [
+    { "skill_name": "the skill assessed", "rating": 1-4, "evidence": "brief note" }
+  ],
+  "ep_awarded": ${challenge.ep_reward || 15} if successful, 5 if good attempt but not quite
+}`;
+
+    const raw = await callAI({ systemPrompt, userMessage, maxTokens: 512 });
+    try {
+      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    } catch { return { is_successful: false, narrative_feedback: 'The path ahead is unclear. Try again, explorer.', skill_ratings: [], ep_awarded: 0 }; }
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================
@@ -2051,6 +2086,92 @@ export const careerInsights = {
       .insert(rows)
       .select();
     if (error) { console.error('Bulk add career insights error:', error); return []; }
+    return data || [];
+  },
+};
+
+// ===================== EXPEDITION CHALLENGES =====================
+
+export const expeditionChallenges = {
+  async getForStage(stageId) {
+    const { data, error } = await supabase
+      .from('expedition_challenges')
+      .select('*')
+      .eq('stage_id', stageId)
+      .single();
+    if (error) return null;
+    return data;
+  },
+
+  async bulkCreate(challenges) {
+    const { data, error } = await supabase
+      .from('expedition_challenges')
+      .insert(challenges)
+      .select();
+    if (error) { console.error('Bulk create challenges error:', error); return []; }
+    return data || [];
+  },
+};
+
+// ===================== CHALLENGE RESPONSES =====================
+
+export const challengeResponses = {
+  async get(challengeId, studentId) {
+    const { data, error } = await supabase
+      .from('challenge_responses')
+      .select('*')
+      .eq('challenge_id', challengeId)
+      .eq('student_id', studentId)
+      .single();
+    if (error) return null;
+    return data;
+  },
+
+  async submit(response) {
+    const { data, error } = await supabase
+      .from('challenge_responses')
+      .upsert(response, { onConflict: 'challenge_id,student_id' })
+      .select()
+      .single();
+    if (error) { console.error('Submit response error:', error); return null; }
+    return data;
+  },
+};
+
+// ===================== SKILL ASSESSMENTS =====================
+
+export const skillAssessments = {
+  async getForStudent(studentId) {
+    const { data, error } = await supabase
+      .from('skill_assessments')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (error) { console.error('Get skill assessments error:', error); return []; }
+    return data || [];
+  },
+
+  async getForStudentGrouped(studentId) {
+    const { data, error } = await supabase
+      .from('skill_assessments')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (error) return {};
+    const grouped = {};
+    (data || []).forEach(a => {
+      if (!grouped[a.skill_name]) grouped[a.skill_name] = { latest: a, history: [] };
+      grouped[a.skill_name].history.push(a);
+    });
+    return grouped;
+  },
+
+  async bulkLog(assessments) {
+    const { data, error } = await supabase
+      .from('skill_assessments')
+      .insert(assessments)
+      .select();
+    if (error) { console.error('Bulk log assessments error:', error); return []; }
     return data || [];
   },
 };
