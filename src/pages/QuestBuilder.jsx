@@ -21,6 +21,7 @@ import {
   Search,
   Sparkles,
   Calendar,
+  Compass,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
@@ -2370,6 +2371,34 @@ function Step6Review({
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {stage.expedition_challenge && (
+                    <div style={{
+                      marginTop: 10, padding: '10px 12px', borderRadius: 8,
+                      border: '1.5px dashed var(--compass-gold)',
+                      background: 'rgba(184,134,11,0.04)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <Compass size={12} color="var(--compass-gold)" />
+                        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Expedition Challenge ({stage.expedition_challenge.challenge_type})
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12, color: 'var(--ink)', margin: 0, lineHeight: 1.5 }}>
+                        {stage.expedition_challenge.challenge_text}
+                      </p>
+                      {stage.expedition_challenge.target_skills?.length > 0 && (
+                        <div style={{ marginTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {stage.expedition_challenge.target_skills.map((skill, i) => (
+                            <span key={i} style={{
+                              padding: '2px 8px', borderRadius: 10, fontSize: 9,
+                              background: 'rgba(184,134,11,0.1)', color: 'var(--compass-gold)',
+                              fontFamily: 'var(--font-mono)',
+                            }}>{skill}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
