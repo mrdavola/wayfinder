@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { projectSuggestions as suggestionsApi } from '../lib/api';
+import { projectSuggestions as suggestionsApi, stallAlerts } from '../lib/api';
 import TopBar from '../components/layout/TopBar';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1569,6 +1569,7 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [projectIdeas, setProjectIdeas] = useState([]);
   const [ideasLoading, setIdeasLoading] = useState(true);
+  const [inactiveStudents, setInactiveStudents] = useState([]);
 
   const handleArchive = async (questId) => {
     await supabase.from('quests').update({ status: 'archived' }).eq('id', questId);
@@ -1623,6 +1624,12 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
       setIdeasLoading(false);
     }
     fetchIdeas();
+  }, [user?.id]);
+
+  // Fetch inactive / stalled students
+  useEffect(() => {
+    if (!user?.id) return;
+    stallAlerts.getInactiveStudents(user.id, 3).then(setInactiveStudents);
   }, [user?.id]);
 
   return (
@@ -1776,6 +1783,43 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
           {completedQuests.map((q) => (
             <QuestCard key={q.id} quest={q} onArchive={handleArchive} onDelete={handleDelete} />
           ))}
+        </div>
+      )}
+
+      {/* Student Pulse — inactive / stalled learners */}
+      {inactiveStudents.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', marginBottom: 12 }}>
+            Student Pulse
+          </h2>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {inactiveStudents.map(s => (
+              <div key={s.student_id} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                background: s.days_inactive >= 7 ? 'rgba(200,50,50,0.04)' : 'rgba(184,134,11,0.04)',
+                border: `1px solid ${s.days_inactive >= 7 ? 'rgba(200,50,50,0.15)' : 'rgba(184,134,11,0.15)'}`,
+                borderRadius: 8,
+              }}>
+                <span style={{ fontSize: 20 }}>{s.avatar_emoji || '🧭'}</span>
+                <div style={{ flex: 1 }}>
+                  <Link to={`/students/${s.student_id}`} style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
+                    {s.student_name}
+                  </Link>
+                  <div style={{ fontSize: 10, color: s.days_inactive >= 7 ? 'var(--specimen-red)' : 'var(--compass-gold)' }}>
+                    {s.days_inactive >= 999 ? 'Never active' : `${s.days_inactive} days since last activity`}
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 10,
+                  background: s.days_inactive >= 7 ? 'rgba(200,50,50,0.1)' : 'rgba(184,134,11,0.1)',
+                  color: s.days_inactive >= 7 ? 'var(--specimen-red)' : 'var(--compass-gold)',
+                  fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                }}>
+                  {s.days_inactive >= 7 ? 'Stalled' : 'Drifting'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
