@@ -1387,6 +1387,131 @@ Analyze balance and return JSON:
       return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
     } catch { return { coverage_pct: 0, domain_breakdown: {}, gap_outcomes: [], suggestions: [] }; }
   },
+
+  async generateBranchingQuest(params) {
+    const { students, standards, pathway, type, count, studentStandardsProfiles, additionalContext, projectMode } = params;
+
+    const systemPrompt = WAYFINDER_SYSTEM_PROMPT + `
+You generate BRANCHING project experiences — narrative trees where student choices determine their path.
+
+STRUCTURE RULES:
+- Start with 1-2 linear stages (setup/introduction)
+- Include 1-2 BRANCH POINTS (choice_fork stages) where the student picks a path
+- Each branch leads to 2-3 different stages
+- Branches MAY reconverge at a final stage (both paths lead to the same conclusion) OR end differently
+- Total stages: 6-10 (student experiences ~5-6 of them depending on choices)
+- Every path through the tree must cover the core academic standards
+- Different paths emphasize different aspects (e.g., one is more creative, another more analytical)
+
+STAGE NUMBERING:
+- Use sequential numbers (1, 2, 3...) for ALL stages including branch variants
+- Branch stages use letters: 3A, 3B for the two options after a branch point at stage 2
+- Reconvergence stage gets the next number after all branches
+
+OUTPUT FORMAT:
+Return a JSON object with stages as an array. Each stage has a "next" field:
+- Linear stages: "next": "4" (just the next stage number as string)
+- Branch points (choice_fork): "next": null, "branches": [{"label": "...", "description": "...", "next_stage": "3A"}, {"label": "...", "description": "...", "next_stage": "3B"}]
+- Final stage: "next": null (quest complete)
+
+NARRATIVE FEEL:
+- Each branch should feel like a genuinely different adventure, not just the same task with different words
+- Branch descriptions should make both options sound exciting — no "right" or "wrong" choice
+- The narrative should make the student feel like an explorer choosing their own path
+
+${SAFETY_PREAMBLE}`;
+
+    const studentProfiles = students.map(s =>
+      `${s.name} (age ${s.age || '?'}, grade ${s.grade_level || '?'}) — interests: ${(s.interests || s.passions || []).join(', ')}`
+    ).join('\n');
+
+    const userMessage = `Students:\n${studentProfiles}
+
+Academic Standards: ${standards || 'general learning'}
+Career Pathway: ${pathway || 'none'}
+Project Mode: ${projectMode || 'mixed'}
+${additionalContext ? `Guide's context: ${additionalContext}` : ''}
+
+Generate a BRANCHING quest as JSON:
+{
+  "quest_title": "...",
+  "quest_subtitle": "...",
+  "narrative_hook": "...",
+  "is_branching": true,
+  "total_duration": 10,
+  "stages": [
+    {
+      "stage_id": "1",
+      "stage_title": "...",
+      "stage_type": "research",
+      "duration": 2,
+      "description": "...",
+      "deliverable": "...",
+      "guiding_questions": ["..."],
+      "resources_needed": ["..."],
+      "academic_skills_embedded": ["..."],
+      "next": "2",
+      "expedition_challenge": null
+    },
+    {
+      "stage_id": "2",
+      "stage_title": "Choose Your Path",
+      "stage_type": "choice_fork",
+      "duration": 1,
+      "description": "The expedition reaches a crossroads...",
+      "deliverable": null,
+      "next": null,
+      "branches": [
+        { "label": "Follow the river", "description": "Track the water source...", "next_stage": "3A" },
+        { "label": "Scale the ridge", "description": "Climb for a better view...", "next_stage": "3B" }
+      ]
+    },
+    {
+      "stage_id": "3A",
+      "stage_title": "River Exploration",
+      "stage_type": "experiment",
+      "duration": 2,
+      "description": "...",
+      "deliverable": "...",
+      "guiding_questions": ["..."],
+      "resources_needed": ["..."],
+      "academic_skills_embedded": ["..."],
+      "next": "4"
+    },
+    {
+      "stage_id": "3B",
+      "stage_title": "Ridge Survey",
+      "stage_type": "research",
+      "duration": 2,
+      "description": "...",
+      "deliverable": "...",
+      "guiding_questions": ["..."],
+      "resources_needed": ["..."],
+      "academic_skills_embedded": ["..."],
+      "next": "4"
+    },
+    {
+      "stage_id": "4",
+      "stage_title": "Final Expedition Report",
+      "stage_type": "present",
+      "duration": 2,
+      "description": "...",
+      "deliverable": "...",
+      "guiding_questions": ["..."],
+      "resources_needed": ["..."],
+      "academic_skills_embedded": ["..."],
+      "next": null
+    }
+  ],
+  "reflection_prompts": ["..."],
+  "parent_summary": "..."
+}`;
+
+    const raw = await callAI({ systemPrompt, userMessage, maxTokens: 4096 });
+    try {
+      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    } catch { return null; }
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================
