@@ -26,7 +26,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges, stageBranches } from '../lib/api';
+import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges, stageBranches, generateWorldImage, uploadWorldScene } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
@@ -2055,6 +2055,86 @@ function Step6Review({
         </div>
       )}
 
+      {/* World Preview */}
+      {generatedQuest._worldScene && (
+        <div style={{
+          marginBottom: 20, borderRadius: 12, overflow: 'hidden',
+          border: `1px solid ${T.pencil}`, background: T.paper,
+        }}>
+          <div style={{
+            padding: '10px 14px', borderBottom: `1px solid ${T.parchment}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Immersive World Preview
+            </span>
+            <button
+              onClick={async () => {
+                const si = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
+                setGeneratedQuest(prev => ({ ...prev, _worldScene: { ...prev._worldScene, _imageBase64: null } }));
+                try {
+                  const sceneData = await ai.generateWorldScene({
+                    questTitle: generatedQuest.quest_title, stages: generatedQuest.stages,
+                    studentInterests: si, careerPathway: selectedPathways[0] || 'none',
+                    gradeBand: selectedStudents[0]?.grade_band || '6-8',
+                  });
+                  if (sceneData) {
+                    const image = await generateWorldImage(sceneData.image_prompt);
+                    setGeneratedQuest(prev => prev ? ({
+                      ...prev, _worldScene: { ...sceneData, _imageBase64: image?.base64, _imageMime: image?.mimeType },
+                    }) : prev);
+                  }
+                } catch (err) { console.error('World regeneration failed:', err); }
+              }}
+              style={{
+                padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+                background: 'transparent', color: T.graphite, fontSize: 11,
+                fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              <RefreshCw size={11} /> Regenerate
+            </button>
+          </div>
+          {generatedQuest._worldScene._imageBase64 ? (
+            <div style={{ position: 'relative' }}>
+              <img
+                src={`data:${generatedQuest._worldScene._imageMime || 'image/png'};base64,${generatedQuest._worldScene._imageBase64}`}
+                alt="World preview"
+                style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
+              />
+              <div style={{ position: 'absolute', inset: 0 }}>
+                {(generatedQuest._worldScene.hotspots || []).map((h, i) => {
+                  const leftPct = ((h.position.yaw + 180) / 360) * 100;
+                  const topPct = 50 - (h.position.pitch / 30) * 20;
+                  return (
+                    <div key={i} style={{
+                      position: 'absolute', left: `${leftPct}%`, top: `${topPct}%`,
+                      transform: 'translate(-50%, -50%)',
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: T.compassGold, border: '2px solid white',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 700, color: 'white',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    }}>
+                      {h.stage_number}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 24, textAlign: 'center', color: T.pencil, fontSize: 13 }}>
+              World image is generating...
+            </div>
+          )}
+          {generatedQuest._worldScene.scene_description && (
+            <div style={{ padding: '8px 14px', fontSize: 12, color: T.graphite, fontStyle: 'italic' }}>
+              {generatedQuest._worldScene.scene_description}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Quest header */}
       <div
         style={{
@@ -2973,6 +3053,28 @@ export default function QuestBuilder() {
       setProgress(100);
       setGeneratedQuest(questData);
 
+      // Fire off world scene generation in background (non-blocking)
+      const studentInterests = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
+      ai.generateWorldScene({
+        questTitle: questData.quest_title,
+        stages: questData.stages,
+        studentInterests,
+        careerPathway: pathwayLabels[0] || 'none',
+        gradeBand: selectedStudents[0]?.grade_band || '6-8',
+      }).then(async sceneData => {
+        if (!sceneData) return;
+        try {
+          const image = await generateWorldImage(sceneData.image_prompt);
+          setGeneratedQuest(prev => prev ? ({
+            ...prev,
+            _worldScene: { ...sceneData, _imageBase64: image?.base64 || null, _imageMime: image?.mimeType || null },
+          }) : prev);
+        } catch {
+          // Image generation failed — still save hotspot data
+          setGeneratedQuest(prev => prev ? ({ ...prev, _worldScene: sceneData }) : prev);
+        }
+      }).catch(() => {});
+
       // Auto-advance after 600ms
       setTimeout(() => setStep(6), 600);
     } catch (err) {
@@ -3114,6 +3216,20 @@ export default function QuestBuilder() {
             }
           } catch (e) {
             console.warn('Expedition challenges save failed (non-blocking):', e);
+          }
+
+          // Upload world scene image and save to quest (non-blocking)
+          if (generatedQuest._worldScene?._imageBase64) {
+            try {
+              const sceneUrl = await uploadWorldScene(quest.id, generatedQuest._worldScene._imageBase64, generatedQuest._worldScene._imageMime);
+              await supabase.from('quests').update({
+                world_scene_url: sceneUrl,
+                world_hotspots: generatedQuest._worldScene.hotspots || [],
+                world_scene_prompt: generatedQuest._worldScene.image_prompt || '',
+              }).eq('id', quest.id);
+            } catch (e) {
+              console.warn('World scene save failed (non-blocking):', e);
+            }
           }
 
           // Save branch relationships for branching quests (non-blocking)

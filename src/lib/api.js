@@ -2892,3 +2892,6 @@ export const studentPaths = {
     return data;
   },
 };
+
+// Named exports for world scene utilities
+export { generateWorldImage, uploadWorldScene };
