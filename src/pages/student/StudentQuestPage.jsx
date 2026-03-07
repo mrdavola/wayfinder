@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
-import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments } from '../../lib/api';
+import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments, buddyPairs, buddyMessages } from '../../lib/api';
 import ExpeditionChallenge from '../../components/gamified/ExpeditionChallenge';
 import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
 import TreasureMap from '../../components/map/TreasureMap';
@@ -2294,6 +2294,13 @@ export default function StudentQuestPage() {
   const [stageChallenges, setStageChallenges] = useState({});
   const [challengeResponseMap, setChallengeResponseMap] = useState({});
 
+  // Buddy state
+  const [buddy, setBuddy] = useState(null);
+  const [buddyPair, setBuddyPair] = useState(null);
+  const [buddyMsgs, setBuddyMsgs] = useState([]);
+  const [nudgeMessage, setNudgeMessage] = useState('');
+  const [showBuddyChat, setShowBuddyChat] = useState(false);
+
   // Load quest
   useEffect(() => {
     if (!id) return;
@@ -2386,6 +2393,33 @@ export default function StudentQuestPage() {
     if (!studentProfile?.id) return;
     xp.getStudentXP(studentProfile.id).then(setXpData);
   }, [studentProfile?.id]);
+
+  // Load buddy pair
+  useEffect(() => {
+    const studentId = studentProfile?.id;
+    if (!studentId) return;
+    const loadBuddy = async () => {
+      const pair = await buddyPairs.getForStudent(studentId);
+      if (pair) {
+        setBuddyPair(pair);
+        const buddyStudent = pair.student_a_id === studentId ? pair.student_b : pair.student_a;
+        setBuddy(buddyStudent);
+        const msgs = await buddyMessages.getForPair(pair.id);
+        setBuddyMsgs(msgs);
+      }
+    };
+    loadBuddy();
+  }, [studentProfile?.id]);
+
+  const handleSendNudge = async (msg) => {
+    const studentId = studentProfile?.id;
+    if (!buddyPair || !msg.trim() || !studentId) return;
+    const sent = await buddyMessages.send(buddyPair.id, studentId, msg);
+    if (sent) {
+      setBuddyMsgs(prev => [...prev, sent]);
+      setNudgeMessage('');
+    }
+  };
 
   useEffect(() => {
     if (!quest?.id) return;
@@ -2833,6 +2867,15 @@ export default function StudentQuestPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {buddy && (
+            <button onClick={() => setShowBuddyChat(!showBuddyChat)} style={{
+              display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
+              borderRadius: 20, border: '1px solid var(--pencil)', background: showBuddyChat ? 'rgba(184,134,11,0.06)' : 'var(--chalk)',
+              color: 'var(--ink)', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)',
+            }}>
+              <span>{buddy.avatar_emoji || '🧭'}</span> Buddy: {buddy.name}
+            </button>
+          )}
           <span className="sq-topbar-badge" style={{
             fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
             letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -2894,6 +2937,56 @@ export default function StudentQuestPage() {
           </button>
         </div>
       </header>
+
+      {/* Buddy chat panel */}
+      {showBuddyChat && buddy && (
+        <div style={{
+          margin: '8px 16px 16px', padding: 12, background: 'var(--chalk)',
+          border: '1px solid var(--pencil)', borderRadius: 10,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+            Messages with {buddy.name}
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+            {['Hey, your expedition misses you!', 'Want to work on our projects together?', 'I just finished a stage — you got this!'].map(tmpl => (
+              <button key={tmpl} onClick={() => handleSendNudge(tmpl)} style={{
+                padding: '4px 10px', borderRadius: 14, border: '1px solid var(--pencil)',
+                background: 'var(--paper)', color: 'var(--graphite)', fontSize: 10,
+                cursor: 'pointer', fontFamily: 'var(--font-body)',
+              }}>
+                {tmpl}
+              </button>
+            ))}
+          </div>
+          <div style={{ maxHeight: 120, overflowY: 'auto', marginBottom: 8 }}>
+            {buddyMsgs.map(msg => (
+              <div key={msg.id} style={{
+                padding: '4px 0', fontSize: 11, color: 'var(--ink)',
+                textAlign: msg.sender_id === studentProfile?.id ? 'right' : 'left',
+              }}>
+                <span style={{ fontWeight: 600, fontSize: 10, color: 'var(--graphite)' }}>
+                  {msg.sender?.name || (msg.sender_id === studentProfile?.id ? 'You' : buddy.name)}
+                </span>
+                <div>{msg.message}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input value={nudgeMessage} onChange={e => setNudgeMessage(e.target.value)}
+              placeholder="Send encouragement..." onKeyDown={e => e.key === 'Enter' && handleSendNudge(nudgeMessage)}
+              style={{
+                flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--pencil)',
+                fontSize: 11, fontFamily: 'var(--font-body)', outline: 'none',
+              }}
+            />
+            <button onClick={() => handleSendNudge(nudgeMessage)} style={{
+              padding: '6px 12px', borderRadius: 6, border: 'none',
+              background: 'var(--compass-gold)', color: 'white', fontSize: 11,
+              fontWeight: 600, cursor: 'pointer',
+            }}>Send</button>
+          </div>
+        </div>
+      )}
 
       {/* Quest header */}
       <div style={{ background: 'var(--chalk)', borderBottom: '1px solid var(--pencil)', padding: isMobile ? '12px 14px' : '18px 22px' }}>
