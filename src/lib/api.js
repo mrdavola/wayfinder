@@ -1092,6 +1092,79 @@ ${typeInstructions[interactiveType] || ''}`;
       return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
     } catch { return {}; }
   },
+
+  async generateYearPlan(studentProfile, outcomes, existingCoverage = []) {
+    const systemPrompt = `You are a year-plan advisor for a learner-driven school. Generate project IDEAS (not full projects) for a student's year. Each idea should be compelling, age-appropriate, and cover specific learning outcomes.
+
+IMPORTANT:
+- Generate 15-20 diverse project ideas
+- Each should target 2-4 specific outcomes from the provided list
+- Consider the student's interests, passions, and skill levels
+- Vary project types: hands-on, digital, mixed
+- Include estimated duration (1-4 weeks each)
+- Flag which outcomes are NOT yet covered so the guide can fill gaps
+- Include sources for any real-world problems referenced
+
+Return ONLY valid JSON.`;
+
+    const userMessage = `Student: ${studentProfile.name}
+Age/Grade: ${studentProfile.age || 'unknown'} / ${studentProfile.grade_band || 'unknown'}
+Interests: ${studentProfile.interests?.join(', ') || studentProfile.passions?.join(', ') || 'not specified'}
+About: ${studentProfile.about_me || 'not specified'}
+
+Target outcomes for the year:
+${outcomes.map(o => `- ${o.standard_code || o.label}: ${o.label || o.standard_description || ''}`).join('\n')}
+
+Already covered by existing projects:
+${existingCoverage.length ? existingCoverage.map(c => `- ${c.label}`).join('\n') : 'None yet'}
+
+Generate 15-20 project ideas as JSON:
+[{
+  "title": "Project title",
+  "description": "2-3 sentence description",
+  "target_standards": [{"code": "std_code", "label": "Standard label"}],
+  "estimated_weeks": 2,
+  "interest_tags": ["tag1", "tag2"],
+  "interest_alignment": 0.85,
+  "rationale": "Why this project fits this student",
+  "month_suggestion": "September",
+  "sources": [{"title": "...", "url": "...", "trust_level": "trusted|review|unverified"}]
+}]`;
+
+    const raw = await callAI({ systemPrompt, userMessage, maxTokens: 4096 });
+    try {
+      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  },
+
+  async reassessYearPlan(planItems, completedQuests, remainingOutcomes, studentProfile) {
+    const systemPrompt = `You reassess a student's year plan after project completion. Suggest swaps or adjustments based on what was learned, what's still needed, and how the student has grown.
+
+Return ONLY valid JSON.`;
+
+    const userMessage = `Student: ${studentProfile.name}
+Current plan items: ${JSON.stringify(planItems.map(i => ({ title: i.title, status: i.status, target_standards: i.target_standards })))}
+
+Recently completed:
+${completedQuests.map(q => `- "${q.title}" — covered: ${q.academic_standards?.join(', ') || 'unknown'}`).join('\n')}
+
+Remaining uncovered outcomes:
+${remainingOutcomes.map(o => `- ${o.label}`).join('\n')}
+
+Suggest adjustments as JSON:
+{
+  "assessment": "1-2 sentence overview of progress",
+  "swap_suggestions": [{"remove_item_title": "...", "replace_with": {"title": "...", "description": "...", "target_standards": [...], "rationale": "..."}}],
+  "additions": [{"title": "...", "description": "...", "target_standards": [...], "rationale": "..."}],
+  "coverage_after": {"covered_count": 0, "total_count": 0, "gaps": ["uncovered outcome labels"]}
+}`;
+
+    const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
+    try {
+      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    } catch { return { assessment: 'Unable to assess at this time.', swap_suggestions: [], additions: [], coverage_after: null }; }
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================
@@ -1745,5 +1818,99 @@ export const sourceOverrides = {
       .single();
     if (error) { console.error('Set override error:', error); return null; }
     return data;
+  },
+};
+
+// ===================== YEAR PLANS =====================
+
+export const yearPlans = {
+  async getForGuide(guideId) {
+    const { data, error } = await supabase
+      .from('year_plans')
+      .select('*, students(id, name, avatar_emoji), year_plan_items(*)')
+      .eq('guide_id', guideId)
+      .order('created_at', { ascending: false });
+    if (error) { console.error('Get year plans error:', error); return []; }
+    return data || [];
+  },
+
+  async getById(planId) {
+    const { data, error } = await supabase
+      .from('year_plans')
+      .select('*, students(id, name, avatar_emoji, about_me, passions, interests), year_plan_items(*, quests(id, title, status))')
+      .eq('id', planId)
+      .single();
+    if (error) { console.error('Get year plan error:', error); return null; }
+    if (data?.year_plan_items) {
+      data.year_plan_items.sort((a, b) => a.position - b.position);
+    }
+    return data;
+  },
+
+  async create(guideId, studentId, schoolId, schoolYear) {
+    const { data, error } = await supabase
+      .from('year_plans')
+      .insert({ guide_id: guideId, student_id: studentId, school_id: schoolId, school_year: schoolYear })
+      .select()
+      .single();
+    if (error) { console.error('Create year plan error:', error); return null; }
+    return data;
+  },
+
+  async update(planId, updates) {
+    const { data, error } = await supabase
+      .from('year_plans')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', planId)
+      .select()
+      .single();
+    if (error) { console.error('Update year plan error:', error); return null; }
+    return data;
+  },
+
+  async delete(planId) {
+    const { error } = await supabase.from('year_plans').delete().eq('id', planId);
+    if (error) { console.error('Delete year plan error:', error); }
+    return !error;
+  },
+};
+
+export const yearPlanItems = {
+  async add(planId, item) {
+    const { data, error } = await supabase
+      .from('year_plan_items')
+      .insert({ plan_id: planId, ...item })
+      .select()
+      .single();
+    if (error) { console.error('Add plan item error:', error); return null; }
+    return data;
+  },
+
+  async update(itemId, updates) {
+    const { data, error } = await supabase
+      .from('year_plan_items')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', itemId)
+      .select()
+      .single();
+    if (error) { console.error('Update plan item error:', error); return null; }
+    return data;
+  },
+
+  async remove(itemId) {
+    const { error } = await supabase.from('year_plan_items').delete().eq('id', itemId);
+    if (error) { console.error('Remove plan item error:', error); }
+    return !error;
+  },
+
+  async reorder(planId, orderedIds) {
+    const updates = orderedIds.map((id, i) =>
+      supabase.from('year_plan_items').update({ position: i }).eq('id', id)
+    );
+    await Promise.all(updates);
+  },
+
+  async linkToQuest(itemId, questId) {
+    return this.update(itemId, { quest_id: questId, status: 'active' });
   },
 };
