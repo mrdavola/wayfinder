@@ -56,11 +56,12 @@ export default function TreasureMap({
         padding: '4px 0',
       }}
     >
+      <div style={{ display: 'flex', justifyContent: 'center', minWidth: svgWidth }}>
       <svg
         width={svgWidth}
         height={SVG_HEIGHT}
         viewBox={`0 0 ${svgWidth} ${SVG_HEIGHT}`}
-        style={{ display: 'block', minWidth: svgWidth }}
+        style={{ display: 'block' }}
       >
         {/* Connecting paths */}
         {stages.map((stage, i) => {
@@ -128,6 +129,7 @@ export default function TreasureMap({
           );
         })}
       </svg>
+      </div>
     </div>
   );
 }
