@@ -25,7 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems } from '../lib/api';
+import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
@@ -2989,6 +2989,27 @@ export default function QuestBuilder() {
                 console.warn(`Interactive data generation failed for stage ${stage.stage_number}:`, e);
               }
             }
+          }
+
+          // Save expedition challenges
+          const challengesToSave = [];
+          savedStages.forEach(saved => {
+            const originalStage = generatedQuest.stages.find(s => s.stage_number === saved.stage_number);
+            if (originalStage?.expedition_challenge) {
+              const ec = originalStage.expedition_challenge;
+              challengesToSave.push({
+                stage_id: saved.id,
+                challenge_type: ec.challenge_type || 'estimate',
+                challenge_text: ec.challenge_text,
+                challenge_config: ec.challenge_config || {},
+                target_skill_ids: ec.target_skills || [],
+                difficulty: ec.difficulty || 'standard',
+                ep_reward: 15,
+              });
+            }
+          });
+          if (challengesToSave.length > 0) {
+            await expeditionChallenges.bulkCreate(challengesToSave);
           }
         }
       }
