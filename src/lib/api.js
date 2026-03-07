@@ -2339,3 +2339,86 @@ export const stallAlerts = {
     if (error) console.error('Flag parent error:', error);
   },
 };
+
+// ===================== COMMUNITY REPOSITORY =====================
+
+export const communityProjects = {
+  async listForSchool(schoolId, { pathway, gradeBand, sortBy } = {}) {
+    let query = supabase
+      .from('community_projects')
+      .select('*, shared_by_profile:profiles!community_projects_shared_by_fkey(id, full_name)');
+    if (schoolId) query = query.eq('school_id', schoolId);
+    if (pathway) query = query.contains('tags', [pathway]);
+    if (gradeBand) query = query.eq('grade_band', gradeBand);
+    if (sortBy === 'rating') query = query.order('avg_rating', { ascending: false });
+    else if (sortBy === 'popular') query = query.order('use_count', { ascending: false });
+    else query = query.order('created_at', { ascending: false });
+    const { data, error } = await query;
+    if (error) { console.error('List community projects error:', error); return []; }
+    return data || [];
+  },
+
+  async share(questId, schoolId, sharedBy, { title, description, tags, gradeBand, projectMode, careerPathway }) {
+    const { data, error } = await supabase
+      .from('community_projects')
+      .insert({
+        quest_id: questId, school_id: schoolId, shared_by: sharedBy,
+        title, description, tags, grade_band: gradeBand,
+        project_mode: projectMode, career_pathway: careerPathway,
+      })
+      .select()
+      .single();
+    if (error) { console.error('Share project error:', error); return null; }
+    return data;
+  },
+
+  async incrementUsage(projectId) {
+    const { data } = await supabase
+      .from('community_projects')
+      .select('use_count')
+      .eq('id', projectId)
+      .single();
+    if (data) {
+      await supabase
+        .from('community_projects')
+        .update({ use_count: (data.use_count || 0) + 1 })
+        .eq('id', projectId);
+    }
+  },
+};
+
+export const communityReviews = {
+  async getForProject(projectId) {
+    const { data, error } = await supabase
+      .from('community_reviews')
+      .select('*, reviewer:profiles!community_reviews_reviewer_id_fkey(id, full_name)')
+      .eq('community_project_id', projectId)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  },
+
+  async submit(projectId, reviewerId, rating, reviewText) {
+    const { data, error } = await supabase
+      .from('community_reviews')
+      .upsert(
+        { community_project_id: projectId, reviewer_id: reviewerId, rating, review_text: reviewText },
+        { onConflict: 'community_project_id,reviewer_id' }
+      )
+      .select()
+      .single();
+    if (error) { console.error('Submit review error:', error); return null; }
+
+    // Update avg_rating on the community project
+    const { data: reviews } = await supabase
+      .from('community_reviews')
+      .select('rating')
+      .eq('community_project_id', projectId);
+    if (reviews?.length > 0) {
+      const avg = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+      await supabase.from('community_projects').update({ avg_rating: Math.round(avg * 10) / 10 }).eq('id', projectId);
+    }
+
+    return data;
+  },
+};
