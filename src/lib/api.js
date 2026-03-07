@@ -2247,3 +2247,95 @@ export const masteryMap = {
     return { assessments, studentSkills: studentSkillsData, snapshots, quests, connections };
   },
 };
+
+// ===================== ACCOUNTABILITY BUDDIES =====================
+
+export const buddyPairs = {
+  async getForStudent(studentId) {
+    const { data, error } = await supabase
+      .from('buddy_pairs')
+      .select('*, student_a:students!buddy_pairs_student_a_id_fkey(id, name, avatar_emoji), student_b:students!buddy_pairs_student_b_id_fkey(id, name, avatar_emoji)')
+      .or(`student_a_id.eq.${studentId},student_b_id.eq.${studentId}`)
+      .eq('status', 'active')
+      .single();
+    if (error) return null;
+    return data;
+  },
+
+  async getForSchool(schoolId) {
+    const { data, error } = await supabase
+      .from('buddy_pairs')
+      .select('*, student_a:students!buddy_pairs_student_a_id_fkey(id, name, avatar_emoji), student_b:students!buddy_pairs_student_b_id_fkey(id, name, avatar_emoji)')
+      .eq('school_id', schoolId)
+      .eq('status', 'active');
+    if (error) return [];
+    return data || [];
+  },
+
+  async create(studentAId, studentBId, schoolId) {
+    const { data, error } = await supabase
+      .from('buddy_pairs')
+      .insert({ student_a_id: studentAId, student_b_id: studentBId, school_id: schoolId })
+      .select()
+      .single();
+    if (error) { console.error('Create buddy pair error:', error); return null; }
+    return data;
+  },
+
+  async end(pairId) {
+    const { error } = await supabase
+      .from('buddy_pairs')
+      .update({ status: 'ended' })
+      .eq('id', pairId);
+    if (error) console.error('End buddy pair error:', error);
+  },
+};
+
+export const buddyMessages = {
+  async getForPair(pairId) {
+    const { data, error } = await supabase
+      .from('buddy_messages')
+      .select('*, sender:students!buddy_messages_sender_id_fkey(id, name, avatar_emoji)')
+      .eq('pair_id', pairId)
+      .order('created_at', { ascending: true });
+    if (error) return [];
+    return data || [];
+  },
+
+  async send(pairId, senderId, message, isTemplate = false) {
+    const { data, error } = await supabase
+      .from('buddy_messages')
+      .insert({ pair_id: pairId, sender_id: senderId, message, is_template: isTemplate })
+      .select()
+      .single();
+    if (error) { console.error('Send buddy message error:', error); return null; }
+    return data;
+  },
+};
+
+export const stallAlerts = {
+  async getInactiveStudents(guideId, daysThreshold = 3) {
+    const { data, error } = await supabase.rpc('get_inactive_students', {
+      p_guide_id: guideId,
+      p_days_threshold: daysThreshold,
+    });
+    if (error) { console.error('Get inactive students error:', error); return []; }
+    return data || [];
+  },
+
+  async dismiss(alertId) {
+    const { error } = await supabase
+      .from('stall_alerts')
+      .update({ status: 'dismissed' })
+      .eq('id', alertId);
+    if (error) console.error('Dismiss alert error:', error);
+  },
+
+  async flagParent(alertId) {
+    const { error } = await supabase
+      .from('stall_alerts')
+      .update({ status: 'flagged_parent', parent_flagged_at: new Date().toISOString() })
+      .eq('id', alertId);
+    if (error) console.error('Flag parent error:', error);
+  },
+};
