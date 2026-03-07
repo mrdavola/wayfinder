@@ -524,13 +524,24 @@ Rules:
 - Project must be multidisciplinary
 - Stage descriptions should read like project briefs, not storybook pages
 - Titles should sound professional and exciting, not like fantasy game levels
-- REQUIRED: At least one stage MUST be of type 'simulate'. A simulation puts the student in a real professional scenario where they role-play as someone in that career (e.g., presenting to a client, making a design decision under constraints, defending their approach to stakeholders).
+- REQUIRED: At least one stage MUST have stage_type "simulate". A simulation stage puts the student in a realistic professional scenario — role-playing a real career situation (presenting to a client, making a design decision, defending their approach to stakeholders). This is NOT optional.
+- For academic_skills_embedded, you MUST use the EXACT standard codes provided in the academic standards input (e.g., '5.G.A.1', 'W.5.2', 'NGSS.ESS'). Do NOT paraphrase or describe them — use the code strings exactly as given.
+- Every standard provided in the input MUST appear in at least one stage's academic_skills_embedded array.
 - Incorporate specific student passions into scenarios and stage contexts
 - For group quests, assign roles that leverage individual strengths
 - If parent expectations or learning outcomes are provided, align the quest with high-priority outcomes where natural
 - Calibrate guiding questions to student proficiency levels when available
 - Include a stretch_challenge for stages 4+ that pushes deeper analysis or synthesis
 - stretch_challenge should be null for early stages (1-3)
+
+LANGUAGE ADAPTATION (CRITICAL):
+Adapt ALL student-facing language to the learner's grade level:
+- K-2 (ages 5-8): Simple sentences, familiar words, max 2 syllables where possible. Short paragraphs.
+- 3-5 (ages 8-11): Clear language, define any advanced terms inline. Moderate sentence length.
+- 6-8 (ages 11-14): Can use subject-specific vocabulary with context. More complex sentence structures OK.
+- 9-12 (ages 14-18): Academic language appropriate. Technical terms expected.
+Use the student's grade_band from their profile to calibrate.
+
 - For each stage, include a "sources" array with any real-world references used in the description, guiding questions, or deliverable. Prefer Tier 1 sources. If a stage uses no external references, use an empty array.${useRealWorld ? `
 
 REAL-WORLD INTEGRATION:
@@ -605,6 +616,8 @@ ${guidingQuestions?.length ? `Guiding questions: ${guidingQuestions.join('; ')}`
 ${deliverable ? `Deliverable: ${deliverable}` : ''}
 ${profileContext ? `\nStudent profile:\n${profileContext}` : ''}${depthGuidance}
 
+Adapt language complexity to the student's grade level (K-2: simple words, 3-5: clear language, 6-8: subject vocabulary OK, 9-12: academic language).
+
 When making factual claims in your response, note the source. Format: "According to [Source](url), ...". If you cannot cite a source, say "Based on what I know" to signal it's AI-generated.
 
 SKILL PROBING (do this naturally, never announce it):
@@ -640,6 +653,8 @@ The student NEVER sees this block — it is stripped before display.`;
     ].filter(Boolean).join(', ') : '';
 
     const systemPrompt = `You review a learner's project submission. Give warm, specific, encouraging feedback.
+
+Adapt language complexity to the student's grade level (K-2: simple words, 3-5: clear language, 6-8: subject vocabulary OK, 9-12: academic language).
 
 FEEDBACK STYLE: warm-cool-warm (start positive, note growth area, end encouraging).
 NEVER use: "grade," "score," "test," "assessment," "rubric," "correct/incorrect"
@@ -707,6 +722,8 @@ Skills demonstrated in this submission: ${(skillsDemonstrated || []).join(', ')}
     const profileStr = studentProfile ? `Student: ${studentProfile.name || 'student'}${studentProfile.interests?.length ? `, interests: ${studentProfile.interests.join(', ')}` : ''}` : '';
     return callAI({
       systemPrompt: `You are "The Challenger" — a sharp, direct mentor in Wayfinder who pushes students to think harder. Challenge assumptions with a direct but warm tone. Ask exactly ONE challenging question that flips an assumption or exposes a gap in their thinking — the kind of question a real professional reviewer or client might ask. 2-3 sentences max. Never undermine — challenge to strengthen. Be respectful but pointed. Start with something like "Hold on..." or "Wait a moment..." or "Not so fast..."
+
+Adapt language complexity to the student's grade level (K-2: simple words, 3-5: clear language, 6-8: subject vocabulary OK, 9-12: academic language).
 
 Stage: ${stageTitle}
 ${stageDescription ? `Context: ${stageDescription}` : ''}
@@ -1318,6 +1335,8 @@ Suggest 5-8 career connections as JSON:
   async evaluateChallenge(challenge, studentResponse, studentProfile) {
     const systemPrompt = `You evaluate a student's response to a project challenge. You are NOT a teacher grading a test. You are a mentor checking if the student is ready to move forward.
 
+Adapt language complexity to the student's grade level (K-2: simple words, 3-5: clear language, 6-8: subject vocabulary OK, 9-12: academic language).
+
 RULES:
 - NEVER use words like "correct," "incorrect," "grade," "score," "test," or "quiz"
 - Frame feedback as real-world outcomes: "The system is back online!" or "The data checks out!" for success
@@ -1413,6 +1432,18 @@ STRUCTURE RULES:
 - Total stages: 6-10 (student experiences ~5-6 of them depending on choices)
 - Every path through the tree must cover the core academic standards
 - Different paths emphasize different aspects (e.g., one is more creative, another more analytical)
+- Choice fork (choice_fork) stages MUST include guiding_questions that help the student think about which path to choose. Example: ["What aspect of this problem interests you most?", "Do you prefer hands-on building or analytical research?"]
+- REQUIRED: At least one stage MUST have stage_type "simulate". A simulation stage puts the student in a realistic professional scenario — role-playing a real career situation (presenting to a client, making a design decision, defending their approach to stakeholders). This is NOT optional.
+- For academic_skills_embedded, you MUST use the EXACT standard codes provided in the academic standards input (e.g., '5.G.A.1', 'W.5.2', 'NGSS.ESS'). Do NOT paraphrase or describe them — use the code strings exactly as given.
+- Every standard provided in the input MUST appear in at least one stage's academic_skills_embedded array.
+
+LANGUAGE ADAPTATION (CRITICAL):
+Adapt ALL student-facing language to the learner's grade level:
+- K-2 (ages 5-8): Simple sentences, familiar words, max 2 syllables where possible. Short paragraphs.
+- 3-5 (ages 8-11): Clear language, define any advanced terms inline. Moderate sentence length.
+- 6-8 (ages 11-14): Can use subject-specific vocabulary with context. More complex sentence structures OK.
+- 9-12 (ages 14-18): Academic language appropriate. Technical terms expected.
+Use the student's grade_band from their profile to calibrate.
 
 STAGE NUMBERING:
 - Use sequential numbers (1, 2, 3...) for ALL stages including branch variants
@@ -1470,6 +1501,7 @@ Generate a BRANCHING quest as JSON:
       "stage_type": "choice_fork",
       "duration": 1,
       "description": "Your team has two options for how to approach this next phase...",
+      "guiding_questions": ["What approach appeals to you more?", "Which of your strengths would you most like to use here?"],
       "deliverable": null,
       "next": null,
       "branches": [
