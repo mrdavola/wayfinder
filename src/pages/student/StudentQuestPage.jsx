@@ -1659,9 +1659,9 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                 </>
               ) : (
                 <div>
-                  <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, margin: '0 0 10px' }}>
-                    {suggestResult.explanation}
-                  </p>
+                  <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, margin: '0 0 10px' }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(suggestResult.explanation) }}
+                  />
                   {suggestResult.modified_title && (
                     <div style={{ marginBottom: 6 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>NEW TITLE: </span>
