@@ -8,7 +8,48 @@
 
 ---
 
-## Part A: Critical Bugs (Tasks 1-4)
+## Part A: Critical Bugs (Tasks 1-5)
+
+### Task 0: HIGHEST PRIORITY — Rewrite AI generation tone: real-world, not fantasy exploration
+
+**Problem:** Every generated quest feels like a fantasy theme park adventure — "wayfarers," "expeditions," "mystical journeys." Students see through this. It doesn't feel real. Quests should feel like real-world projects with real roles, real deliverables, and real career connections.
+
+**GOOD example (what we want):**
+> "Cosmic Habitats: Building Life Beyond Earth (or for a Better Earth!)"
+> "Imagine you're part of an elite team tasked with designing future homes for humans and plants..."
+> Simulation: "You are a team of Bio-Habitat Specialists presenting your final design to the 'Cosmic Gardens' corporation..."
+
+**BAD example (what we have now):**
+> "Aethelgard's Secrets: Initial Recon"
+> "The expedition reaches a crossroads, wayfinder..."
+> Generic exploration/adventure framing on every quest
+
+**Files:** `src/lib/api.js` — `WAYFINDER_SYSTEM_PROMPT`, `generateQuest`, `generateBranchingQuest`, `questHelp`, all student-facing AI prompts
+
+**Fix — Rewrite the core system prompt and generation instructions:**
+
+1. **WAYFINDER_SYSTEM_PROMPT** — Replace exploration/adventure framing with:
+   - "Generate projects grounded in REAL scenarios. Students take on real professional roles (engineer, biologist, urban planner, journalist, game designer) working on real problems."
+   - "The narrative hook should connect to something the student actually cares about (their interests, games they play, things they build) but the PROJECT itself should be real work."
+   - "Deliverables should be real artifacts: designs, reports, presentations, prototypes, models — things a professional in that field would actually produce."
+   - "NEVER use generic fantasy/exploration language like 'wayfarer,' 'expedition,' 'mystical journey,' 'ancient secrets.' The framing can be exciting and imaginative, but it must be rooted in reality."
+
+2. **Simulation stages** — Every quest must include a career simulation where the student role-plays a real professional scenario:
+   - "You are a [real job title] presenting to [real audience]"
+   - "You've been hired by [real-sounding company] to solve [real problem]"
+   - NOT "You are an explorer in the Cave of Knowledge"
+
+3. **Stage descriptions** — Should read like project briefs, not storybook pages:
+   - "Research different extreme environments on Earth" NOT "The mystical lands call you to discover ancient ecosystems"
+   - "Create a design proposal for..." NOT "Craft your expedition report for the guild..."
+
+4. **Field Guide (questHelp)** — The AI assistant should talk like a supportive mentor/coach, not a fantasy guide character. Use the student's name, reference their actual interests, ask about their real thinking.
+
+5. **Expedition challenges** — Keep the gamified framing (these are meant to be fun), but ground the content in real knowledge. "Navigation Check" is fine, but the actual question should test real understanding, not fantasy lore.
+
+**Commit:** `feat: rewrite AI prompts — real-world projects, real roles, no fantasy framing`
+
+---
 
 ### Task 1: Fix "Launching..." infinite spin on quest save
 
@@ -233,4 +274,9 @@
 
 ## Execution Order
 
-Tasks 1-4 first (critical bugs), then 5-8 (AI quality), then 9-11 (layout). Tasks 1-4 can be parallelized. Tasks 5-8 can be parallelized. Tasks 9-11 are sequential.
+1. **Task 0 FIRST** — rewrite AI tone (this changes the entire feel of the product)
+2. **Tasks 1-4** — critical bugs (Launch/Submit spinners, hide broken links, strip markdown) — parallelizable
+3. **Tasks 5-8** — AI quality (standards, guiding questions, age-adaptation, simulations) — parallelizable
+4. **Tasks 9-11** — layout overhaul (horizontal trail, spacing, responsive) — sequential
+
+Total: 12 tasks. Task 0 is the most impactful single change.
