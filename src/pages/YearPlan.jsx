@@ -24,6 +24,8 @@ export default function YearPlan() {
   const [generating, setGenerating] = useState(false);
   const [view, setView] = useState(() => localStorage.getItem('yearplan_view') || 'list');
   const [suggestions, setSuggestions] = useState([]);
+  const [balanceData, setBalanceData] = useState(null);
+  const [balancing, setBalancing] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -101,6 +103,18 @@ export default function YearPlan() {
       standards: item.target_standards, planItemId: item.id,
     }));
     navigate('/quest/new');
+  };
+
+  const handleBalance = async () => {
+    if (balancing || !activePlan) return;
+    setBalancing(true);
+    const result = await ai.balanceYearPlan(
+      items,
+      activePlan.target_outcomes || [],
+      activePlan.students
+    );
+    setBalanceData(result);
+    setBalancing(false);
   };
 
   useEffect(() => { localStorage.setItem('yearplan_view', view); }, [view]);
@@ -327,6 +341,90 @@ export default function YearPlan() {
                   <RefreshCw size={11} /> Reassess Plan
                 </button>
               )}
+
+              {/* Coverage Matrix */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink)' }}>Outcome Balance</span>
+                  <button onClick={handleBalance} disabled={balancing} style={{
+                    padding: '4px 10px', borderRadius: 6, border: '1px solid var(--pencil)',
+                    background: 'var(--chalk)', color: 'var(--ink)', fontSize: 9, fontWeight: 600,
+                    cursor: balancing ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)',
+                  }}>
+                    {balancing ? 'Analyzing...' : 'Analyze Balance'}
+                  </button>
+                </div>
+
+                {balanceData && (
+                  <>
+                    {/* Overall coverage */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 4 }}>
+                        <span style={{ color: 'var(--graphite)' }}>Overall Coverage</span>
+                        <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{balanceData.coverage_pct}%</span>
+                      </div>
+                      <div style={{ height: 6, background: 'var(--parchment)', borderRadius: 3 }}>
+                        <div style={{
+                          height: '100%', borderRadius: 3, transition: 'width 0.5s ease',
+                          width: `${balanceData.coverage_pct}%`,
+                          background: balanceData.coverage_pct >= 80 ? 'var(--field-green)' : balanceData.coverage_pct >= 50 ? 'var(--compass-gold)' : 'var(--specimen-red)',
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Domain breakdown */}
+                    {Object.entries(balanceData.domain_breakdown || {}).map(([domain, info]) => (
+                      <div key={domain} style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 2 }}>
+                          <span style={{ color: 'var(--graphite)', textTransform: 'capitalize' }}>{domain}</span>
+                          <span style={{
+                            fontWeight: 700, fontSize: 9, padding: '1px 6px', borderRadius: 8,
+                            background: info.status === 'good' ? 'rgba(75,139,59,0.1)' : info.status === 'warning' ? 'rgba(184,134,11,0.1)' : 'rgba(200,50,50,0.1)',
+                            color: info.status === 'good' ? 'var(--field-green)' : info.status === 'warning' ? 'var(--compass-gold)' : 'var(--specimen-red)',
+                          }}>
+                            {info.covered}/{info.total}
+                          </span>
+                        </div>
+                        <div style={{ height: 3, background: 'var(--parchment)', borderRadius: 2 }}>
+                          <div style={{
+                            height: '100%', borderRadius: 2,
+                            width: `${info.total ? (info.covered / info.total) * 100 : 0}%`,
+                            background: info.status === 'good' ? 'var(--field-green)' : info.status === 'warning' ? 'var(--compass-gold)' : 'var(--specimen-red)',
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Gap outcomes */}
+                    {balanceData.gap_outcomes?.length > 0 && (
+                      <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(200,50,50,0.04)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--specimen-red)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 4 }}>
+                          Gaps
+                        </div>
+                        {balanceData.gap_outcomes.map((gap, i) => (
+                          <div key={i} style={{ fontSize: 10, color: 'var(--graphite)', padding: '2px 0' }}>
+                            {gap}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Suggestions */}
+                    {balanceData.suggestions?.length > 0 && (
+                      <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(184,134,11,0.04)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 4 }}>
+                          Suggestions
+                        </div>
+                        {balanceData.suggestions.map((sug, i) => (
+                          <div key={i} style={{ fontSize: 10, color: 'var(--ink)', padding: '3px 0', lineHeight: 1.4 }}>
+                            <strong style={{ textTransform: 'capitalize' }}>{sug.type}:</strong> {sug.description}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
