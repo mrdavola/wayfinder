@@ -25,7 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages } from '../lib/api';
+import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
@@ -2595,6 +2595,7 @@ export default function QuestBuilder() {
     } catch { return null; }
   }
   const saved = useRef(loadSaved());
+  const yearPlanItemRef = useRef(null);
 
   // Step state
   const [step, setStep] = useState(() => {
@@ -2621,6 +2622,21 @@ export default function QuestBuilder() {
 
   // Step 4 (Anything Else?)
   const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
+
+  // Year Plan prefill: read from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const prefill = sessionStorage.getItem('yearplan_prefill');
+      if (prefill) {
+        const data = JSON.parse(prefill);
+        sessionStorage.removeItem('yearplan_prefill');
+        yearPlanItemRef.current = data.planItemId || null;
+        if (data.title) {
+          setAdditionalContext(prev => prev ? prev : `Project idea: "${data.title}" — ${data.description || ''}`);
+        }
+      }
+    } catch {}
+  }, []);
 
   // Step 5 (Generating)
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
@@ -2944,6 +2960,12 @@ export default function QuestBuilder() {
       // Save guide playbook if generated
       if (generatedQuest.playbookDays?.length > 0) {
         await guidePlaybook.bulkUpsert(quest.id, generatedQuest.playbookDays);
+      }
+
+      // Link back to year plan if generated from one
+      if (yearPlanItemRef.current) {
+        yearPlanItems.linkToQuest(yearPlanItemRef.current, quest.id).catch(console.warn);
+        yearPlanItemRef.current = null;
       }
 
       return quest.id;
