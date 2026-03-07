@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
-import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog } from '../../lib/api';
+import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments } from '../../lib/api';
+import ExpeditionChallenge from '../../components/gamified/ExpeditionChallenge';
 import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
 import TreasureMap from '../../components/map/TreasureMap';
 import XPToast from '../../components/xp/XPToast';
@@ -1334,7 +1335,7 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData, expeditionChallenge, expeditionResponse, onChallengeEvaluate }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
@@ -1516,6 +1517,19 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         }}>
           {landmark.narrative_hook}
         </div>
+      )}
+
+      {/* Expedition Challenge */}
+      {expeditionChallenge && (
+        <ExpeditionChallenge
+          challenge={expeditionChallenge}
+          existingResponse={isDone
+            ? (expeditionResponse || { is_successful: true, ai_feedback: 'Challenge cleared.', ep_awarded: 0 })
+            : expeditionResponse
+          }
+          onEvaluate={onChallengeEvaluate}
+          disabled={isDone}
+        />
       )}
 
       {/* Description */}
@@ -2250,6 +2264,10 @@ export default function StudentQuestPage() {
   const [interactiveData, setInteractiveData] = useState(null);
   const { enabled: soundEnabled, toggle: toggleSound, play: playSound, stop: stopSound } = useAmbientSound();
 
+  // Expedition challenge state
+  const [stageChallenges, setStageChallenges] = useState({});
+  const [challengeResponseMap, setChallengeResponseMap] = useState({});
+
   // Load quest
   useEffect(() => {
     if (!id) return;
@@ -2387,6 +2405,29 @@ export default function StudentQuestPage() {
     }
   }, [activeCard, stages]);
 
+  // Load expedition challenges for all stages
+  useEffect(() => {
+    if (!stages || stages.length === 0) return;
+    const studentId = studentProfile?.id || null;
+    const loadChallenges = async () => {
+      const challengeMap = {};
+      const responseMap = {};
+      await Promise.all(stages.map(async (stage) => {
+        const challenge = await expeditionChallenges.getForStage(stage.id);
+        if (challenge) {
+          challengeMap[stage.id] = challenge;
+          if (studentId) {
+            const resp = await challengeResponses.get(challenge.id, studentId);
+            if (resp) responseMap[challenge.id] = resp;
+          }
+        }
+      }));
+      setStageChallenges(challengeMap);
+      setChallengeResponseMap(responseMap);
+    };
+    loadChallenges();
+  }, [stages, studentProfile?.id]);
+
   // Play ambient sound for active stage's landmark
   useEffect(() => {
     if (!activeCard) { stopSound(); return; }
@@ -2449,6 +2490,53 @@ export default function StudentQuestPage() {
     }
     setGuideSending(false);
   }, [guideInput, guideSending, activeCard, stages, guideMessages, studentProfile, studentName, groupRole, id]);
+
+  const handleChallengeEvaluate = async (challenge, responseText) => {
+    const studentId = studentProfile?.id || null;
+    const studentProf = { name: studentName, age: studentProfile?.age, grade: studentProfile?.grade_band };
+    const evalResult = await ai.evaluateChallenge(challenge, responseText, studentProf);
+
+    const saved = await challengeResponses.submit({
+      challenge_id: challenge.id,
+      student_id: studentId,
+      response_text: responseText,
+      is_successful: evalResult.is_successful,
+      ep_awarded: evalResult.ep_awarded || 0,
+      ai_feedback: evalResult.narrative_feedback,
+    });
+
+    if (saved) {
+      setChallengeResponseMap(prev => ({ ...prev, [challenge.id]: saved }));
+    }
+
+    // Silently log skill assessments
+    if (evalResult.skill_ratings?.length > 0) {
+      const assessments = evalResult.skill_ratings.map(sr => ({
+        student_id: studentId,
+        skill_name: sr.skill_name,
+        quest_id: quest?.id,
+        stage_id: challenge.stage_id,
+        assessment_type: 'expedition_challenge',
+        rating: sr.rating,
+        evidence: sr.evidence,
+      }));
+      skillAssessments.bulkLog(assessments);
+    }
+
+    // Award EP
+    try {
+      await supabase.rpc('award_xp', {
+        p_student_id: studentId,
+        p_event_type: 'stage_complete',
+        p_points: evalResult.ep_awarded || 0,
+        p_quest_id: quest?.id,
+        p_stage_id: challenge.stage_id,
+        p_metadata: { source: 'expedition_challenge', challenge_type: challenge.challenge_type },
+      });
+    } catch (e) { /* XP system may not be migrated */ }
+
+    return evalResult;
+  };
 
   const handleChallengerTriggered = useCallback((challenge) => {
     const stageId = activeCard;
@@ -2900,6 +2988,9 @@ export default function StudentQuestPage() {
                   onSuggestEdit={handleStageEdited}
                   landmark={mapLandmarks.find(l => l.stage_id === activeStage.id)}
                   interactiveData={interactiveData}
+                  expeditionChallenge={stageChallenges[activeStage.id] || null}
+                  expeditionResponse={stageChallenges[activeStage.id] ? challengeResponseMap[stageChallenges[activeStage.id]?.id] : null}
+                  onChallengeEvaluate={handleChallengeEvaluate}
                 />
               ) : (
                 <div style={{
