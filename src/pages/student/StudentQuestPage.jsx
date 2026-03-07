@@ -22,6 +22,8 @@ import EvidenceBoard from '../../components/stages/EvidenceBoard';
 import useAmbientSound from '../../hooks/useAmbientSound';
 import CampfireChat from '../../components/social/CampfireChat';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import TrustBadge from '../../components/ui/TrustBadge';
+import { getTrustTier } from '../../lib/trustDomains';
 
 // ===================== STYLES =====================
 const injectStyles = () => {
@@ -1466,6 +1468,18 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               {stage.description}
             </p>
           )}
+          {stage.sources?.length > 0 && (
+            <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(27,73,101,0.04)', borderRadius: 6 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                Sources
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {stage.sources.map((src, i) => (
+                  <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} />
+                ))}
+              </div>
+            </div>
+          )}
           {stage.guiding_questions?.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontFamily: 'var(--font-body)' }}>
@@ -1509,6 +1523,20 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.7, margin: '0 0 14px' }}>
           {stage.description}
         </p>
+      )}
+
+      {/* Sources */}
+      {stage.sources?.length > 0 && (
+        <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(27,73,101,0.04)', borderRadius: 6, marginBottom: 14 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+            Sources
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {stage.sources.map((src, i) => (
+              <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} />
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Guiding questions */}
