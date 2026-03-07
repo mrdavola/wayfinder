@@ -2422,3 +2422,115 @@ export const communityReviews = {
     return data;
   },
 };
+
+// ===================== YEAR PLAN PACKAGES =====================
+
+export const yearPlanPackages = {
+  async list(schoolId) {
+    const { data, error } = await supabase
+      .from('year_plan_packages')
+      .select('*, created_by_profile:profiles!year_plan_packages_created_by_fkey(id, full_name)')
+      .eq('school_id', schoolId)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  },
+
+  async create(planId, schoolId, createdBy, { title, description, gradeBand, itemsSnapshot, targetOutcomes, totalWeeks }) {
+    const { data, error } = await supabase
+      .from('year_plan_packages')
+      .insert({
+        plan_id: planId, school_id: schoolId, created_by: createdBy,
+        title, description, grade_band: gradeBand,
+        items_snapshot: itemsSnapshot, target_outcomes: targetOutcomes,
+        total_weeks: totalWeeks,
+      })
+      .select()
+      .single();
+    if (error) { console.error('Create package error:', error); return null; }
+    return data;
+  },
+
+  async importToGuide(packageData, guideId, studentId, schoolId) {
+    const plan = await yearPlans.create(guideId, studentId, schoolId, new Date().getFullYear() + '');
+    if (!plan) return null;
+    for (const item of packageData.items_snapshot || []) {
+      await yearPlanItems.add(plan.id, {
+        title: item.title,
+        description: item.description,
+        target_standards: item.target_standards,
+        estimated_weeks: item.estimated_weeks,
+        interest_tags: item.interest_tags,
+        month_target: item.month_target,
+        ai_rationale: item.ai_rationale,
+        domain_coverage: item.domain_coverage || {},
+      });
+    }
+    await supabase.from('year_plan_packages').update({ import_count: (packageData.import_count || 0) + 1 }).eq('id', packageData.id);
+    return plan;
+  },
+};
+
+// ===================== STAGE BRANCHES =====================
+
+export const stageBranches = {
+  async getForQuest(questId) {
+    const { data: stages } = await supabase
+      .from('quest_stages')
+      .select('id')
+      .eq('quest_id', questId);
+    if (!stages?.length) return [];
+    const stageIds = stages.map(s => s.id);
+    const { data, error } = await supabase
+      .from('stage_branches')
+      .select('*')
+      .in('stage_id', stageIds)
+      .order('branch_index', { ascending: true });
+    if (error) return [];
+    return data || [];
+  },
+
+  async getForStage(stageId) {
+    const { data, error } = await supabase
+      .from('stage_branches')
+      .select('*')
+      .eq('stage_id', stageId)
+      .order('branch_index', { ascending: true });
+    if (error) return [];
+    return data || [];
+  },
+
+  async bulkCreate(branches) {
+    const { data, error } = await supabase
+      .from('stage_branches')
+      .insert(branches)
+      .select();
+    if (error) { console.error('Bulk create branches error:', error); return []; }
+    return data || [];
+  },
+};
+
+export const studentPaths = {
+  async getForQuest(studentId, questId) {
+    const { data, error } = await supabase
+      .from('student_stage_paths')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('quest_id', questId);
+    if (error) return [];
+    return data || [];
+  },
+
+  async recordChoice(studentId, questId, stageId, branchIndex) {
+    const { data, error } = await supabase
+      .from('student_stage_paths')
+      .upsert(
+        { student_id: studentId, quest_id: questId, stage_id: stageId, chosen_branch_index: branchIndex },
+        { onConflict: 'student_id,quest_id,stage_id' }
+      )
+      .select()
+      .single();
+    if (error) { console.error('Record choice error:', error); return null; }
+    return data;
+  },
+};
