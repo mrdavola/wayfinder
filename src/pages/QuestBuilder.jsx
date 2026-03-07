@@ -1704,7 +1704,7 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
 }
 
 // ── Step 4: Anything Else? ───────────────────────────────────────────────────
-function Step4AnythingElse({ additionalContext, setAdditionalContext, onBack, onNext }) {
+function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWorld, setUseRealWorld, onBack, onNext }) {
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 6px' }}>
@@ -1713,6 +1713,26 @@ function Step4AnythingElse({ additionalContext, setAdditionalContext, onBack, on
       <p style={{ fontSize: 14, color: T.graphite, fontFamily: 'var(--font-body)', marginBottom: 28, lineHeight: 1.5 }}>
         Before we generate your project, is there anything specific you'd like to include? This could be materials you have available, time constraints, topics to emphasize, or anything the AI should know.
       </p>
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+        background: 'var(--parchment)', borderRadius: 10, marginBottom: 16,
+      }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flex: 1 }}>
+          <input type="checkbox" checked={useRealWorld}
+            onChange={(e) => setUseRealWorld(e.target.checked)}
+            style={{ width: 16, height: 16, accentColor: 'var(--field-green)' }}
+          />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
+              Ground in real-world problems
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--graphite)' }}>
+              AI will search for current problems, stakeholders, and data to weave into the project
+            </div>
+          </div>
+        </label>
+      </div>
 
       <textarea
         value={additionalContext}
@@ -2622,6 +2642,7 @@ export default function QuestBuilder() {
 
   // Step 4 (Anything Else?)
   const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
+  const [useRealWorld, setUseRealWorld] = useState(false);
 
   // Year Plan prefill: read from sessionStorage on mount
   useEffect(() => {
@@ -2813,6 +2834,7 @@ export default function QuestBuilder() {
         count: selectedStudents.length,
         studentStandardsProfiles,
         additionalContext,
+        useRealWorld,
       });
 
       cancelAnimationFrame(progressRef.current);
@@ -3178,6 +3200,8 @@ export default function QuestBuilder() {
               <Step4AnythingElse
                 additionalContext={additionalContext}
                 setAdditionalContext={setAdditionalContext}
+                useRealWorld={useRealWorld}
+                setUseRealWorld={setUseRealWorld}
                 onBack={() => setStep(3)}
                 onNext={() => setStep(5)}
               />

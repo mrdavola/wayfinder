@@ -412,7 +412,7 @@ async function callAI(params) {
 }
 
 export const ai = {
-  generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles, additionalContext }) => {
+  generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles, additionalContext, useRealWorld }) => {
     // Build rich student profiles for the prompt
     const studentProfiles = (students || []).map(s => {
       const parts = [`- ${s.name} (age ${s.age || '10'}, ${s.grade_band || 'unknown grade'})`];
@@ -508,7 +508,14 @@ Rules:
 - Calibrate guiding questions to student proficiency levels when available
 - Include a stretch_challenge for stages 4+ that pushes deeper analysis or synthesis
 - stretch_challenge should be null for early stages (1-3)
-- For each stage, include a "sources" array with any real-world references used in the description, guiding questions, or deliverable. Prefer Tier 1 sources. If a stage uses no external references, use an empty array.`;
+- For each stage, include a "sources" array with any real-world references used in the description, guiding questions, or deliverable. Prefer Tier 1 sources. If a stage uses no external references, use an empty array.${useRealWorld ? `
+
+REAL-WORLD INTEGRATION:
+- Ground every stage in a REAL, current, verifiable problem.
+- Include real stakeholders, organizations, data points, and news.
+- Each stage must have a "sources" array with citations.
+- Tag projects as "Verified Real World" if all sources are Tier 1/2.
+- Weave real-world context naturally into descriptions and guiding questions — don't bolt it on.` : ''}`;
 
     const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.', maxTokens: 4096 });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -704,6 +711,38 @@ ${profileStr}`,
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in AI response');
     return JSON.parse(jsonMatch[0]);
+  },
+
+  searchRealWorldProblems: async (topic, standards, interests) => {
+    const systemPrompt = `You find REAL, current, verifiable problems and stakeholders related to a topic. Your role is to provide factual context that can be woven into educational projects.
+
+CRITICAL: Only cite sources you are confident about. For each source:
+- Include the full URL
+- Include the organization/publisher name
+- Tag trust_level: "trusted" (.gov, .edu, major news), "review" (.org, Wikipedia), or "unverified" (other)
+- If you're not confident a URL is real, use trust_level "unverified" and note it
+
+Return ONLY valid JSON.`;
+
+    const userMessage = `Topic: ${topic}
+Standards: ${standards?.join(', ') || 'general'}
+Student interests: ${interests?.join(', ') || 'not specified'}
+
+Find 5-8 real-world problems, stakeholders, and data points. Return JSON:
+[{
+  "problem": "Brief description of the real-world problem",
+  "stakeholders": ["Organization 1", "Person/Role 2"],
+  "data_point": "A specific statistic or fact",
+  "location": "City/State/Country if applicable",
+  "sources": [{"title": "Source name", "url": "https://...", "domain": "example.gov", "trust_level": "trusted|review|unverified"}],
+  "connection_to_topic": "How this connects to the project topic"
+}]`;
+
+    const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
+    try {
+      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
   },
 
   recommendSkills: async ({ name, age, gradeBand, interests, passions, selfAssessment }) => {
