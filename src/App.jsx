@@ -27,6 +27,7 @@ import ParentDashboard from './pages/parent/ParentDashboard';
 import ModerationPage from './pages/ModerationPage';
 import YearPlan from './pages/YearPlan';
 import CareerExplorer from './pages/CareerExplorer';
+import MasteryMap from './pages/MasteryMap';
 import './index.css';
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
 
           {/* Career Explorer */}
           <Route path="/careers/:studentId" element={<CareerExplorer />} />
+          <Route path="/mastery/:studentId" element={<MasteryMap />} />
 
           {/* Parent portal */}
           <Route path="/parent" element={<ParentDashboard />} />
