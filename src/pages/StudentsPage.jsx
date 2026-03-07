@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus, Share2, UserCheck, ExternalLink, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { invites as invitesApi } from '../lib/api';
+import { invites as invitesApi, buddyPairs } from '../lib/api';
 import TopBar from '../components/layout/TopBar';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ function countActiveQuests(student) {
 
 // ── Student Row ───────────────────────────────────────────────────────────────
 
-function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete, onPinRegenerated }) {
+function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete, onPinRegenerated, pairingMode, selectedForPairing, onTogglePairing, buddyInfo }) {
   const activeQuestCount = countActiveQuests(student);
 
   if (isEditing) {
@@ -48,11 +48,15 @@ function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete
       onEdit={onEdit}
       onDelete={onDelete}
       onPinRegenerated={onPinRegenerated}
+      pairingMode={pairingMode}
+      selectedForPairing={selectedForPairing}
+      onTogglePairing={onTogglePairing}
+      buddyInfo={buddyInfo}
     />
   );
 }
 
-function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, onPinRegenerated }) {
+function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, onPinRegenerated, pairingMode, selectedForPairing, onTogglePairing, buddyInfo }) {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pinVisible, setPinVisible] = useState(false);
@@ -189,6 +193,29 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, o
               </button>
             </div>
           )}
+
+          {/* Buddy pairing */}
+          {pairingMode ? (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginTop: 6 }}>
+              <input type="checkbox"
+                checked={selectedForPairing.includes(student.id)}
+                disabled={selectedForPairing.length >= 2 && !selectedForPairing.includes(student.id)}
+                onChange={e => {
+                  if (e.target.checked) onTogglePairing(student.id, true);
+                  else onTogglePairing(student.id, false);
+                }}
+                style={{ accentColor: 'var(--compass-gold)' }}
+              />
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-body)', color: 'var(--graphite)' }}>Select for pairing</span>
+            </label>
+          ) : buddyInfo ? (
+            <span style={{
+              fontSize: 10, padding: '2px 8px', borderRadius: 10, marginTop: 6, display: 'inline-block',
+              background: 'rgba(184,134,11,0.08)', color: 'var(--compass-gold)', fontFamily: 'var(--font-body)', fontWeight: 600,
+            }}>
+              Buddy: {buddyInfo.buddy?.name}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -728,12 +755,21 @@ export default function StudentsPage() {
   const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
+  const [pairs, setPairs] = useState([]);
+  const [pairingMode, setPairingMode] = useState(false);
+  const [selectedForPairing, setSelectedForPairing] = useState([]);
 
   // Load students
   useEffect(() => {
     if (!user) return;
     fetchStudents();
   }, [user]);
+
+  // Load buddy pairs
+  useEffect(() => {
+    if (!profile?.school_id) return;
+    buddyPairs.getForSchool(profile.school_id).then(setPairs);
+  }, [profile?.school_id]);
 
   // Handle ?edit=studentId URL param
   useEffect(() => {
@@ -776,6 +812,31 @@ export default function StudentsPage() {
       setStudents((prev) => prev.filter((s) => s.id !== id));
     }
   }
+
+  // Buddy pairing
+  const handlePair = async () => {
+    if (selectedForPairing.length !== 2) return;
+    const schoolId = profile?.school_id;
+    if (!schoolId) return;
+    const pair = await buddyPairs.create(selectedForPairing[0], selectedForPairing[1], schoolId);
+    if (pair) {
+      setPairs(prev => [...prev, pair]);
+      setSelectedForPairing([]);
+      setPairingMode(false);
+    }
+  };
+
+  const handleUnpair = async (pairId) => {
+    await buddyPairs.end(pairId);
+    setPairs(prev => prev.filter(p => p.id !== pairId));
+  };
+
+  const getBuddy = (studentId) => {
+    const pair = pairs.find(p => p.student_a_id === studentId || p.student_b_id === studentId);
+    if (!pair) return null;
+    const buddy = pair.student_a_id === studentId ? pair.student_b : pair.student_a;
+    return { buddy, pairId: pair.id };
+  };
 
   // Filter
   const filteredStudents = students.filter((s) => {
@@ -835,7 +896,24 @@ export default function StudentsPage() {
               </button>
               <h1 style={styles.pageTitle}>Students</h1>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+              <button onClick={() => { setPairingMode(!pairingMode); setSelectedForPairing([]); }} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+                borderRadius: 8, border: pairingMode ? '1.5px solid var(--compass-gold)' : '1px solid var(--pencil)',
+                background: pairingMode ? 'rgba(184,134,11,0.06)' : 'var(--chalk)',
+                color: 'var(--ink)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)',
+              }}>
+                <Users size={13} /> {pairingMode ? 'Cancel Pairing' : 'Pair Buddies'}
+              </button>
+              {pairingMode && selectedForPairing.length === 2 && (
+                <button onClick={handlePair} style={{
+                  padding: '6px 14px', borderRadius: 8, border: 'none',
+                  background: 'var(--compass-gold)', color: 'white', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'var(--font-body)',
+                }}>
+                  Pair These Learners
+                </button>
+              )}
               <button
                 className="btn btn-secondary"
                 onClick={() => navigate('/students/groups')}
@@ -909,6 +987,13 @@ export default function StudentsPage() {
                     onPinRegenerated={(id, newPin) => {
                       setStudents(prev => prev.map(s => s.id === id ? { ...s, pin: newPin } : s));
                     }}
+                    pairingMode={pairingMode}
+                    selectedForPairing={selectedForPairing}
+                    onTogglePairing={(id, add) => {
+                      if (add) setSelectedForPairing(prev => [...prev, id]);
+                      else setSelectedForPairing(prev => prev.filter(x => x !== id));
+                    }}
+                    buddyInfo={getBuddy(student.id)}
                   />
                 </div>
               ))}
