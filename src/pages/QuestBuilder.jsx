@@ -26,7 +26,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges } from '../lib/api';
+import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges, stageBranches } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
@@ -1705,7 +1705,7 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
 }
 
 // ── Step 4: Anything Else? ───────────────────────────────────────────────────
-function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWorld, setUseRealWorld, projectMode, setProjectMode, onBack, onNext }) {
+function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWorld, setUseRealWorld, projectMode, setProjectMode, isBranching, setIsBranching, onBack, onNext }) {
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 6px' }}>
@@ -1760,6 +1760,20 @@ function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWor
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Branching toggle */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={isBranching} onChange={e => setIsBranching(e.target.checked)}
+            style={{ accentColor: 'var(--compass-gold)', width: 16, height: 16 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Branching Narrative</div>
+            <div style={{ fontSize: 10, color: 'var(--graphite)' }}>
+              Learners choose their own path through the project — different choices lead to different stages
+            </div>
+          </div>
+        </label>
       </div>
 
       <textarea
@@ -2700,6 +2714,7 @@ export default function QuestBuilder() {
   const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
   const [useRealWorld, setUseRealWorld] = useState(false);
   const [projectMode, setProjectMode] = useState('mixed');
+  const [isBranching, setIsBranching] = useState(false);
 
   // Year Plan prefill: read from sessionStorage on mount
   useEffect(() => {
@@ -2883,17 +2898,28 @@ export default function QuestBuilder() {
         // Non-critical — continue without profiles
       }
 
-      const questData = await ai.generateQuest({
-        students: selectedStudents,
-        standards: standardsStr,
-        pathway: pathwayLabels.length > 0 ? pathwayLabels.join(', ') : 'none',
-        type: questType,
-        count: selectedStudents.length,
-        studentStandardsProfiles,
-        additionalContext,
-        useRealWorld,
-        projectMode,
-      });
+      const questData = isBranching
+        ? await ai.generateBranchingQuest({
+            students: selectedStudents,
+            standards: standardsStr,
+            pathway: pathwayLabels.length > 0 ? pathwayLabels.join(', ') : 'none',
+            type: questType,
+            count: selectedStudents.length,
+            studentStandardsProfiles,
+            additionalContext,
+            projectMode,
+          })
+        : await ai.generateQuest({
+            students: selectedStudents,
+            standards: standardsStr,
+            pathway: pathwayLabels.length > 0 ? pathwayLabels.join(', ') : 'none',
+            type: questType,
+            count: selectedStudents.length,
+            studentStandardsProfiles,
+            additionalContext,
+            useRealWorld,
+            projectMode,
+          });
 
       cancelAnimationFrame(progressRef.current);
       clearInterval(textRef.current);
@@ -3039,6 +3065,44 @@ export default function QuestBuilder() {
           });
           if (challengesToSave.length > 0) {
             await expeditionChallenges.bulkCreate(challengesToSave);
+          }
+
+          // Save branch relationships for branching quests
+          if (isBranching && generatedQuest?.is_branching) {
+            // Set is_branching on the quest
+            await supabase.from('quests').update({ is_branching: true }).eq('id', quest.id);
+
+            // Build stage ID map (stage_id string → saved UUID)
+            const stageIdMap = {};
+            savedStages.forEach(saved => {
+              const originalStage = generatedQuest.stages.find(s =>
+                s.stage_id === String(saved.stage_number) || s.stage_title === saved.title
+              );
+              if (originalStage) stageIdMap[originalStage.stage_id] = saved.id;
+            });
+
+            // Save branches
+            const branchRows = [];
+            generatedQuest.stages.forEach(stage => {
+              if (stage.branches?.length > 0) {
+                const parentId = stageIdMap[stage.stage_id];
+                if (!parentId) return;
+                stage.branches.forEach((branch, idx) => {
+                  branchRows.push({
+                    stage_id: parentId,
+                    branch_index: idx,
+                    branch_label: branch.label,
+                    branch_description: branch.description,
+                    next_stage_id: stageIdMap[branch.next_stage] || null,
+                    narrative_variant: branch.narrative_variant || null,
+                  });
+                });
+              }
+            });
+
+            if (branchRows.length > 0) {
+              await stageBranches.bulkCreate(branchRows);
+            }
           }
         }
       }
@@ -3284,6 +3348,8 @@ export default function QuestBuilder() {
                 setUseRealWorld={setUseRealWorld}
                 projectMode={projectMode}
                 setProjectMode={setProjectMode}
+                isBranching={isBranching}
+                setIsBranching={setIsBranching}
                 onBack={() => setStep(3)}
                 onNext={() => setStep(5)}
               />
