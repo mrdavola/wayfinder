@@ -1430,25 +1430,25 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   return (
     <div className="sq-card" style={{
       background: 'var(--chalk)', border: '1px solid var(--pencil)',
-      borderRadius: 14, padding: '20px 22px',
+      borderRadius: 14, padding: '24px 28px',
       boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 0 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+            width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
             background: isDone ? 'var(--field-green)' : 'var(--parchment)',
             border: `2px solid ${isDone ? 'var(--field-green)' : 'var(--compass-gold)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {isDone
-              ? <CheckCircle size={16} color="var(--chalk)" strokeWidth={2.5} />
-              : <StageIcon type={stage.stage_type || stage.type} size={16} color="var(--ink)" />
+              ? <CheckCircle size={18} color="var(--chalk)" strokeWidth={2.5} />
+              : <StageIcon type={stage.stage_type || stage.type} size={18} color="var(--ink)" />
             }
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
               <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Stage {stage.stage_number}
               </span>
@@ -1460,7 +1460,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                 {stage.status}
               </span>
             </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>
               {stage.title}
             </h3>
           </div>
@@ -1483,16 +1483,16 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       {isLocked ? (
         <div style={{ opacity: 0.55, pointerEvents: 'none' }}>
           {stage.description && (
-            <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, fontFamily: 'var(--font-body)', margin: '0 0 12px' }}>
+            <p style={{ fontSize: 14, color: 'var(--graphite)', lineHeight: 1.7, fontFamily: 'var(--font-body)', margin: '0 0 16px' }}>
               {stage.description}
             </p>
           )}
           {stage.sources?.length > 0 && (
-            <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(27,73,101,0.04)', borderRadius: 6 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+            <div style={{ padding: '10px 12px', background: 'rgba(27,73,101,0.04)', borderRadius: 8, marginBottom: 16 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                 Sources
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {stage.sources.map((src, i) => (
                   <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} />
                 ))}
@@ -1500,23 +1500,23 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
             </div>
           )}
           {stage.guiding_questions?.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontFamily: 'var(--font-body)' }}>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>
                 Questions to explore
               </div>
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
                 {stage.guiding_questions.map((q, i) => (
-                  <li key={i} style={{ fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginBottom: 4, lineHeight: 1.5 }}>{q}</li>
+                  <li key={i} style={{ fontSize: 13, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginBottom: 6, lineHeight: 1.6 }}>{q}</li>
                 ))}
               </ul>
             </div>
           )}
           {stage.deliverable && (
-            <div style={{ background: 'var(--parchment)', borderRadius: 8, padding: '10px 12px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, fontFamily: 'var(--font-body)' }}>
+            <div style={{ background: 'var(--parchment)', borderRadius: 10, padding: '14px 16px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, fontFamily: 'var(--font-mono)' }}>
                 Deliverable
               </div>
-              <p style={{ fontSize: 12, color: 'var(--ink)', fontFamily: 'var(--font-body)', margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 13, color: 'var(--ink)', fontFamily: 'var(--font-body)', margin: 0, lineHeight: 1.6 }}>
                 {stage.deliverable}
               </p>
             </div>
@@ -1552,18 +1552,18 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
 
       {/* Description */}
       {stage.description && (
-        <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.7, margin: '0 0 14px' }}>
+        <p style={{ fontSize: 14, color: 'var(--graphite)', lineHeight: 1.7, margin: '0 0 20px' }}>
           {stage.description}
         </p>
       )}
 
       {/* Sources */}
       {stage.sources?.length > 0 && (
-        <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(27,73,101,0.04)', borderRadius: 6, marginBottom: 14 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+        <div style={{ padding: '10px 12px', background: 'rgba(27,73,101,0.04)', borderRadius: 8, marginBottom: 20 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
             Sources
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {stage.sources.map((src, i) => (
               <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} />
             ))}
@@ -1571,15 +1571,20 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
+      {/* Divider */}
+      {stage.description && stage.guiding_questions?.length > 0 && (
+        <hr style={{ border: 'none', borderTop: '1px solid var(--pencil)', margin: '0 0 20px', opacity: 0.4 }} />
+      )}
+
       {/* Guiding questions */}
       {stage.guiding_questions?.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             Questions to explore
           </div>
-          <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {stage.guiding_questions.map((q, i) => (
-              <li key={i} style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5 }}>{q}</li>
+              <li key={i} style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{q}</li>
             ))}
           </ul>
         </div>
@@ -1588,14 +1593,14 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       {/* Deliverable */}
       {stage.deliverable && (
         <div style={{
-          background: 'var(--parchment)', borderRadius: 8,
-          padding: '10px 14px', marginBottom: 14,
+          background: 'var(--parchment)', borderRadius: 10,
+          padding: '14px 18px', marginBottom: 20,
           borderLeft: '3px solid var(--compass-gold)',
         }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
             What to make
           </div>
-          <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5, margin: 0 }}>
+          <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6, margin: 0 }}>
             {stage.deliverable}
           </p>
         </div>
@@ -3190,7 +3195,7 @@ export default function StudentQuestPage() {
         )}
 
         <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 14px' : '28px 22px' }}>
-          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div style={{ maxWidth: 680, margin: '0 auto' }}>
             {/* Stage card + hint */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Completion banner */}
