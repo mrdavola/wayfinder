@@ -22,6 +22,12 @@ import {
   Sparkles,
   Calendar,
   Compass,
+  Upload,
+  AlertCircle,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Pencil,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
@@ -1910,6 +1916,12 @@ function Step6Review({
 }) {
   const [openStage, setOpenStage] = useState(null);
   const [editingStudents, setEditingStudents] = useState(false);
+  const [worldRegenCount, setWorldRegenCount] = useState(0);
+  const [worldError, setWorldError] = useState(null);
+  const [stageRegenIdx, setStageRegenIdx] = useState(null); // index of stage being regenerated
+  const [stageRegenFeedback, setStageRegenFeedback] = useState('');
+  const [stageRegenLoading, setStageRegenLoading] = useState(false);
+  const worldImageInputRef = useRef(null);
   const playbookDays = generatedQuest?.playbookDays || null;
   const [playbookLoading, setPlaybookLoading] = useState(false);
   const [playbookOpen, setPlaybookOpen] = useState(false);
@@ -2056,7 +2068,7 @@ function Step6Review({
       )}
 
       {/* World Preview — shows generating state or actual preview */}
-      {!generatedQuest._worldScene && (
+      {!generatedQuest._worldScene && !worldError && (
         <div style={{
           marginBottom: 20, borderRadius: 12, overflow: 'hidden',
           border: `1px dashed ${T.pencil}`, background: T.parchment,
@@ -2066,6 +2078,53 @@ function Step6Review({
           <span style={{ fontSize: 13, color: T.graphite }}>
             Building your immersive world in the background...
           </span>
+        </div>
+      )}
+      {worldError && !generatedQuest._worldScene?._imageBase64 && (
+        <div style={{
+          marginBottom: 20, borderRadius: 12, padding: '14px 18px',
+          border: `1px solid ${T.pencil}`, background: T.parchment,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <AlertCircle size={16} color={T.specimenRed || '#c44'} />
+          <span style={{ fontSize: 12, color: T.graphite, flex: 1 }}>
+            World image failed to generate. You can upload your own image or try again.
+          </span>
+          <input
+            ref={worldImageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                const base64 = reader.result.split(',')[1];
+                setGeneratedQuest(prev => prev ? ({
+                  ...prev,
+                  _worldScene: {
+                    ...(prev._worldScene || { hotspots: [] }),
+                    _imageBase64: base64,
+                    _imageMime: file.type,
+                    _uploaded: true,
+                  },
+                }) : prev);
+                setWorldError(null);
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
+          <button
+            onClick={() => worldImageInputRef.current?.click()}
+            style={{
+              padding: '5px 12px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+              background: T.chalk, color: T.ink, fontSize: 11, fontWeight: 600,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <Upload size={11} /> Upload Image
+          </button>
         </div>
       )}
       {generatedQuest._worldScene && (
@@ -2080,32 +2139,77 @@ function Step6Review({
             <span style={{ fontSize: 11, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Immersive World Preview
             </span>
-            <button
-              onClick={async () => {
-                const si = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
-                setGeneratedQuest(prev => ({ ...prev, _worldScene: { ...prev._worldScene, _imageBase64: null } }));
-                try {
-                  const sceneData = await ai.generateWorldScene({
-                    questTitle: generatedQuest.quest_title, stages: generatedQuest.stages,
-                    studentInterests: si, careerPathway: selectedPathways[0] || 'none',
-                    gradeBand: selectedStudents[0]?.grade_band || '6-8',
-                  });
-                  if (sceneData) {
-                    const image = await generateWorldImage(sceneData.image_prompt);
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                ref={worldImageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
                     setGeneratedQuest(prev => prev ? ({
-                      ...prev, _worldScene: { ...sceneData, _imageBase64: image?.base64, _imageMime: image?.mimeType },
+                      ...prev,
+                      _worldScene: {
+                        ...(prev._worldScene || { hotspots: [] }),
+                        _imageBase64: base64,
+                        _imageMime: file.type,
+                        _uploaded: true,
+                      },
                     }) : prev);
-                  }
-                } catch (err) { console.error('World regeneration failed:', err); }
-              }}
-              style={{
-                padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.pencil}`,
-                background: 'transparent', color: T.graphite, fontSize: 11,
-                fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-              }}
-            >
-              <RefreshCw size={11} /> Regenerate
-            </button>
+                    setWorldError(null);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+              <button
+                onClick={() => worldImageInputRef.current?.click()}
+                style={{
+                  padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+                  background: 'transparent', color: T.graphite, fontSize: 11,
+                  fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                <Upload size={11} /> Upload
+              </button>
+              {worldRegenCount < 3 && (
+                <button
+                  onClick={async () => {
+                    const si = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
+                    setGeneratedQuest(prev => ({ ...prev, _worldScene: { ...prev._worldScene, _imageBase64: null } }));
+                    setWorldError(null);
+                    try {
+                      const sceneData = await ai.generateWorldScene({
+                        questTitle: generatedQuest.quest_title, stages: generatedQuest.stages,
+                        studentInterests: si, careerPathway: selectedPathways[0] || 'none',
+                        gradeBand: selectedStudents[0]?.grade_band || '6-8',
+                      });
+                      if (sceneData) {
+                        const image = await generateWorldImage(sceneData.image_prompt);
+                        if (!image) throw new Error('Image generation failed');
+                        setGeneratedQuest(prev => prev ? ({
+                          ...prev, _worldScene: { ...sceneData, _imageBase64: image.base64, _imageMime: image.mimeType },
+                        }) : prev);
+                      }
+                      setWorldRegenCount(c => c + 1);
+                    } catch (err) {
+                      console.error('World regeneration failed:', err);
+                      setWorldError(err.message || 'Failed to generate world image');
+                    }
+                  }}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+                    background: 'transparent', color: T.graphite, fontSize: 11,
+                    fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <RefreshCw size={11} /> Regenerate ({3 - worldRegenCount} left)
+                </button>
+              )}
+            </div>
           </div>
           {generatedQuest._worldScene._imageBase64 ? (
             <div style={{ position: 'relative' }}>
@@ -2136,6 +2240,7 @@ function Step6Review({
             </div>
           ) : (
             <div style={{ padding: 24, textAlign: 'center', color: T.pencil, fontSize: 13 }}>
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', display: 'inline-block', marginRight: 8 }} />
               World image is generating...
             </div>
           )}
@@ -2501,29 +2606,144 @@ function Step6Review({
                     </div>
                   )}
 
-                  {/* Sources */}
+                  {/* Sources — with toggle and edit */}
                   {stage.sources?.length > 0 && (
                     <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--parchment)', borderRadius: 8 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                         Sources
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {stage.sources.map((src, si) => (
-                          <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                          <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: src._hidden ? 0.4 : 1 }}>
+                            <button
+                              title={src._hidden ? 'Show this source' : 'Hide this source'}
+                              onClick={() => {
+                                const newSources = [...stage.sources];
+                                newSources[si] = { ...newSources[si], _hidden: !newSources[si]._hidden };
+                                updateStage(i, 'sources', newSources);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0 }}
+                            >
+                              {src._hidden ? <EyeOff size={12} color="var(--graphite)" /> : <Eye size={12} color="var(--graphite)" />}
+                            </button>
                             <TrustBadge
                               tier={src.trust_level || getTrustTier(src.url)}
                               url={src.url}
                               sourceName={src.title || src.domain}
                             />
-                            <a href={src.url} target="_blank" rel="noopener noreferrer"
-                              style={{ color: 'var(--lab-blue)', fontSize: 11, textDecoration: 'none' }}>
-                              {src.title || src.url}
-                            </a>
+                            {src._editing ? (
+                              <input
+                                autoFocus
+                                defaultValue={src.url}
+                                onBlur={(e) => {
+                                  const newSources = [...stage.sources];
+                                  newSources[si] = { ...newSources[si], url: e.target.value, _editing: false };
+                                  updateStage(i, 'sources', newSources);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.target.blur();
+                                }}
+                                style={{
+                                  flex: 1, fontSize: 11, padding: '2px 6px', borderRadius: 4,
+                                  border: `1px solid ${T.pencil}`, fontFamily: 'var(--font-mono)',
+                                  outline: 'none',
+                                }}
+                              />
+                            ) : (
+                              <>
+                                <a href={src.url} target="_blank" rel="noopener noreferrer"
+                                  style={{ color: src._hidden ? 'var(--graphite)' : 'var(--lab-blue)', fontSize: 11, textDecoration: src._hidden ? 'line-through' : 'none', flex: 1 }}>
+                                  {src.title || src.url}
+                                </a>
+                                <button
+                                  title="Edit URL"
+                                  onClick={() => {
+                                    const newSources = [...stage.sources];
+                                    newSources[si] = { ...newSources[si], _editing: true };
+                                    updateStage(i, 'sources', newSources);
+                                  }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0 }}
+                                >
+                                  <Pencil size={10} color="var(--graphite)" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+
+                  {/* Per-stage regenerate */}
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    {stageRegenIdx === i ? (
+                      <div style={{ flex: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <input
+                          autoFocus
+                          placeholder="What should change? (e.g. 'make it more hands-on')"
+                          value={stageRegenFeedback}
+                          onChange={(e) => setStageRegenFeedback(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') { setStageRegenIdx(null); setStageRegenFeedback(''); }
+                          }}
+                          style={{
+                            flex: 1, fontSize: 12, padding: '6px 10px', borderRadius: 6,
+                            border: `1px solid ${T.pencil}`, fontFamily: 'var(--font-body)',
+                            outline: 'none',
+                          }}
+                        />
+                        <button
+                          disabled={stageRegenLoading || !stageRegenFeedback.trim()}
+                          onClick={async () => {
+                            setStageRegenLoading(true);
+                            try {
+                              const result = await ai.regenerateStage({
+                                stage, questTitle: generatedQuest.quest_title,
+                                students: selectedStudents, feedback: stageRegenFeedback,
+                                allStages: stages,
+                              });
+                              if (result) {
+                                updateStage(i, 'stage_title', result.stage_title || stage.stage_title);
+                                updateStage(i, 'description', result.description || stage.description);
+                                updateStage(i, 'deliverable', result.deliverable || stage.deliverable);
+                                if (result.guiding_questions) updateStage(i, 'guiding_questions', result.guiding_questions);
+                                if (result.sources) updateStage(i, 'sources', result.sources);
+                              }
+                            } catch (err) { console.error('Stage regen failed:', err); }
+                            setStageRegenLoading(false);
+                            setStageRegenIdx(null);
+                            setStageRegenFeedback('');
+                          }}
+                          style={{
+                            padding: '6px 14px', borderRadius: 6, border: 'none',
+                            background: stageRegenLoading ? T.pencil : T.ink, color: T.chalk,
+                            fontSize: 11, fontWeight: 600, cursor: stageRegenLoading ? 'wait' : 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {stageRegenLoading ? <><Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Regenerating...</> : <><RefreshCw size={11} /> Regenerate</>}
+                        </button>
+                        <button
+                          onClick={() => { setStageRegenIdx(null); setStageRegenFeedback(''); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+                        >
+                          <X size={14} color={T.graphite} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setStageRegenIdx(i); setStageRegenFeedback(''); }}
+                        style={{
+                          padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+                          background: 'transparent', color: T.graphite, fontSize: 11,
+                          fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                        }}
+                      >
+                        <RefreshCw size={11} /> Regenerate this stage
+                      </button>
+                    )}
+                  </div>
+
                   {stage.expedition_challenge && (
                     <div style={{
                       marginTop: 10, padding: '10px 12px', borderRadius: 8,
@@ -3066,6 +3286,8 @@ export default function QuestBuilder() {
       setGeneratedQuest(questData);
 
       // Fire off world scene generation in background (non-blocking)
+      setWorldError(null);
+      setWorldRegenCount(0);
       const studentInterests = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
       ai.generateWorldScene({
         questTitle: questData.quest_title,
@@ -3074,18 +3296,20 @@ export default function QuestBuilder() {
         careerPathway: pathwayLabels[0] || 'none',
         gradeBand: selectedStudents[0]?.grade_band || '6-8',
       }).then(async sceneData => {
-        if (!sceneData) return;
+        if (!sceneData) { setWorldError('Scene description failed'); return; }
         try {
           const image = await generateWorldImage(sceneData.image_prompt);
+          if (!image) throw new Error('No image returned');
           setGeneratedQuest(prev => prev ? ({
             ...prev,
-            _worldScene: { ...sceneData, _imageBase64: image?.base64 || null, _imageMime: image?.mimeType || null },
+            _worldScene: { ...sceneData, _imageBase64: image.base64, _imageMime: image.mimeType },
           }) : prev);
-        } catch {
-          // Image generation failed — still save hotspot data
+        } catch (imgErr) {
+          // Image generation failed — save hotspot data but show error
           setGeneratedQuest(prev => prev ? ({ ...prev, _worldScene: sceneData }) : prev);
+          setWorldError(imgErr.message || 'Image generation failed');
         }
-      }).catch(() => {});
+      }).catch((err) => { setWorldError(err.message || 'World generation failed'); });
 
       // Auto-advance after 600ms
       setTimeout(() => setStep(6), 600);

@@ -1238,6 +1238,53 @@ Return JSON array:
     } catch { return []; }
   },
 
+  // ===================== PER-STAGE REGENERATION =====================
+
+  async regenerateStage({ stage, questTitle, students, feedback, allStages }) {
+    const systemPrompt = `You are a project stage designer. Regenerate ONE stage of an educational project based on guide feedback.
+
+RULES:
+- Keep the same stage_number and stage_type.
+- Incorporate the guide's feedback to improve the stage.
+- Return a complete stage object with all fields.
+- Match the tone and structure of the other stages in the project.
+- Return ONLY valid JSON. No markdown fences.`;
+
+    const studentNames = (students || []).map(s => s.name).join(', ');
+    const otherStages = (allStages || []).filter(s => s.stage_number !== stage.stage_number)
+      .map(s => `Stage ${s.stage_number}: "${s.stage_title || s.title}"`).join(', ');
+
+    const userMessage = `Regenerate this stage for project "${questTitle}" (students: ${studentNames || 'unnamed'}).
+
+Current stage:
+${JSON.stringify(stage, null, 2)}
+
+Other stages in project: ${otherStages || 'none'}
+
+Guide's feedback: "${feedback}"
+
+Return JSON with these fields:
+{
+  "stage_title": "...",
+  "stage_type": "${stage.stage_type}",
+  "stage_number": ${stage.stage_number},
+  "description": "...",
+  "guiding_questions": ["..."],
+  "deliverable": "...",
+  "duration": ${stage.duration || 1},
+  "academic_skills_embedded": ${JSON.stringify(stage.academic_skills_embedded || [])},
+  "resources_needed": ["..."],
+  "sources": [{"title": "...", "url": "...", "trust_level": "verified|institutional|community"}]
+}`;
+
+    const raw = await callAI({ systemPrompt, userMessage });
+    try {
+      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    } catch {
+      return null;
+    }
+  },
+
   // ===================== IMMERSIVE 3D WORLD SCENE =====================
 
   async generateWorldScene({ questTitle, stages, studentInterests, careerPathway, gradeBand }) {
