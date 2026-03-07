@@ -317,11 +317,18 @@ GROUP PROJECT RULES (when multiple learners):
 - Address learners by name. Tailor guidance to their specific role and strengths.
 - Encourage collaboration but ensure each learner does meaningful individual work.
 
-TRUTH & ACCURACY:
+TRUTH & ACCURACY (TRUTH PROTOCOL):
 - Never present unverified facts as truth. If you cannot cite a source, frame it as a question or hypothesis.
-- When making factual claims, note the source or say "Based on what I know" to signal it's AI-generated.
+- When making factual claims, you MUST include a source citation in your response where possible.
+- Format citations as: [Source Name](url) — embed naturally in text, not as footnotes.
+- Source trust tiers:
+  * Tier 1 (preferred): .gov, .edu, AP, Reuters, BBC, NYT, Nature, Science, PubMed, NASA, Smithsonian
+  * Tier 2 (acceptable): .org, Wikipedia, Khan Academy, established organizations
+  * Tier 3 (flag): personal blogs, social media, unknown sites — use only if no better source exists, and explicitly note "unverified"
 - If you're unsure about something, say so. "I'm not sure about that — let's explore it together" is always acceptable.
-- Prefer real-world examples from credible sources (.gov, .edu, established news) when available.
+- Prefer real-world examples from credible sources when available.
+- When generating project content (stages, descriptions, guiding questions), include a "sources" array with any referenced materials:
+  {"title": "Source title", "url": "https://...", "domain": "example.gov", "trust_level": "trusted|review|unverified"}
 
 NEVER:
 - Use grades, scores, or percentages when talking to learners. Frame everything as growth and progress.
@@ -472,7 +479,8 @@ Generate a quest as JSON:
       "deliverable": "what student produces",
       "guiding_questions": ["Question 1?", "Question 2?"],
       "resources_needed": ["resource 1"],
-      "stretch_challenge": "optional advanced challenge for stages 4+"
+      "stretch_challenge": "optional advanced challenge for stages 4+",
+      "sources": [{"title": "Source name", "url": "full URL", "domain": "domain.tld", "trust_level": "trusted|review|unverified"}]
     }
   ],
   "career_simulation": {
@@ -499,7 +507,8 @@ Rules:
 - If parent expectations or learning outcomes are provided, align the quest with high-priority outcomes where natural
 - Calibrate guiding questions to student proficiency levels when available
 - Include a stretch_challenge for stages 4+ that pushes deeper analysis or synthesis
-- stretch_challenge should be null for early stages (1-3)`;
+- stretch_challenge should be null for early stages (1-3)
+- For each stage, include a "sources" array with any real-world references used in the description, guiding questions, or deliverable. Prefer Tier 1 sources. If a stage uses no external references, use an empty array.`;
 
     const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.', maxTokens: 4096 });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -545,7 +554,9 @@ SAFETY RULES (strictly enforced):
 Stage description: ${stageDescription || ''}
 ${guidingQuestions?.length ? `Guiding questions: ${guidingQuestions.join('; ')}` : ''}
 ${deliverable ? `Deliverable: ${deliverable}` : ''}
-${profileContext ? `\nStudent profile:\n${profileContext}` : ''}${depthGuidance}`;
+${profileContext ? `\nStudent profile:\n${profileContext}` : ''}${depthGuidance}
+
+When making factual claims in your response, note the source. Format: "According to [Source](url), ...". If you cannot cite a source, say "Based on what I know" to signal it's AI-generated.`;
 
     return callAI({ systemPrompt, messages });
   },
@@ -573,7 +584,8 @@ You MUST respond with ONLY valid JSON:
   "feedback": "2-3 sentences of warm-cool-warm feedback",
   "skills_demonstrated": ["skill 1", "skill 2"],
   "encouragement": "1 sentence of specific encouragement",
-  "next_steps": "1 question about what to explore next"
+  "next_steps": "1 question about what to explore next",
+  "sources_referenced": [{"title": "...", "url": "...", "trust_level": "trusted|review|unverified"}]
 }
 
 Stage: ${stageTitle}
