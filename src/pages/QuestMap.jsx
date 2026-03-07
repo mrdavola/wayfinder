@@ -10,7 +10,7 @@ import {
 import SpeakButton from '../components/ui/SpeakButton';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ai, guidePlaybook as guidePlaybookApi, landmarksApi } from '../lib/api';
+import { ai, guidePlaybook as guidePlaybookApi, landmarksApi, communityProjects } from '../lib/api';
 import TreasureMap from '../components/map/TreasureMap';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 
@@ -1273,7 +1273,7 @@ function getInitials(n) { if (!n) return '?'; const p = n.trim().split(/\s+/); r
 export default function QuestMap() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { profile } = useAuth(); // profile used for avatar in navbar
+  const { user, profile } = useAuth(); // profile used for avatar in navbar
 
   // Inject styles once
   useEffect(() => { injectStyles(); }, []);
@@ -1302,6 +1302,20 @@ export default function QuestMap() {
       setTimeout(() => setShareCopied(false), 2000);
     });
   }, [id]);
+
+  const [shared, setShared] = useState(false);
+  const handleShareToCommunity = async () => {
+    if (!quest || !profile?.school_id || shared) return;
+    const result = await communityProjects.share(quest.id, profile.school_id, user.id, {
+      title: quest.title,
+      description: quest.subtitle || quest.narrative_hook || '',
+      tags: quest.academic_standards || [],
+      gradeBand: quest.grade_band || null,
+      projectMode: quest.project_mode || 'mixed',
+      careerPathway: quest.career_pathway || null,
+    });
+    if (result) setShared(true);
+  };
 
   // ---- Mobile detection ----
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -1530,6 +1544,19 @@ export default function QuestMap() {
           <Share2 size={14} />
           {shareCopied ? 'Link Copied!' : 'Share with Learners'}
         </button>
+
+        {quest?.status === 'completed' && (
+          <button onClick={handleShareToCommunity} disabled={shared} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+            borderRadius: 8, border: '1px solid var(--pencil)',
+            background: shared ? 'rgba(75,139,59,0.06)' : 'var(--chalk)',
+            color: shared ? 'var(--field-green)' : 'var(--ink)',
+            fontSize: 11, fontWeight: 600, cursor: shared ? 'default' : 'pointer',
+            fontFamily: 'var(--font-body)',
+          }}>
+            <Share2 size={13} /> {shared ? 'Shared!' : 'Share to Community'}
+          </button>
+        )}
 
         {/* Stages toggle — mobile only */}
         {isMobile && (
