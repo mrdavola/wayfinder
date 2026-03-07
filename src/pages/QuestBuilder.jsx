@@ -1041,8 +1041,13 @@ function Step2Skills({
                       return (
                         <button
                           key={std.standard_code}
-                          onClick={() => !alreadySelected && addProfileStandard(std)}
-                          disabled={alreadySelected}
+                          onClick={() => {
+                            if (alreadySelected) {
+                              setSelectedStandards(prev => prev.filter(s => s.id !== std.standard_code));
+                            } else {
+                              addProfileStandard(std);
+                            }
+                          }}
                           style={{
                             display: 'inline-flex', alignItems: 'center', gap: 4,
                             padding: '3px 10px', borderRadius: 6,
@@ -1050,8 +1055,8 @@ function Step2Skills({
                             background: alreadySelected ? `${T.fieldGreen}15` : T.chalk,
                             color: alreadySelected ? T.fieldGreen : T.ink,
                             fontSize: 11, fontFamily: 'var(--font-mono)',
-                            cursor: alreadySelected ? 'default' : 'pointer',
-                            opacity: alreadySelected ? 0.7 : 1,
+                            cursor: 'pointer',
+                            opacity: 1,
                           }}
                         >
                           {alreadySelected && <Check size={10} />}
@@ -1179,27 +1184,40 @@ function Step2Skills({
             Suggested for {gradeBand} learners
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {suggestions.map((std) => (
+            {suggestions.map((std) => {
+              const alreadyAdded = selectedStandards.some(s => s.id === std.id);
+              return (
               <div key={std.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'start' }}>
                 <div style={{ lineHeight: 1.5 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: T.ink, marginRight: 6 }}>{std.label}</span>
                   <span style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)' }}>{std.description}</span>
                 </div>
-                <button
-                  onClick={() => setSelectedStandards([...selectedStandards, std])}
-                  style={{
+                {alreadyAdded ? (
+                  <span style={{
                     display: 'flex', alignItems: 'center', gap: 3,
-                    padding: '4px 10px', borderRadius: 20, marginTop: 1,
-                    border: `1px solid ${T.compassGold}`, backgroundColor: 'transparent',
-                    color: T.compassGold, fontSize: 11, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'var(--font-body)',
-                    whiteSpace: 'nowrap', flexShrink: 0,
-                  }}
-                >
-                  <Plus size={11} /> Add
-                </button>
+                    padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                    color: T.fieldGreen, fontFamily: 'var(--font-body)',
+                  }}>
+                    <Check size={11} /> Added
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setSelectedStandards([...selectedStandards, std])}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 3,
+                      padding: '4px 10px', borderRadius: 20, marginTop: 1,
+                      border: `1px solid ${T.compassGold}`, backgroundColor: 'transparent',
+                      color: T.compassGold, fontSize: 11, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: 'var(--font-body)',
+                      whiteSpace: 'nowrap', flexShrink: 0,
+                    }}
+                  >
+                    <Plus size={11} /> Add
+                  </button>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
