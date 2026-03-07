@@ -394,7 +394,7 @@ export default function OnboardingPage() {
                 Set up your school
               </h2>
               <p style={{ color: 'var(--graphite)', margin: 0, fontSize: 'var(--text-sm)' }}>
-                We'll use this to tailor curriculum suggestions and project templates.
+                We'll use this to tailor project suggestions and templates.
               </p>
             </div>
 

@@ -170,7 +170,7 @@ function QuestMapIllustration() {
       <g transform="translate(228, 155)">
         <rect x="0" y="0" width="100" height="44" rx="5" fill="white" stroke="#E5E7EB" strokeWidth="1" />
         <rect x="0" y="0" width="3" height="44" rx="5" fill="#1B4965" />
-        <text x="10" y="14" fontFamily="'IBM Plex Mono', monospace" fontSize="7" fill="#9CA3AF">QUEST TYPE</text>
+        <text x="10" y="14" fontFamily="'IBM Plex Mono', monospace" fontSize="7" fill="#9CA3AF">PROJECT TYPE</text>
         <text x="10" y="28" fontFamily="'DM Sans', sans-serif" fontSize="9" fontWeight="600" fill="#1A1A2E">Investigation</text>
         <text x="10" y="40" fontFamily="'IBM Plex Mono', monospace" fontSize="7" fill="#2D6A4F">ACTIVE</text>
       </g>
@@ -583,7 +583,7 @@ export default function LandingPage() {
           </h2>
           <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <p style={{ color: 'var(--graphite)', lineHeight: 1.75 }}>
-              Students in learner-driven schools are deeply engaged — but their project work often stays surface-level because guides don&apos;t have time to design interdisciplinary, career-connected curriculum for every learner.
+              Students in learner-driven schools are deeply engaged — but their project work often stays surface-level because guides don&apos;t have time to design interdisciplinary, career-connected projects for every learner.
             </p>
             <p style={{ color: 'var(--graphite)', lineHeight: 1.75 }}>
               Meanwhile, AI is transforming fields like material science, synthetic biology, and telemedicine — but a 9-year-old building a Minecraft world has no idea these fields exist, let alone that their spatial reasoning could lead there.
@@ -916,7 +916,7 @@ export default function LandingPage() {
               padding: 0,
             }}
           >
-            Wayfinder made me feel like I could actually design curriculum that honors who my students are — and I did it in 10 minutes.
+            Wayfinder made me feel like I could actually design projects that honor who my students are — and I did it in 10 minutes.
           </blockquote>
 
           <p
@@ -991,7 +991,7 @@ export default function LandingPage() {
                   'School-wide Project Library with custom templates',
                   'Admin dashboard — see all guides and learner progress',
                   'Standards alignment reports for parent & board review',
-                  'Dedicated onboarding and curriculum mapping support',
+                  'Dedicated onboarding and project mapping support',
                   'Volume pricing from 5 guides upward',
                 ].map((item) => (
                   <div key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>

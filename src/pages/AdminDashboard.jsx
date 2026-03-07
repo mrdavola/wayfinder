@@ -241,7 +241,7 @@ export default function AdminDashboard() {
           <TabBtn active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={TrendingUp} label="Overview" />
           <TabBtn active={activeTab === 'schools'} onClick={() => setActiveTab('schools')} icon={School} label="Schools" />
           <TabBtn active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={Users} label="Users" />
-          <TabBtn active={activeTab === 'quests'} onClick={() => setActiveTab('quests')} icon={BookOpen} label="Quests" />
+          <TabBtn active={activeTab === 'quests'} onClick={() => setActiveTab('quests')} icon={BookOpen} label="Projects" />
         </div>
 
         {/* Search (not on overview) */}
@@ -265,9 +265,9 @@ export default function AdminDashboard() {
               <StatCard label="Schools" value={stats?.schools} color="#7C3AED" loading={loading} />
               <StatCard label="Total Users" value={stats?.users} color="var(--lab-blue)" loading={loading} />
               <StatCard label="Guides & Admins" value={stats?.guides} color="var(--field-green)" loading={loading} />
-              <StatCard label="Total Quests" value={stats?.quests} color="var(--compass-gold)" loading={loading} />
-              <StatCard label="Active Quests" value={stats?.activeQuests} sub="currently running" color="var(--specimen-red)" loading={loading} />
-              <StatCard label="Completed" value={stats?.completedQuests} sub="quests finished" color="var(--graphite)" loading={loading} />
+              <StatCard label="Total Projects" value={stats?.quests} color="var(--compass-gold)" loading={loading} />
+              <StatCard label="Active Projects" value={stats?.activeQuests} sub="currently running" color="var(--specimen-red)" loading={loading} />
+              <StatCard label="Completed" value={stats?.completedQuests} sub="projects finished" color="var(--graphite)" loading={loading} />
             </div>
 
             {/* Recent schools */}

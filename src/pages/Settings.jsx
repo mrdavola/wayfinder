@@ -898,7 +898,7 @@ export default function SettingsPage() {
             <Shield size={20} color="var(--chalk)" />
             <div>
               <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'var(--chalk)' }}>Open Admin Dashboard</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Schools · Users · Quests · Analytics</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Schools · Users · Projects · Analytics</div>
             </div>
           </div>
           <ChevronRight size={18} color="rgba(255,255,255,0.8)" />

@@ -395,9 +395,9 @@ function DashboardView({ data, token, onOutcomesUpdate }) {
         </div>
       </div>
 
-      {/* Active Quests */}
+      {/* Active Projects */}
       <section style={{ marginBottom: 24 }}>
-        <h3 style={sectionTitle}><BookOpen size={15} style={{ marginRight: 6 }} /> Active Quests</h3>
+        <h3 style={sectionTitle}><BookOpen size={15} style={{ marginRight: 6 }} /> Active Projects</h3>
         {quests.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {quests.map(q => {
