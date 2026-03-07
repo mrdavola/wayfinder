@@ -2207,3 +2207,43 @@ export const skillAssessments = {
     return data || [];
   },
 };
+
+// ===================== MASTERY MAP =====================
+
+export const masteryMap = {
+  async getFullProfile(studentId) {
+    const [assessments, studentSkillsData, snapshots, questsResult] = await Promise.all([
+      skillAssessments.getForStudentGrouped(studentId),
+      skills.getStudentSkills(studentId),
+      skillSnapshots.listForStudent(studentId),
+      supabase
+        .from('quest_students')
+        .select('quests(id, title, career_pathway, status, academic_standards, created_at)')
+        .eq('student_id', studentId),
+    ]);
+
+    const quests = (questsResult.data || []).map(qs => qs.quests).filter(Boolean);
+
+    // Build skill connections (skills that appeared in the same quest)
+    const connections = [];
+    const skillsByQuest = {};
+    Object.entries(assessments).forEach(([skillName, { history }]) => {
+      history.forEach(a => {
+        if (a.quest_id) {
+          if (!skillsByQuest[a.quest_id]) skillsByQuest[a.quest_id] = new Set();
+          skillsByQuest[a.quest_id].add(skillName);
+        }
+      });
+    });
+    Object.values(skillsByQuest).forEach(skillSet => {
+      const arr = [...skillSet];
+      for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+          connections.push({ from: arr[i], to: arr[j] });
+        }
+      }
+    });
+
+    return { assessments, studentSkills: studentSkillsData, snapshots, quests, connections };
+  },
+};
