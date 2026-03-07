@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase, Map } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi, skillAssessments } from '../lib/api';
@@ -367,6 +367,14 @@ export default function StudentProfilePage() {
                 color: T.ink, fontSize: 12, fontWeight: 600, textDecoration: 'none',
               }}>
               <Briefcase size={13} /> Career Explorer
+            </Link>
+            <Link to={`/mastery/${id}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+                borderRadius: 8, border: '1px solid var(--pencil)', background: 'var(--chalk)',
+                color: 'var(--ink)', fontSize: 11, fontWeight: 600, textDecoration: 'none',
+              }}>
+              <Map size={13} /> Mastery Map
             </Link>
           </div>
 

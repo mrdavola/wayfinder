@@ -392,6 +392,13 @@ function DashboardView({ data, token, onOutcomesUpdate }) {
             {student.grade_band && <span>{student.grade_band} · </span>}
             {student.age && <span>Age {student.age}</span>}
           </div>
+          <a href={`/mastery/${student.id}`} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+            borderRadius: 8, border: `1px solid ${T.pencil}`, background: T.chalk,
+            color: T.ink, fontSize: 12, fontWeight: 600, textDecoration: 'none', marginTop: 12,
+          }}>
+            View Mastery Map
+          </a>
         </div>
       </div>
 
