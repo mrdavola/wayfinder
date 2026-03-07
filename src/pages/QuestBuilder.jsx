@@ -1704,7 +1704,7 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
 }
 
 // ── Step 4: Anything Else? ───────────────────────────────────────────────────
-function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWorld, setUseRealWorld, onBack, onNext }) {
+function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWorld, setUseRealWorld, projectMode, setProjectMode, onBack, onNext }) {
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 6px' }}>
@@ -1732,6 +1732,33 @@ function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWor
             </div>
           </div>
         </label>
+      </div>
+
+      {/* Project Mode */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+          Expedition Style
+        </div>
+        <div style={{ display: 'flex', gap: 0, border: '1px solid var(--pencil)', borderRadius: 8, overflow: 'hidden' }}>
+          {[
+            { value: 'hands_on', label: 'Hands-On', desc: 'Building, fieldwork, experiments' },
+            { value: 'mixed', label: 'Mixed', desc: 'AI decides per stage' },
+            { value: 'digital', label: 'Digital', desc: 'Research, writing, design' },
+          ].map((opt, idx) => (
+            <button key={opt.value} onClick={() => setProjectMode(opt.value)}
+              style={{
+                flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
+                background: projectMode === opt.value ? 'var(--ink)' : 'var(--chalk)',
+                color: projectMode === opt.value ? 'var(--chalk)' : 'var(--graphite)',
+                fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+                borderRight: idx < 2 ? '1px solid var(--pencil)' : 'none',
+                transition: 'all 0.15s ease',
+              }}>
+              <div>{opt.label}</div>
+              <div style={{ fontSize: 9, fontWeight: 400, marginTop: 2, opacity: 0.7 }}>{opt.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
       <textarea
@@ -2643,6 +2670,7 @@ export default function QuestBuilder() {
   // Step 4 (Anything Else?)
   const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
   const [useRealWorld, setUseRealWorld] = useState(false);
+  const [projectMode, setProjectMode] = useState('mixed');
 
   // Year Plan prefill: read from sessionStorage on mount
   useEffect(() => {
@@ -2835,6 +2863,7 @@ export default function QuestBuilder() {
         studentStandardsProfiles,
         additionalContext,
         useRealWorld,
+        projectMode,
       });
 
       cancelAnimationFrame(progressRef.current);
@@ -2886,6 +2915,7 @@ export default function QuestBuilder() {
           academic_standards: selectedStandards.map((s) => s.id),
           reflection_prompts: generatedQuest.reflection_prompts,
           parent_summary: generatedQuest.parent_summary,
+          project_mode: projectMode,
         })
         .select()
         .single();
@@ -3202,6 +3232,8 @@ export default function QuestBuilder() {
                 setAdditionalContext={setAdditionalContext}
                 useRealWorld={useRealWorld}
                 setUseRealWorld={setUseRealWorld}
+                projectMode={projectMode}
+                setProjectMode={setProjectMode}
                 onBack={() => setStep(3)}
                 onNext={() => setStep(5)}
               />
