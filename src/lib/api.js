@@ -325,7 +325,7 @@ async function generateWorldImage(imagePrompt) {
     },
   });
   const result = await model.generateContent(
-    `Generate a photorealistic ultra-wide panoramic image (21:9 aspect ratio, very wide). ${imagePrompt}`
+    `Generate a high-quality equirectangular panoramic photograph (2:1 aspect ratio, for 360-degree sphere projection). The image should be a seamless wrap-around environment as if taken by a 360° camera. Photorealistic, detailed, well-lit, vibrant colors. NO text or words in the image. ${imagePrompt}`
   );
   const response = result.response;
   const parts = response.candidates?.[0]?.content?.parts || [];
@@ -1296,15 +1296,16 @@ Return JSON with these fields:
 
 RULES:
 - The scene must be a REAL place (not fantasy). Match the student's interests.
-- The scene is a wide panoramic view (21:9 aspect ratio) — imagine standing in the center and looking around 360 degrees.
-- Each stage gets a hotspot at a specific yaw angle (-180 to 180 degrees, where 0 is center-front) and pitch (-30 to 30, where 0 is eye-level).
-- Spread hotspots evenly across the panorama (don't cluster them).
-- The image_prompt should describe a photorealistic panoramic photograph with distinct visual zones for each stage location.
+- The scene is an equirectangular 360° panoramic environment (2:1 aspect ratio) — as if taken by a 360° camera standing in the center of the space.
+- IMPORTANT: Do NOT include any text, words, signs, or labels in the image. The scene should be purely visual.
+- Each stage gets a hotspot at a specific yaw angle (-180 to 180 degrees, where 0 is center-front) and pitch (-20 to 20, where 0 is eye-level).
+- Spread hotspots evenly across the full 360° panorama (don't cluster them). Use the full yaw range.
+- The image_prompt should describe a photorealistic 360° environment with distinct visual areas/zones for each stage. Describe lighting, materials, atmosphere.
 - Each hotspot label should be a short, evocative name for that location (e.g., "The Workshop Bench", "Judge's Booth", "Research Wall").
 - icon must be one of: search, wrench, flask, mic, book, star, zap, target, compass, lightbulb
 
 Grade level: ${gradeBand || '6-8'}
-Adapt scene complexity to age: K-2 gets colorful/simple scenes, 9-12 gets professional/realistic.
+Adapt scene complexity to age: K-2 gets colorful/bright scenes, 9-12 gets professional/realistic.
 
 Return ONLY valid JSON. No markdown fences.`;
 
@@ -1319,7 +1320,7 @@ ${stageList}
 
 Return JSON:
 {
-  "image_prompt": "Ultra-wide panoramic photograph of [detailed scene description with distinct zones for each stage]...",
+  "image_prompt": "Equirectangular 360-degree panoramic photograph of [detailed scene description with distinct zones for each stage, NO text or words]...",
   "scene_description": "Brief 1-sentence description of the world",
   "hotspots": [
     { "stage_number": 1, "label": "Location Name", "position": { "yaw": -60, "pitch": 0 }, "icon": "search" }

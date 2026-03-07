@@ -63,7 +63,8 @@ export default function ImmersiveWorldView({
 
           {/* Stage hotspots */}
           {(hotspots || []).map((h) => {
-            const stage = stages.find(s => s.stage_number === h.stage_number);
+            const stage = stages.find(s => s.stage_number === h.stage_number || s.stage_number === String(h.stage_number))
+              || stages[h.stage_number - 1];
             return (
               <StageHotspot
                 key={h.stage_number}

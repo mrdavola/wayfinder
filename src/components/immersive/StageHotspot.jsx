@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Billboard, Html } from '@react-three/drei';
 import { Vector3 } from 'three';
 
-function yawPitchToPosition(yaw, pitch, radius = 450) {
+function yawPitchToPosition(yaw, pitch, radius = 100) {
   const yawRad = (yaw * Math.PI) / 180;
   const pitchRad = (pitch * Math.PI) / 180;
   return new Vector3(
@@ -45,7 +45,7 @@ export default function StageHotspot({ hotspot, stage, onClick }) {
 
   return (
     <Billboard position={position}>
-      <Html center distanceFactor={150} style={{ pointerEvents: 'auto' }}>
+      <Html center zIndexRange={[100, 0]} style={{ pointerEvents: 'auto' }}>
         <div
           onClick={isLocked ? undefined : onClick}
           onMouseEnter={() => setHovered(true)}
