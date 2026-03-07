@@ -2055,7 +2055,19 @@ function Step6Review({
         </div>
       )}
 
-      {/* World Preview */}
+      {/* World Preview — shows generating state or actual preview */}
+      {!generatedQuest._worldScene && (
+        <div style={{
+          marginBottom: 20, borderRadius: 12, overflow: 'hidden',
+          border: `1px dashed ${T.pencil}`, background: T.parchment,
+          padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: T.compassGold }} />
+          <span style={{ fontSize: 13, color: T.graphite }}>
+            Building your immersive world in the background...
+          </span>
+        </div>
+      )}
       {generatedQuest._worldScene && (
         <div style={{
           marginBottom: 20, borderRadius: 12, overflow: 'hidden',
