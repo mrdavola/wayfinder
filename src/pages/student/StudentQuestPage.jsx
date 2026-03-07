@@ -2495,7 +2495,7 @@ export default function StudentQuestPage() {
     setGuideMessages(updated);
 
     try {
-      const reply = await ai.questHelp({
+      const rawReply = await ai.questHelp({
         stageTitle: stage.title,
         stageDescription: stage.description || '',
         guidingQuestions: stage.guiding_questions || [],
@@ -2507,8 +2507,36 @@ export default function StudentQuestPage() {
         },
         messages: updated,
       });
-      setGuideMessages([...updated, { role: 'assistant', content: reply }]);
-      guideMessagesApi.add({ questId: id, stageId, studentId, studentName, role: 'assistant', content: reply });
+
+      // Strip hidden assessment from Field Guide response
+      let displayMessage = rawReply;
+      let conversationAssessments = [];
+      const assessmentDelimiter = '---ASSESSMENT---';
+      if (typeof displayMessage === 'string' && displayMessage.includes(assessmentDelimiter)) {
+        const parts = displayMessage.split(assessmentDelimiter);
+        displayMessage = parts[0].trim();
+        try {
+          const assessmentData = JSON.parse(parts[1].trim());
+          conversationAssessments = assessmentData.skill_observations || [];
+        } catch { /* ignore parse errors */ }
+      }
+
+      setGuideMessages([...updated, { role: 'assistant', content: displayMessage }]);
+      guideMessagesApi.add({ questId: id, stageId, studentId, studentName, role: 'assistant', content: displayMessage });
+
+      // Silently log skill observations from conversation
+      if (conversationAssessments.length > 0) {
+        const assessments = conversationAssessments.map(obs => ({
+          student_id: studentId,
+          skill_name: obs.skill_name,
+          quest_id: id,
+          stage_id: stageId,
+          assessment_type: 'conversation',
+          rating: obs.rating,
+          evidence: obs.evidence,
+        }));
+        skillAssessments.bulkLog(assessments);
+      }
     } catch {
       const fallback = "That's a great observation! What evidence from the stage supports that? What might challenge your thinking?";
       setGuideMessages([...updated, { role: 'assistant', content: fallback }]);

@@ -594,7 +594,21 @@ ${guidingQuestions?.length ? `Guiding questions: ${guidingQuestions.join('; ')}`
 ${deliverable ? `Deliverable: ${deliverable}` : ''}
 ${profileContext ? `\nStudent profile:\n${profileContext}` : ''}${depthGuidance}
 
-When making factual claims in your response, note the source. Format: "According to [Source](url), ...". If you cannot cite a source, say "Based on what I know" to signal it's AI-generated.`;
+When making factual claims in your response, note the source. Format: "According to [Source](url), ...". If you cannot cite a source, say "Based on what I know" to signal it's AI-generated.
+
+SKILL PROBING (do this naturally, never announce it):
+- When the explorer explains their thinking, gently probe deeper: "Interesting! What made you choose that approach?" or "What would happen if you doubled that?"
+- When they show understanding, acknowledge it warmly: "You've got a sharp eye for patterns!"
+- When they struggle, scaffold without giving away: "Let's break that down. What's the first piece you're sure about?"
+
+INVISIBLE ASSESSMENT:
+After EVERY response, silently evaluate what the conversation reveals about the explorer's skills.
+Append a hidden JSON block at the END of your response, after your natural reply, separated by the delimiter "---ASSESSMENT---":
+---ASSESSMENT---
+{"skill_observations": [{"skill_name": "string", "rating": 1-4, "evidence": "what they said that shows this"}]}
+
+If the conversation doesn't reveal anything assessable, return: {"skill_observations": []}
+The explorer NEVER sees this block — it is stripped before display.`;
 
     return callAI({ systemPrompt, messages });
   },
