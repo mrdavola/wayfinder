@@ -616,10 +616,27 @@ Challenge types and their config format:
 
 Set "expedition_challenge" to null for stages where no challenge is included.`;
 
-    const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.', maxTokens: 4096 });
+    const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.', maxTokens: 16000 });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in response');
-    return JSON.parse(jsonMatch[0]);
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      // Try to repair truncated JSON by finding the last complete object
+      const cleaned = jsonMatch[0]
+        .replace(/,\s*\]/, ']')   // trailing comma in arrays
+        .replace(/,\s*\}/, '}');  // trailing comma in objects
+      try { return JSON.parse(cleaned); } catch {}
+      // Last resort: try to find a valid JSON prefix
+      for (let end = jsonMatch[0].length; end > 100; end--) {
+        try {
+          const attempt = jsonMatch[0].slice(0, end);
+          const balanced = attempt + ']}}'.slice(0, Math.max(0, (attempt.match(/\{/g) || []).length - (attempt.match(/\}/g) || []).length));
+          return JSON.parse(balanced);
+        } catch {}
+      }
+      throw new Error('Could not parse quest JSON: ' + e.message);
+    }
   },
 
   simulationChat: async ({ systemPrompt, messages }) => {

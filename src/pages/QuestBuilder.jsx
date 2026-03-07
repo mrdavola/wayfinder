@@ -58,11 +58,19 @@ const T = {
 const STEP_LABELS = ['Students', 'Skills', 'Pathway', 'Anything Else?', 'Generating', 'Review', 'Launch'];
 
 const LOADING_TEXTS = [
+  'Reading student profiles...',
   'Mapping interests to standards...',
   'Designing challenge sequence...',
   'Connecting to career pathways...',
-  'Calibrating difficulty...',
-  'Building simulation scenario...',
+  'Writing stage descriptions...',
+  'Creating guiding questions...',
+  'Building deliverables for each stage...',
+  'Calibrating difficulty levels...',
+  'Finding reliable sources...',
+  'Designing expedition challenges...',
+  'Reviewing for age-appropriateness...',
+  'Polishing the final project...',
+  'Almost there — adding finishing touches...',
 ];
 
 const STAGE_ICONS = {
@@ -1868,20 +1876,26 @@ function Step5Generating({ progress, loadingText, error, onRegenerate }) {
               color: T.graphite,
               fontSize: 14,
               fontFamily: 'var(--font-body)',
-              marginBottom: 32,
+              marginBottom: 16,
               minHeight: 22,
               transition: 'opacity 0.3s',
             }}
           >
             {loadingText}
           </p>
+          <p style={{
+            color: T.pencil, fontSize: 11, fontFamily: 'var(--font-mono)',
+            marginBottom: 24,
+          }}>
+            This usually takes 30–60 seconds
+          </p>
 
           {/* Progress bar */}
           <div
             style={{
-              height: 4,
+              height: 6,
               backgroundColor: T.parchment,
-              borderRadius: 2,
+              borderRadius: 3,
               overflow: 'hidden',
               width: 300,
             }}
@@ -1890,7 +1904,7 @@ function Step5Generating({ progress, loadingText, error, onRegenerate }) {
               style={{
                 height: '100%',
                 backgroundColor: T.compassGold,
-                borderRadius: 2,
+                borderRadius: 3,
                 width: `${progress}%`,
                 transition: 'width 0.5s ease',
               }}
@@ -3235,13 +3249,13 @@ export default function QuestBuilder() {
     };
     progressRef.current = requestAnimationFrame(tick);
 
-    // Cycle loading texts every 2s
+    // Cycle loading texts every 3.5s
     let textIdx = 0;
     setLoadingTextIdx(0);
     textRef.current = setInterval(() => {
       textIdx = (textIdx + 1) % LOADING_TEXTS.length;
       setLoadingTextIdx(textIdx);
-    }, 2000);
+    }, 3500);
 
     try {
       const pathwayLabels = selectedPathways
