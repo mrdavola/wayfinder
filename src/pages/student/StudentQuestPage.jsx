@@ -3160,43 +3160,39 @@ export default function StudentQuestPage() {
       )}
 
       {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 14px' : '28px 22px' }}>
-          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 36, alignItems: 'flex-start' }}>
-            {/* SVG map — hidden on mobile */}
-            {!isMobile && (
-              <div style={{ flexShrink: 0, width: 320 }}>
-                {stages.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pencil)', fontSize: 13 }}>
-                    No stages yet — check back soon!
-                  </div>
-                ) : isBranchingQuest ? (
-                  <BranchingMap
-                    stages={stages}
-                    branches={questBranches}
-                    studentChoices={studentChoices}
-                    landmarks={mapLandmarks}
-                    activeStageId={stages.find(s => s.status === 'active')?.id}
-                    onStageClick={(stage) => {
-                      handleNodeClick(stage.id);
-                    }}
-                  />
-                ) : (
-                  <TreasureMap
-                    stages={stages}
-                    landmarks={mapLandmarks}
-                    activeCard={activeCard}
-                    onNodeClick={handleNodeClick}
-                    studentName={studentName}
-                    studentEmoji={studentProfile?.avatar_emoji}
-                    recentlyCompleted={confetti ? activeCard : null}
-                  />
-                )}
-              </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Horizontal trail map — full width, above content */}
+        {!isMobile && stages.length > 0 && (
+          <div style={{ padding: '12px 22px 0', flexShrink: 0 }}>
+            {isBranchingQuest ? (
+              <BranchingMap
+                stages={stages}
+                branches={questBranches}
+                studentChoices={studentChoices}
+                landmarks={mapLandmarks}
+                activeStageId={stages.find(s => s.status === 'active')?.id}
+                onStageClick={(stage) => {
+                  handleNodeClick(stage.id);
+                }}
+              />
+            ) : (
+              <TreasureMap
+                stages={stages}
+                landmarks={mapLandmarks}
+                activeCard={activeCard}
+                onNodeClick={handleNodeClick}
+                studentName={studentName}
+                studentEmoji={studentProfile?.avatar_emoji}
+                recentlyCompleted={confetti ? activeCard : null}
+              />
             )}
+          </div>
+        )}
 
+        <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 14px' : '28px 22px' }}>
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
             {/* Stage card + hint */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, width: isMobile ? '100%' : 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Completion banner */}
               {quest?.status === 'completed' && (
                 <div style={{
