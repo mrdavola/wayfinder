@@ -1712,7 +1712,7 @@ export const skillSnapshots = {
       .from('skill_snapshots')
       .select('*, skills(name, category)')
       .eq('student_id', studentId)
-      .order('created_at', { ascending: true });
+      .order('snapshot_at', { ascending: true });
   },
 };
 
@@ -2386,7 +2386,7 @@ export const skillAssessments = {
 
 export const masteryMap = {
   async getFullProfile(studentId) {
-    const [assessments, studentSkillsData, snapshots, questsResult] = await Promise.all([
+    const [assessments, studentSkillsResult, snapshotsResult, questsResult] = await Promise.all([
       skillAssessments.getForStudentGrouped(studentId),
       skills.getStudentSkills(studentId),
       skillSnapshots.listForStudent(studentId),
@@ -2396,6 +2396,8 @@ export const masteryMap = {
         .eq('student_id', studentId),
     ]);
 
+    const studentSkillsData = studentSkillsResult?.data || [];
+    const snapshots = snapshotsResult?.data || [];
     const quests = (questsResult.data || []).map(qs => qs.quests).filter(Boolean);
 
     // Build skill connections (skills that appeared in the same quest)
