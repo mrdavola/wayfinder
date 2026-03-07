@@ -1716,3 +1716,34 @@ export const explorerLog = {
     if (error) { console.error('Add log error:', error); }
   },
 };
+
+// ===================== SOURCE OVERRIDES (TRUTH PROTOCOL) =====================
+
+export const sourceOverrides = {
+  async getForRecord(tableName, recordId) {
+    const { data, error } = await supabase
+      .from('source_overrides')
+      .select('*')
+      .eq('table_name', tableName)
+      .eq('record_id', recordId);
+    if (error) { console.error('Get overrides error:', error); return []; }
+    return data || [];
+  },
+
+  async set(guideId, tableName, recordId, sourceUrl, status, note = null) {
+    const { data, error } = await supabase
+      .from('source_overrides')
+      .upsert({
+        guide_id: guideId,
+        table_name: tableName,
+        record_id: recordId,
+        source_url: sourceUrl,
+        override_status: status,
+        note,
+      })
+      .select()
+      .single();
+    if (error) { console.error('Set override error:', error); return null; }
+    return data;
+  },
+};

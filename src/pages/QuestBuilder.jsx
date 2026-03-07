@@ -28,6 +28,8 @@ import { supabase } from '../lib/supabase';
 import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
+import TrustBadge from '../components/ui/TrustBadge';
+import { getTrustTier } from '../lib/trustDomains';
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -2299,6 +2301,30 @@ function Step6Review({
                       />
                     </div>
                   )}
+
+                  {/* Sources */}
+                  {stage.sources?.length > 0 && (
+                    <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--parchment)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                        Sources
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {stage.sources.map((src, si) => (
+                          <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                            <TrustBadge
+                              tier={src.trust_level || getTrustTier(src.url)}
+                              url={src.url}
+                              sourceName={src.title || src.domain}
+                            />
+                            <a href={src.url} target="_blank" rel="noopener noreferrer"
+                              style={{ color: 'var(--lab-blue)', fontSize: 11, textDecoration: 'none' }}>
+                              {src.title || src.url}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2858,6 +2884,7 @@ export default function QuestBuilder() {
             guiding_questions: Array.isArray(s.guiding_questions) ? s.guiding_questions : [],
             resources: Array.isArray(s.resources_needed) ? s.resources_needed : [],
             stretch_challenge: s.stretch_challenge || null,
+            sources: Array.isArray(s.sources) ? s.sources : [],
             status: i === 0 ? 'active' : 'locked',
           }))
         ).select();
