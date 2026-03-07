@@ -293,6 +293,52 @@ export const templates = {
 // Gemini is the default provider. Anthropic is an optional fallback.
 // In production, proxy through a serverless function rather than calling from browser.
 
+// ===================== WORLD SCENE UTILITIES =====================
+
+async function uploadWorldScene(questId, base64ImageData, mimeType = 'image/png') {
+  const byteString = atob(base64ImageData);
+  const bytes = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i++) {
+    bytes[i] = byteString.charCodeAt(i);
+  }
+  const blob = new Blob([bytes], { type: mimeType });
+  const path = `${questId}/scene.png`;
+  const { error } = await supabase.storage
+    .from('world-scenes')
+    .upload(path, blob, { upsert: true, contentType: mimeType });
+  if (error) throw error;
+  const { data: { publicUrl } } = supabase.storage
+    .from('world-scenes')
+    .getPublicUrl(path);
+  return publicUrl;
+}
+
+async function generateWorldImage(imagePrompt) {
+  const settings = getAiSettings();
+  const apiKey = settings.geminiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+    },
+  });
+  const result = await model.generateContent(
+    `Generate a photorealistic ultra-wide panoramic image (21:9 aspect ratio, very wide). ${imagePrompt}`
+  );
+  const response = result.response;
+  const parts = response.candidates?.[0]?.content?.parts || [];
+  const imagePart = parts.find(p => p.inlineData);
+  if (!imagePart?.inlineData?.data) {
+    throw new Error('No image generated');
+  }
+  return {
+    base64: imagePart.inlineData.data,
+    mimeType: imagePart.inlineData.mimeType || 'image/png',
+  };
+}
+
 // Content safety preamble — prepended to every AI system prompt
 const SAFETY_PREAMBLE = `SAFETY RULES (non-negotiable):
 - All content MUST be appropriate for school-age children (ages 5-18).
@@ -1190,6 +1236,85 @@ Return JSON array:
       const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
+  },
+
+  // ===================== IMMERSIVE 3D WORLD SCENE =====================
+
+  async generateWorldScene({ questTitle, stages, studentInterests, careerPathway, gradeBand }) {
+    const stageList = stages.map(s =>
+      `Stage ${s.stage_number}: "${s.stage_title || s.title}" (${s.stage_type}) — ${(s.description || '').slice(0, 80)}`
+    ).join('\n');
+
+    const systemPrompt = `You are a scene designer for an educational 3D world. Given a project theme and stages, you design a SINGLE panoramic environment where each stage has a physical location.
+
+RULES:
+- The scene must be a REAL place (not fantasy). Match the student's interests.
+- The scene is a wide panoramic view (21:9 aspect ratio) — imagine standing in the center and looking around 360 degrees.
+- Each stage gets a hotspot at a specific yaw angle (-180 to 180 degrees, where 0 is center-front) and pitch (-30 to 30, where 0 is eye-level).
+- Spread hotspots evenly across the panorama (don't cluster them).
+- The image_prompt should describe a photorealistic panoramic photograph with distinct visual zones for each stage location.
+- Each hotspot label should be a short, evocative name for that location (e.g., "The Workshop Bench", "Judge's Booth", "Research Wall").
+- icon must be one of: search, wrench, flask, mic, book, star, zap, target, compass, lightbulb
+
+Grade level: ${gradeBand || '6-8'}
+Adapt scene complexity to age: K-2 gets colorful/simple scenes, 9-12 gets professional/realistic.
+
+Return ONLY valid JSON. No markdown fences.`;
+
+    const userMessage = `Design an immersive world for this project:
+
+Title: "${questTitle}"
+Student interests: ${(studentInterests || []).join(', ') || 'general'}
+Career pathway: ${careerPathway || 'none'}
+
+Stages:
+${stageList}
+
+Return JSON:
+{
+  "image_prompt": "Ultra-wide panoramic photograph of [detailed scene description with distinct zones for each stage]...",
+  "scene_description": "Brief 1-sentence description of the world",
+  "hotspots": [
+    { "stage_number": 1, "label": "Location Name", "position": { "yaw": -60, "pitch": 0 }, "icon": "search" }
+  ]
+}`;
+
+    const raw = await callAI({ systemPrompt, userMessage });
+    try {
+      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      if (!parsed.image_prompt || !Array.isArray(parsed.hotspots)) {
+        throw new Error('Invalid scene response');
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  },
+
+  async generateFullWorldScene({ questId, questTitle, stages, studentInterests, careerPathway, gradeBand }) {
+    try {
+      const sceneData = await ai.generateWorldScene({ questTitle, stages, studentInterests, careerPathway, gradeBand });
+      if (!sceneData) return null;
+
+      const image = await generateWorldImage(sceneData.image_prompt);
+      if (!image) return { ...sceneData, sceneUrl: null };
+
+      const sceneUrl = questId
+        ? await uploadWorldScene(questId, image.base64, image.mimeType)
+        : null;
+
+      return {
+        sceneUrl,
+        hotspots: sceneData.hotspots,
+        scenePrompt: sceneData.image_prompt,
+        sceneDescription: sceneData.scene_description,
+        _imageBase64: image.base64,
+        _imageMime: image.mimeType,
+      };
+    } catch (err) {
+      console.error('World scene generation failed:', err);
+      return null;
+    }
   },
 
   async generateInteractiveData(stage, interactiveType) {
