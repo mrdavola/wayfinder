@@ -412,7 +412,7 @@ async function callAI(params) {
 }
 
 export const ai = {
-  generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles, additionalContext, useRealWorld }) => {
+  generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles, additionalContext, useRealWorld, projectMode }) => {
     // Build rich student profiles for the prompt
     const studentProfiles = (students || []).map(s => {
       const parts = [`- ${s.name} (age ${s.age || '10'}, ${s.grade_band || 'unknown grade'})`];
@@ -448,6 +448,11 @@ export const ai = {
         ).join('\n');
     }
 
+    const modeInstruction = projectMode && projectMode !== 'mixed' ? `\n\nEXPEDITION STYLE: ${projectMode === 'hands_on' ? 'HANDS-ON' : 'DIGITAL'}
+${projectMode === 'hands_on'
+  ? '- Emphasize physical experiments, building, art, fieldwork, interviews, and real-world observation.\n- Deliverables should be tangible: models, prototypes, field journals, art pieces, interviews recorded.\n- Resources should include physical materials, tools, outdoor spaces.\n- Minimize screen time — if research is needed, keep it brief and purposeful.'
+  : '- Emphasize research, writing, coding, digital design, data analysis, and presentations.\n- Deliverables should be digital: reports, websites, infographics, slide decks, code projects.\n- Resources should include software, websites, databases, digital tools.\n- Physical activities are fine as supplements but focus should be screen-based work.'}` : '';
+
     const systemPrompt = `You are Wayfinder's curriculum engine. You design project-based learning quests for students in learner-driven schools.
 
 You MUST respond with ONLY valid JSON matching this exact structure. No other text.
@@ -459,7 +464,7 @@ ${studentProfiles || 'No detailed profiles available'}
 - Academic standards: ${standards}${standardsProfileText}
 - Career pathway: ${pathway || 'none'}
 - Quest type: ${type}
-- Student count: ${count || (students || []).length || 1}${additionalContext ? `\n- Additional context from guide: ${additionalContext}` : ''}
+- Student count: ${count || (students || []).length || 1}${additionalContext ? `\n- Additional context from guide: ${additionalContext}` : ''}${modeInstruction}
 
 Generate a quest as JSON:
 {
@@ -480,7 +485,14 @@ Generate a quest as JSON:
       "guiding_questions": ["Question 1?", "Question 2?"],
       "resources_needed": ["resource 1"],
       "stretch_challenge": "optional advanced challenge for stages 4+",
-      "sources": [{"title": "Source name", "url": "full URL", "domain": "domain.tld", "trust_level": "trusted|review|unverified"}]
+      "sources": [{"title": "Source name", "url": "full URL", "domain": "domain.tld", "trust_level": "trusted|review|unverified"}],
+      "expedition_challenge": {
+        "challenge_type": "estimate|pattern|quick_write|classify|decode",
+        "challenge_text": "Adventure-framed challenge. NEVER 'quiz' or 'test'. Frame as expedition obstacle.",
+        "challenge_config": {},
+        "target_skills": ["skill names this secretly assesses"],
+        "difficulty": "warmup|standard|stretch"
+      }
     }
   ],
   "career_simulation": {
@@ -515,7 +527,26 @@ REAL-WORLD INTEGRATION:
 - Include real stakeholders, organizations, data points, and news.
 - Each stage must have a "sources" array with citations.
 - Tag projects as "Verified Real World" if all sources are Tier 1/2.
-- Weave real-world context naturally into descriptions and guiding questions — don't bolt it on.` : ''}`;
+- Weave real-world context naturally into descriptions and guiding questions — don't bolt it on.` : ''}
+
+EXPEDITION CHALLENGES (one per stage, optional — include for 60-70% of stages):
+Each stage may include an "expedition_challenge" — a quick obstacle the explorer must clear before diving into the stage.
+These MUST feel like part of the adventure, NEVER like a school quiz.
+Good: "The bridge is damaged. Quick — how many 2.5-foot planks do you need for a 15-foot gap?"
+Bad: "Calculate: 15 / 2.5 = ?"
+Good: "The signal is garbled: 2, 6, 18, __, 162. Decode the missing number to proceed."
+Bad: "What is the next number in this sequence?"
+Good: "Your expedition packs are mixed up! Sort these items: [Solar, Coal, Wind, Oil] into Renewable and Non-Renewable."
+Bad: "Classify the following energy sources."
+
+Challenge types and their config format:
+- estimate: { "answer": number, "tolerance": number, "unit": "optional string" }
+- pattern: { "answer": "string", "hint": "optional hint" }
+- quick_write: { "min_words": 10 }
+- classify: { "categories": ["A","B"], "items": [{ "text": "X", "correct": "A" }] }
+- decode: { "answer": "string", "cipher_hint": "optional hint" }
+
+Set "expedition_challenge" to null for stages where no challenge is included.`;
 
     const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.', maxTokens: 4096 });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
