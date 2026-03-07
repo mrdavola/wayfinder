@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ShieldCheck, AlertTriangle, ShieldAlert, UserCheck, ExternalLink } from 'lucide-react';
 import { getTrustColor, getTrustLabel } from '../../lib/trustDomains';
 
@@ -13,15 +13,25 @@ const TIER_ICONS = {
 
 export default function TrustBadge({ tier, url, sourceName, onOverride }) {
   const [hovered, setHovered] = useState(false);
+  const hideTimeout = useRef(null);
   const color = getTrustColor(tier);
   const label = getTrustLabel(tier);
   const Icon = TIER_ICONS[tier] || AlertTriangle;
 
+  const showTooltip = () => {
+    clearTimeout(hideTimeout.current);
+    setHovered(true);
+  };
+
+  const hideTooltip = () => {
+    hideTimeout.current = setTimeout(() => setHovered(false), 150);
+  };
+
   return (
     <span
       style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 3 }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={showTooltip}
+      onMouseLeave={hideTooltip}
     >
       <Icon size={12} color={color} />
       {sourceName && (
@@ -33,17 +43,23 @@ export default function TrustBadge({ tier, url, sourceName, onOverride }) {
         </span>
       )}
       {hovered && (
-        <div style={{
-          position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
-          marginBottom: 6, padding: '6px 10px', borderRadius: 6,
-          background: 'var(--ink)', color: 'var(--chalk)', fontSize: 11,
-          fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', zIndex: 100,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        }}>
-          <div style={{ fontWeight: 600, marginBottom: 2 }}>{label}</div>
+        <div
+          onMouseEnter={showTooltip}
+          onMouseLeave={hideTooltip}
+          style={{
+            position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+            marginBottom: 4, padding: '8px 12px', borderRadius: 6,
+            background: 'var(--ink)', color: 'var(--chalk)', fontSize: 11,
+            fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', zIndex: 100,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          }}>
+          <div style={{ fontWeight: 600, marginBottom: url ? 4 : 0 }}>{label}</div>
           {url && (
             <a href={url} target="_blank" rel="noopener noreferrer"
-              style={{ color: 'var(--lab-blue)', fontSize: 10, display: 'flex', alignItems: 'center', gap: 3 }}
+              style={{
+                color: '#7CB9E8', fontSize: 10, display: 'flex', alignItems: 'center', gap: 3,
+                textDecoration: 'underline', cursor: 'pointer',
+              }}
               onClick={(e) => e.stopPropagation()}>
               View source <ExternalLink size={9} />
             </a>
@@ -51,11 +67,11 @@ export default function TrustBadge({ tier, url, sourceName, onOverride }) {
           {onOverride && tier !== 'verified_by_guide' && tier !== 'incorrect' && (
             <div style={{ marginTop: 4, display: 'flex', gap: 6 }}>
               <button onClick={() => onOverride('verified_by_guide')}
-                style={{ fontSize: 9, color: 'var(--lab-blue)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                style={{ fontSize: 9, color: '#7CB9E8', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
                 Mark verified
               </button>
               <button onClick={() => onOverride('incorrect')}
-                style={{ fontSize: 9, color: 'var(--specimen-red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                style={{ fontSize: 9, color: 'var(--specimen-red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
                 Mark incorrect
               </button>
             </div>
