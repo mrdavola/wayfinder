@@ -465,6 +465,20 @@ async function callAI(params) {
     : callGemini(safeParams);
 }
 
+// Robust JSON parser for AI output — handles unescaped quotes, trailing commas, markdown fences, etc.
+async function parseAIJSON(text) {
+  // Strip markdown fences
+  const cleaned = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('No JSON found in AI response');
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    const { jsonrepair } = await import('jsonrepair');
+    return JSON.parse(jsonrepair(jsonMatch[0]));
+  }
+}
+
 export const ai = {
   generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles, additionalContext, useRealWorld, projectMode }) => {
     // Build rich student profiles for the prompt
@@ -617,25 +631,10 @@ Challenge types and their config format:
 Set "expedition_challenge" to null for stages where no challenge is included.`;
 
     const text = await callAI({ systemPrompt, userMessage: 'Generate the quest JSON now.', maxTokens: 16000 });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in response');
     try {
-      return JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      // Try to repair truncated JSON by finding the last complete object
-      const cleaned = jsonMatch[0]
-        .replace(/,\s*\]/, ']')   // trailing comma in arrays
-        .replace(/,\s*\}/, '}');  // trailing comma in objects
-      try { return JSON.parse(cleaned); } catch {}
-      // Last resort: try to find a valid JSON prefix
-      for (let end = jsonMatch[0].length; end > 100; end--) {
-        try {
-          const attempt = jsonMatch[0].slice(0, end);
-          const balanced = attempt + ']}}'.slice(0, Math.max(0, (attempt.match(/\{/g) || []).length - (attempt.match(/\}/g) || []).length));
-          return JSON.parse(balanced);
-        } catch {}
-      }
-      throw new Error('Could not parse quest JSON: ' + e.message);
+      return await parseAIJSON(text);
+    } catch {
+      throw new Error('Could not parse quest JSON — please try again');
     }
   },
 
@@ -753,9 +752,7 @@ ${deliverable ? `Expected deliverable: ${deliverable}` : ''}
 ${profileStr ? `Student: ${profileStr}` : ''}`,
       userMessage: `Student submitted:\n${submissionContent || '(non-text submission)'}`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   assessMastery: async ({ stageTitle, submissionContent, skillsDemonstrated, studentSkills }) => {
@@ -776,9 +773,7 @@ Current skill levels: ${currentSkillsStr || 'none tracked'}
 Skills demonstrated in this submission: ${(skillsDemonstrated || []).join(', ')}`,
       userMessage: `Stage: ${stageTitle}\nStudent work: ${submissionContent || '(non-text submission)'}`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { updates: [] };
-    return JSON.parse(jsonMatch[0]);
+    try { return await parseAIJSON(text); } catch { return { updates: [] }; }
   },
 
   devilsAdvocate: async ({ stageTitle, stageDescription, studentWork, studentProfile }) => {
@@ -820,9 +815,7 @@ ${profileStr}
 ${submissionsSummary ? `Their work:\n${submissionsSummary}` : ''}`,
       userMessage: 'Generate reflection questions.',
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   // Generic chat: messages = [{role:'user'|'assistant', content}], systemPrompt = string
@@ -862,9 +855,7 @@ ${questContext?.standards ? `Academic standards: ${questContext.standards}` : ''
 ${profileStr}`,
       userMessage: `The student says: "${studentRequest}"`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   searchRealWorldProblems: async (topic, standards, interests) => {
@@ -894,7 +885,7 @@ Find 5-8 real-world problems, stakeholders, and data points. Return JSON:
 
     const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
     try {
-      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      const parsed = await parseAIJSON(raw);
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   },
@@ -926,9 +917,7 @@ Rules:
 
 Generate skill recommendations and quest pathway ideas.`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   recommendStandards: async ({ student, currentStandards, availableStandards }) => {
@@ -977,9 +966,7 @@ ${availableList}
 
 Suggest standards for this student.`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   suggestPathways: async ({ students, questHistory, interests, standards }) => {
@@ -1029,9 +1016,7 @@ Selected standards context: ${standards || 'none selected'}
 
 Suggest career pathways.`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   suggestSkillStandards: async ({ students, availableStandards }) => {
@@ -1075,9 +1060,7 @@ ${availableStandards}
 
 Suggest academic standards that connect to these students' interests and passions.`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   suggestProjects: async ({ student, standards, questHistory, timeConstraints }) => {
@@ -1142,9 +1125,7 @@ ${timeConstraints ? `Time constraint: ${timeConstraints}` : ''}
 
 Suggest project ideas.`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   generatePlaybook: async ({ questTitle, stages, totalDays, studentProfile }) => {
@@ -1190,9 +1171,7 @@ ${studentProfile ? `Student context: ${studentProfile.name}, ${studentProfile.gr
 
 Generate the day-by-day guide playbook.`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   suggestGroups: async ({ students, questContext, groupSize }) => {
@@ -1225,9 +1204,7 @@ Rules:
 - Give each group a creative, project-relevant name`,
       userMessage: `Students:\n${studentSummaries}\n\n${questContext ? `Quest context: ${questContext}` : 'No specific quest — general grouping.'}\n\nSuggest optimal groups.`,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in AI response');
-    return JSON.parse(jsonMatch[0]);
+    return await parseAIJSON(text);
   },
 
   async generateLandmarks(stages) {
@@ -1250,7 +1227,7 @@ Return JSON array:
 
     const raw = await callAI({ systemPrompt, userMessage });
     try {
-      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      const parsed = await parseAIJSON(raw);
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   },
@@ -1296,7 +1273,7 @@ Return JSON with these fields:
 
     const raw = await callAI({ systemPrompt, userMessage });
     try {
-      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return await parseAIJSON(raw);
     } catch {
       return null;
     }
@@ -1346,7 +1323,7 @@ Return JSON:
 
     const raw = await callAI({ systemPrompt, userMessage });
     try {
-      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      const parsed = await parseAIJSON(raw);
       if (!parsed.image_prompt || !Array.isArray(parsed.hotspots)) {
         throw new Error('Invalid scene response');
       }
@@ -1409,7 +1386,7 @@ ${typeInstructions[interactiveType] || ''}`;
 
     const raw = await callAI({ systemPrompt, userMessage });
     try {
-      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return await parseAIJSON(raw);
     } catch { return {}; }
   },
 
@@ -1453,7 +1430,7 @@ Generate 15-20 project ideas as JSON:
 
     const raw = await callAI({ systemPrompt, userMessage, maxTokens: 4096 });
     try {
-      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      const parsed = await parseAIJSON(raw);
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   },
@@ -1482,7 +1459,7 @@ Suggest adjustments as JSON:
 
     const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
     try {
-      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return await parseAIJSON(raw);
     } catch { return { assessment: 'Unable to assess at this time.', swap_suggestions: [], additions: [], coverage_after: null }; }
   },
 
@@ -1517,7 +1494,7 @@ Suggest 5-8 career connections as JSON:
 
     const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
     try {
-      const parsed = JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      const parsed = await parseAIJSON(raw);
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   },
@@ -1555,7 +1532,7 @@ Evaluate as JSON:
 
     const raw = await callAI({ systemPrompt, userMessage, maxTokens: 512 });
     try {
-      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return await parseAIJSON(raw);
     } catch { return { is_successful: false, narrative_feedback: 'Something didn\'t quite work. Give it another try.', skill_ratings: [], ep_awarded: 0 }; }
   },
 
@@ -1604,7 +1581,7 @@ Analyze balance and return JSON:
 
     const raw = await callAI({ systemPrompt, userMessage, maxTokens: 2048 });
     try {
-      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return await parseAIJSON(raw);
     } catch { return { coverage_pct: 0, domain_breakdown: {}, gap_outcomes: [], suggestions: [] }; }
   },
 
@@ -1742,7 +1719,7 @@ Generate a BRANCHING quest as JSON:
 
     const raw = await callAI({ systemPrompt, userMessage, maxTokens: 4096 });
     try {
-      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return await parseAIJSON(raw);
     } catch { return null; }
   },
 
@@ -1754,7 +1731,7 @@ Generate a BRANCHING quest as JSON:
       maxTokens: 256,
     });
     try {
-      return JSON.parse(raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      return await parseAIJSON(raw);
     } catch {
       return { success: true, feedback: 'Solid response! Keep thinking critically.', ep: 20 };
     }
