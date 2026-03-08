@@ -160,11 +160,66 @@ function QuestSkeleton() {
   );
 }
 
+// ===================== BRANCHING LAYOUT =====================
+function layoutStages(stages) {
+  const stageMap = {};
+  stages.forEach(s => { stageMap[s.id] = s; });
+
+  // Compute depth for each stage (longest path from root)
+  function getDepth(stage, memo = {}) {
+    if (memo[stage.id] !== undefined) return memo[stage.id];
+    const deps = stage.dependencies || [];
+    if (deps.length === 0) { memo[stage.id] = 0; return 0; }
+    const maxParent = Math.max(...deps.map(d => stageMap[d] ? getDepth(stageMap[d], memo) : -1));
+    memo[stage.id] = maxParent + 1;
+    return memo[stage.id];
+  }
+
+  const depths = {};
+  stages.forEach(s => { depths[s.id] = getDepth(s); });
+
+  // Group by depth
+  const byDepth = {};
+  stages.forEach(s => {
+    const d = depths[s.id];
+    if (!byDepth[d]) byDepth[d] = [];
+    byDepth[d].push(s);
+  });
+
+  // Position: each depth = a row, spread horizontally
+  const positions = {};
+  Object.entries(byDepth).forEach(([depth, group]) => {
+    const d = parseInt(depth);
+    const total = group.length;
+    group.forEach((s, i) => {
+      const xOffset = total === 1 ? 0 : (i - (total - 1) / 2) * 120;
+      positions[s.id] = {
+        x: SVG_CENTER_X + xOffset,
+        y: 60 + d * NODE_SPACING,
+      };
+    });
+  });
+
+  return { positions, maxDepth: Math.max(...Object.values(depths), 0) };
+}
+
+function hasBranching(stages) {
+  return stages.some(s => Array.isArray(s.dependencies) && s.dependencies.length > 0);
+}
+
 // ===================== SVG JOURNEY MAP =====================
 function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
+  const branching = hasBranching(stages);
   const nodeCount = stages.length;
-  const svgHeight = nodeCount * NODE_SPACING + 80;
-  const svgWidth = 360;
+
+  // Branching layout
+  const { positions: branchPositions, maxDepth } = branching ? layoutStages(stages) : { positions: {}, maxDepth: 0 };
+
+  // Compute SVG dimensions based on layout mode
+  const svgHeight = branching
+    ? (maxDepth + 1) * NODE_SPACING + 80 + NODE_SPACING // extra for simulation node
+    : nodeCount * NODE_SPACING + 80;
+  const svgWidth = branching ? 420 : 360;
 
   const getNodeX = (i) => {
     const offsets = [-NODE_OFFSET, NODE_OFFSET, 0, -NODE_OFFSET, NODE_OFFSET];
@@ -172,6 +227,14 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
   };
 
   const getNodeY = (i) => 60 + i * NODE_SPACING;
+
+  // Unified position getter
+  const getPos = (stage, i) => {
+    if (branching && branchPositions[stage.id]) {
+      return branchPositions[stage.id];
+    }
+    return { x: getNodeX(i), y: getNodeY(i) };
+  };
 
   const getNodeStroke = (stage) => {
     if (stage.status === 'completed') return 'var(--field-green)';
@@ -183,34 +246,65 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
     <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
       <svg width={svgWidth} height={svgHeight} style={{ overflow: 'visible' }}>
         {/* Path lines between nodes */}
-        {stages.map((stage, i) => {
-          if (i === stages.length - 1) return null;
-          const x1 = getNodeX(i);
-          const y1 = getNodeY(i);
-          const x2 = getNodeX(i + 1);
-          const y2 = getNodeY(i + 1);
-          const isDone = stage.status === 'completed';
-          const nextIsActive = stages[i + 1]?.status === 'active';
-          return (
-            <line
-              key={`line-${i}`}
-              x1={x1} y1={y1 + NODE_RADIUS}
-              x2={x2} y2={y2 - NODE_RADIUS}
-              stroke={isDone ? 'var(--field-green)' : nextIsActive ? 'var(--compass-gold)' : 'var(--pencil)'}
-              strokeWidth={isDone ? 2.5 : 1.5}
-              strokeDasharray={isDone ? 'none' : '6 4'}
-              opacity={nextIsActive ? 0.8 : 0.6}
-              style={nextIsActive ? { animation: 'qm-dash-flow 0.8s linear infinite' } : undefined}
-            />
-          );
-        })}
+        {branching ? (
+          // Dependency-based connections for branching quests
+          stages.flatMap((stage, i) => {
+            const deps = stage.dependencies || [];
+            if (deps.length === 0) return [];
+            const targetPos = getPos(stage, i);
+            return deps.map(depId => {
+              const depIdx = stages.findIndex(s => s.id === depId);
+              const depStage = stages[depIdx];
+              if (!depStage) return null;
+              const srcPos = getPos(depStage, depIdx);
+              const isDone = depStage.status === 'completed';
+              const targetIsActive = stage.status === 'active';
+              return (
+                <line
+                  key={`dep-${depId}-${stage.id}`}
+                  x1={srcPos.x} y1={srcPos.y + NODE_RADIUS}
+                  x2={targetPos.x} y2={targetPos.y - NODE_RADIUS}
+                  stroke={isDone ? 'var(--field-green)' : targetIsActive ? 'var(--compass-gold)' : 'var(--pencil)'}
+                  strokeWidth={isDone ? 2.5 : 1.5}
+                  strokeDasharray={isDone ? 'none' : '6 4'}
+                  opacity={targetIsActive ? 0.8 : 0.6}
+                  style={targetIsActive ? { animation: 'qm-dash-flow 0.8s linear infinite' } : undefined}
+                />
+              );
+            });
+          })
+        ) : (
+          // Sequential connections for linear quests
+          stages.map((stage, i) => {
+            if (i === stages.length - 1) return null;
+            const x1 = getNodeX(i);
+            const y1 = getNodeY(i);
+            const x2 = getNodeX(i + 1);
+            const y2 = getNodeY(i + 1);
+            const isDone = stage.status === 'completed';
+            const nextIsActive = stages[i + 1]?.status === 'active';
+            return (
+              <line
+                key={`line-${i}`}
+                x1={x1} y1={y1 + NODE_RADIUS}
+                x2={x2} y2={y2 - NODE_RADIUS}
+                stroke={isDone ? 'var(--field-green)' : nextIsActive ? 'var(--compass-gold)' : 'var(--pencil)'}
+                strokeWidth={isDone ? 2.5 : 1.5}
+                strokeDasharray={isDone ? 'none' : '6 4'}
+                opacity={nextIsActive ? 0.8 : 0.6}
+                style={nextIsActive ? { animation: 'qm-dash-flow 0.8s linear infinite' } : undefined}
+              />
+            );
+          })
+        )}
 
-        {/* Field annotations */}
-        {stages.map((stage, i) => {
+        {/* Field annotations (only for linear quests) */}
+        {!branching && stages.map((stage, i) => {
           if (i === 0 || i >= stages.length) return null;
           const annotation = FIELD_ANNOTATIONS[(i - 1) % FIELD_ANNOTATIONS.length];
-          const x = getNodeX(i);
-          const y = getNodeY(i) - NODE_SPACING / 2;
+          const pos = getPos(stage, i);
+          const x = pos.x;
+          const y = pos.y - NODE_SPACING / 2;
           const isRight = x > SVG_CENTER_X;
           return (
             <text
@@ -230,8 +324,9 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
 
         {/* Nodes */}
         {stages.map((stage, i) => {
-          const cx = getNodeX(i);
-          const cy = getNodeY(i);
+          const pos = getPos(stage, i);
+          const cx = pos.x;
+          const cy = pos.y;
           const isActive = stage.status === 'active';
           const isCompleted = stage.status === 'completed';
           const isLocked = stage.status === 'locked';
@@ -327,21 +422,42 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
         })}
 
         {/* Simulation node at end */}
-        {stages.length > 0 && (
+        {stages.length > 0 && (() => {
+          // Find the bottom-most stage(s) to connect the simulation node
+          let simY, simConnections;
+          if (branching) {
+            // In branching mode, find leaf nodes (stages that no other stage depends on)
+            const allDeps = new Set(stages.flatMap(s => s.dependencies || []));
+            const leafStages = stages.filter(s => !allDeps.has(s.id));
+            simY = 60 + (maxDepth + 1) * NODE_SPACING;
+            simConnections = leafStages.map(s => {
+              const sIdx = stages.indexOf(s);
+              const pos = getPos(s, sIdx);
+              return { x: pos.x, y: pos.y };
+            });
+          } else {
+            const lastIdx = stages.length - 1;
+            simY = getNodeY(lastIdx) + NODE_SPACING;
+            simConnections = [{ x: getNodeX(lastIdx), y: getNodeY(lastIdx) }];
+          }
+          return (
           <g>
+            {simConnections.map((conn, ci) => (
             <line
-              x1={getNodeX(stages.length - 1)}
-              y1={getNodeY(stages.length - 1) + NODE_RADIUS}
+              key={`sim-line-${ci}`}
+              x1={conn.x}
+              y1={conn.y + NODE_RADIUS}
               x2={SVG_CENTER_X}
-              y2={getNodeY(stages.length - 1) + NODE_SPACING - NODE_RADIUS}
+              y2={simY - NODE_RADIUS}
               stroke="var(--lab-blue)"
               strokeWidth={1.5}
               strokeDasharray="6 4"
               opacity={0.5}
             />
+            ))}
             <circle
               cx={SVG_CENTER_X}
-              cy={getNodeY(stages.length - 1) + NODE_SPACING}
+              cy={simY}
               r={NODE_RADIUS}
               fill="var(--lab-blue)"
               stroke="var(--lab-blue)"
@@ -350,7 +466,7 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
             />
             <foreignObject
               x={SVG_CENTER_X - 10}
-              y={getNodeY(stages.length - 1) + NODE_SPACING - 10}
+              y={simY - 10}
               width={20} height={20}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, color: 'var(--chalk)' }}>
@@ -359,7 +475,7 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
             </foreignObject>
             <text
               x={SVG_CENTER_X}
-              y={getNodeY(stages.length - 1) + NODE_SPACING + NODE_RADIUS + 16}
+              y={simY + NODE_RADIUS + 16}
               fontSize="10"
               fontFamily="var(--font-mono)"
               fill="var(--lab-blue)"
@@ -368,7 +484,8 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
               Simulation
             </text>
           </g>
-        )}
+          );
+        })()}
       </svg>
     </div>
   );
