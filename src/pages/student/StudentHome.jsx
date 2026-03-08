@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckCircle, Clock, ChevronRight,
-  LogOut, Loader2, AlertCircle, Lock, Sparkles, Plus, X,
+  LogOut, Loader2, AlertCircle, Lock, Sparkles, Plus, X, Sliders, GitBranch,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { explorerLog } from '../../lib/api';
+import { explorerLog, skills as skillsApi, explorations as explorationsApi } from '../../lib/api';
+import { generateExploration } from '../../lib/explorationPipeline';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 
@@ -22,6 +23,318 @@ const PATHWAY_COLORS = {
 
 function pathwayColor(pathway) {
   return PATHWAY_COLORS[pathway] || PATHWAY_COLORS.default;
+}
+
+const PROFICIENCY_LABELS = [
+  { value: 'emerging', label: 'Just starting' },
+  { value: 'developing', label: 'Getting better' },
+  { value: 'proficient', label: 'Pretty good' },
+  { value: 'advanced', label: 'Really strong' },
+];
+
+function SkillEditorModal({ studentId, onClose, onExploreSkill }) {
+  const [catalog, setCatalog] = useState([]);
+  const [ratings, setRatings] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      // Get student grade band
+      const { data: student } = await supabase.from('students').select('grade_band').eq('id', studentId).single();
+      // Load catalog + existing ratings in parallel
+      const [catalogRes, existingRes] = await Promise.all([
+        skillsApi.listCatalog(student?.grade_band || null),
+        supabase.from('student_skills').select('skill_id, proficiency').eq('student_id', studentId),
+      ]);
+      setCatalog(catalogRes.data || []);
+      const map = {};
+      (existingRes.data || []).forEach(r => { map[r.skill_id] = r.proficiency; });
+      setRatings(map);
+      setLoading(false);
+    })();
+  }, [studentId]);
+
+  async function handleSave() {
+    setSaving(true);
+    const entries = Object.entries(ratings).map(([skillId, proficiency]) => ({
+      studentId, skillId, proficiency, source: 'self',
+    }));
+    if (entries.length > 0) {
+      await skillsApi.bulkUpsert(entries);
+    }
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => onClose(), 800);
+  }
+
+  const categories = [
+    { key: 'core', label: 'Core Skills', description: 'Academic foundations' },
+    { key: 'soft', label: 'People Skills', description: 'How you work with others' },
+    { key: 'interest', label: 'Interest Skills', description: 'Things you can get better at' },
+  ];
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(26,26,46,0.5)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 16,
+    }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background: 'var(--chalk)', borderRadius: 16, width: '100%',
+        maxWidth: 560, maxHeight: '85vh', overflow: 'auto',
+        padding: '28px 24px', position: 'relative',
+      }}>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: 12, right: 12, background: 'none',
+          border: 'none', cursor: 'pointer', color: 'var(--graphite)', padding: 4,
+        }}>
+          <X size={18} />
+        </button>
+
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)', marginBottom: 4 }}>
+          Update My Skills
+        </h2>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', marginBottom: 20 }}>
+          Rate how you feel about each skill — be honest, there's no wrong answer!
+        </p>
+
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+            <Loader2 size={20} color="var(--graphite)" style={{ animation: 'sh-spin 1s linear infinite' }} />
+          </div>
+        ) : (
+          <>
+            {categories.map(cat => {
+              const catSkills = catalog.filter(s => s.category === cat.key);
+              if (catSkills.length === 0) return null;
+              return (
+                <div key={cat.key} style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+                    {cat.label}
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--pencil)', fontFamily: 'var(--font-body)', marginBottom: 10 }}>
+                    {cat.description}
+                  </p>
+                  {catSkills.map(skill => (
+                    <div key={skill.id} style={{ marginBottom: 10, padding: '10px 14px', background: 'var(--paper)', borderRadius: 10, border: '1px solid var(--parchment)' }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--font-body)', marginBottom: 8 }}>
+                        {skill.name}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {PROFICIENCY_LABELS.map(p => {
+                          const selected = ratings[skill.id] === p.value;
+                          return (
+                            <button
+                              key={p.value}
+                              onClick={() => setRatings(prev => ({ ...prev, [skill.id]: p.value }))}
+                              style={{
+                                padding: '5px 12px', borderRadius: 8,
+                                border: `1.5px solid ${selected ? '#2D6A4F' : 'var(--pencil)'}`,
+                                background: selected ? 'rgba(45,106,79,0.07)' : 'var(--chalk)',
+                                color: selected ? '#2D6A4F' : 'var(--graphite)',
+                                fontSize: 12, fontWeight: selected ? 600 : 400,
+                                fontFamily: 'var(--font-body)', cursor: 'pointer',
+                                transition: 'all 150ms',
+                              }}
+                            >
+                              {p.label}
+                            </button>
+                          );
+                        })}
+                        {onExploreSkill && (
+                          <button
+                            onClick={() => onExploreSkill(skill.name)}
+                            style={{
+                              fontSize: 11, color: '#2D6A4F', background: 'none',
+                              border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)',
+                              fontWeight: 600, padding: '4px 6px', borderRadius: 4,
+                              marginLeft: 2, transition: 'all 150ms',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(45,106,79,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                          >
+                            Explore &rarr;
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+
+            <button
+              onClick={handleSave}
+              disabled={saving || saved}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 10, border: 'none',
+                background: saved ? '#2D6A4F' : 'var(--ink)', color: 'var(--chalk)',
+                fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-body)',
+                cursor: saving || saved ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                transition: 'all 200ms',
+              }}
+            >
+              {saving ? (
+                <><Loader2 size={15} style={{ animation: 'sh-spin 1s linear infinite' }} /> Saving…</>
+              ) : saved ? (
+                <><CheckCircle size={15} /> Saved!</>
+              ) : (
+                'Save My Ratings'
+              )}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const EXPLORE_LOADING_MESSAGES = [
+  'Designing your learning tree...',
+  'Finding the best videos...',
+  'Building challenges...',
+  'Gathering resources...',
+  'Almost there...',
+];
+
+function ExploreModal({ studentId, onClose, onCreated, prefilledSkill }) {
+  const [skillInput, setSkillInput] = useState(prefilledSkill || '');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [loadingMsg, setLoadingMsg] = useState(EXPLORE_LOADING_MESSAGES[0]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!generating) return;
+    let idx = 0;
+    const interval = setInterval(() => {
+      idx = (idx + 1) % EXPLORE_LOADING_MESSAGES.length;
+      setLoadingMsg(EXPLORE_LOADING_MESSAGES[idx]);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [generating]);
+
+  async function handleGenerate() {
+    if (!skillInput.trim()) return;
+    setGenerating(true);
+    setError('');
+    setLoadingMsg(EXPLORE_LOADING_MESSAGES[0]);
+    try {
+      const { data: student } = await supabase.from('students')
+        .select('age, grade_band, interests').eq('id', studentId).single();
+      const explorationId = await generateExploration({
+        studentId,
+        skillName: skillInput.trim(),
+        level: student?.grade_band || 'middle',
+        studentAge: student?.age || null,
+        studentInterests: student?.interests || [],
+      });
+      if (onCreated) onCreated();
+      navigate(`/student/explore/${explorationId}`);
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(26,26,46,0.5)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 16,
+    }} onClick={(e) => { if (e.target === e.currentTarget && !generating) onClose(); }}>
+      <div style={{
+        background: 'var(--chalk)', borderRadius: 16, width: '100%',
+        maxWidth: 480, padding: '28px 24px', position: 'relative',
+      }}>
+        {!generating && (
+          <button onClick={onClose} style={{
+            position: 'absolute', top: 12, right: 12, background: 'none',
+            border: 'none', cursor: 'pointer', color: 'var(--graphite)', padding: 4,
+          }}>
+            <X size={18} />
+          </button>
+        )}
+
+        {generating ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: '50%',
+              background: 'rgba(45,106,79,0.1)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
+            }}>
+              <Loader2 size={24} color="#2D6A4F" style={{ animation: 'sh-spin 1s linear infinite' }} />
+            </div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
+              {loadingMsg}
+            </p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--graphite)' }}>
+              Building your "{skillInput}" exploration
+            </p>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <GitBranch size={18} color="#2D6A4F" />
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)' }}>
+                Explore a Skill
+              </h2>
+            </div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', marginBottom: 20 }}>
+              Pick any skill and we'll create a learning tree with videos, reading, and challenges.
+            </p>
+
+            <label style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+              What skill do you want to explore?
+            </label>
+            <input
+              type="text"
+              value={skillInput}
+              onChange={(e) => setSkillInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleGenerate(); }}
+              placeholder="e.g., Game Design, Creative Writing, Fractions..."
+              autoFocus
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 10,
+                border: '1.5px solid var(--pencil)', background: 'var(--paper)',
+                fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--ink)',
+                outline: 'none', boxSizing: 'border-box',
+                transition: 'border-color 150ms',
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = '#2D6A4F'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--pencil)'; }}
+            />
+
+            {error && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '10px 14px', background: '#FDECEA', borderRadius: 8, border: '1px solid #FBBCB8' }}>
+                <AlertCircle size={14} color="var(--specimen-red)" />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--specimen-red)', flex: 1 }}>{error}</span>
+              </div>
+            )}
+
+            <button
+              onClick={handleGenerate}
+              disabled={!skillInput.trim()}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 10, border: 'none',
+                background: skillInput.trim() ? '#2D6A4F' : 'var(--pencil)',
+                color: 'var(--chalk)', fontSize: 14, fontWeight: 700,
+                fontFamily: 'var(--font-body)', cursor: skillInput.trim() ? 'pointer' : 'not-allowed',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                marginTop: 16, transition: 'all 200ms',
+              }}
+            >
+              <GitBranch size={15} />
+              Build My Learning Tree
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function QuestCard({ quest, onDelete }) {
@@ -237,6 +550,10 @@ export default function StudentHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [logEntries, setLogEntries] = useState([]);
+  const [showSkillEditor, setShowSkillEditor] = useState(false);
+  const [showExploreModal, setShowExploreModal] = useState(false);
+  const [prefilledSkill, setPrefilledSkill] = useState('');
+  const [studentExplorations, setStudentExplorations] = useState([]);
 
   // PIN-only auth: redirect if no session
   useEffect(() => {
@@ -275,6 +592,15 @@ export default function StudentHome() {
       if (student?.school_id) {
         explorerLog.getForSchool(student.school_id, 20).then(setLogEntries);
       }
+    })();
+  }, [session?.studentId]);
+
+  // Load skill explorations
+  useEffect(() => {
+    if (!session?.studentId) return;
+    (async () => {
+      const { data } = await explorationsApi.listForStudent(session.studentId);
+      setStudentExplorations(data || []);
     })();
   }, [session?.studentId]);
 
@@ -402,6 +728,164 @@ export default function StudentHome() {
             </div>
             <Sparkles size={16} color="var(--compass-gold)" style={{ marginLeft: 'auto', flexShrink: 0 }} />
           </button>
+        )}
+
+        {/* Update My Skills button */}
+        {!loading && (
+          <button
+            onClick={() => setShowSkillEditor(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              width: '100%', padding: '14px 20px', marginBottom: 28,
+              background: 'rgba(27,73,101,0.04)', border: '1.5px solid rgba(27,73,101,0.2)',
+              borderRadius: 12, cursor: 'pointer',
+              transition: 'all 150ms',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(27,73,101,0.08)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(27,73,101,0.04)'; }}
+          >
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(27,73,101,0.12)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Sliders size={18} color="var(--lab-blue)" />
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                Update My Skills
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--graphite)' }}>
+                Rate how you're doing in each skill area
+              </div>
+            </div>
+            <ChevronRight size={16} color="var(--lab-blue)" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+          </button>
+        )}
+
+        {/* Explore a Skill CTA */}
+        {!loading && (
+          <button
+            onClick={() => { setPrefilledSkill(''); setShowExploreModal(true); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              width: '100%', padding: '16px 20px', marginBottom: 28,
+              background: 'rgba(45,106,79,0.06)', border: '1.5px dashed var(--field-green)',
+              borderRadius: 12, cursor: 'pointer',
+              transition: 'all 150ms',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(45,106,79,0.12)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(45,106,79,0.06)'; }}
+          >
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(45,106,79,0.15)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <GitBranch size={18} color="var(--field-green)" />
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                Explore a Skill
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--graphite)' }}>
+                Dive deep into any skill with videos, reading, and challenges
+              </div>
+            </div>
+            <GitBranch size={16} color="var(--field-green)" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+          </button>
+        )}
+
+        {/* Skill Explorations section */}
+        {!loading && studentExplorations.length > 0 && (
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 12, color: 'var(--graphite)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <GitBranch size={12} color="var(--field-green)" />
+              Skill Explorations
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+              {studentExplorations.map(exp => {
+                const nodes = exp.exploration_nodes || [];
+                const totalNodes = nodes.length;
+                const completedNodes = nodes.filter(n => n.status === 'completed').length;
+                const pct = totalNodes > 0 ? Math.round((completedNodes / totalNodes) * 100) : 0;
+                const isComplete = exp.status === 'completed';
+                return (
+                  <Link
+                    key={exp.id}
+                    to={`/student/explore/${exp.id}`}
+                    style={{
+                      background: 'var(--chalk)', border: '1px solid var(--pencil)',
+                      borderRadius: 12, padding: '16px 18px', textDecoration: 'none',
+                      transition: 'box-shadow 150ms ease', display: 'block',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(26,26,46,0.1)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--ink)' }}>
+                        {exp.skill_name}
+                      </span>
+                      {isComplete ? (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--field-green)', background: 'rgba(45,106,79,0.1)', padding: '2px 8px', borderRadius: 4 }}>
+                          COMPLETE
+                        </span>
+                      ) : (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--graphite)', background: 'var(--parchment)', padding: '2px 8px', borderRadius: 4 }}>
+                          IN PROGRESS
+                        </span>
+                      )}
+                    </div>
+                    {totalNodes > 0 && (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--graphite)' }}>
+                            {completedNodes}/{totalNodes} nodes
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--graphite)' }}>
+                            {pct}%
+                          </span>
+                        </div>
+                        <div style={{ height: 5, background: 'var(--parchment)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%', width: `${pct}%`,
+                            background: isComplete ? 'var(--field-green)' : '#2D6A4F',
+                            borderRadius: 3, transition: 'width 600ms ease',
+                          }} />
+                        </div>
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Skill Editor Modal */}
+        {showSkillEditor && (
+          <SkillEditorModal
+            studentId={session?.studentId}
+            onClose={() => setShowSkillEditor(false)}
+            onExploreSkill={(skillName) => {
+              setShowSkillEditor(false);
+              setPrefilledSkill(skillName);
+              setShowExploreModal(true);
+            }}
+          />
+        )}
+
+        {/* Explore Modal */}
+        {showExploreModal && (
+          <ExploreModal
+            studentId={session?.studentId}
+            prefilledSkill={prefilledSkill}
+            onClose={() => setShowExploreModal(false)}
+            onCreated={() => {
+              // Refresh explorations list
+              explorationsApi.listForStudent(session.studentId).then(({ data }) => setStudentExplorations(data || []));
+            }}
+          />
         )}
 
         {/* Loading */}
