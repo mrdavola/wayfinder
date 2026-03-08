@@ -2104,6 +2104,34 @@ function Step6Review({
         </div>
       )}
 
+      {/* Marble 3D World Status */}
+      {marbleStatus === 'generating' && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: 'var(--parchment)', border: '1px solid var(--pencil)',
+          fontSize: 13, color: 'var(--graphite)', display: 'flex', alignItems: 'center', gap: 8,
+          marginBottom: 12,
+        }}>
+          <div style={{
+            width: 16, height: 16, border: '2px solid var(--pencil)',
+            borderTopColor: 'var(--compass-gold)', borderRadius: '50%',
+            animation: 'worldSpin 1s linear infinite',
+          }} />
+          Generating 3D world...
+        </div>
+      )}
+      {marbleStatus === 'ready' && marbleData?.thumbnailUrl && (
+        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--pencil)', marginBottom: 12 }}>
+          <img src={marbleData.thumbnailUrl} alt="3D World Preview" style={{ width: '100%', display: 'block' }} />
+          <div style={{
+            padding: '8px 12px', background: 'var(--parchment)',
+            fontSize: 12, color: 'var(--field-green)', fontWeight: 600,
+          }}>
+            3D World ready
+          </div>
+        </div>
+      )}
+
       {/* World Preview — shows generating state or actual preview */}
       {!generatedQuest._worldScene && !worldError && (
         <div style={{
@@ -3136,6 +3164,17 @@ export default function QuestBuilder() {
   const [launching, setLaunching] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
+  // Marble Mini world
+  const [marbleStatus, setMarbleStatus] = useState(null); // null | 'generating' | 'ready' | 'failed'
+  const [marbleData, setMarbleData] = useState(null);
+  const marblePollingRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (marblePollingRef.current) clearTimeout(marblePollingRef.current);
+    };
+  }, []);
+
   // Step 7 (Launch)
   const [launchedQuestId, setLaunchedQuestId] = useState(null);
 
@@ -3362,6 +3401,52 @@ export default function QuestBuilder() {
         }
       }).catch(() => {});
 
+      // Marble generation (parallel, non-blocking)
+      try {
+        setMarbleStatus('generating');
+        const allInterests = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
+        const marbleResult = await ai.generateMarbleScene({
+          questTitle: questData.quest_title,
+          stages: questData.stages,
+          studentInterests: allInterests,
+          careerPathway: pathwayLabels[0] || 'none',
+          gradeBand: selectedStudents[0]?.grade_band,
+        });
+
+        if (marbleResult?.operationId) {
+          setMarbleData({ operationId: marbleResult.operationId, hotspots: marbleResult.hotspots });
+          const pollMarble = async () => {
+            try {
+              const op = await ai.pollMarbleStatus(marbleResult.operationId);
+              if (op.done) {
+                if (op.error) {
+                  setMarbleStatus('failed');
+                } else {
+                  setMarbleStatus('ready');
+                  setMarbleData(prev => ({
+                    ...prev,
+                    worldUrl: op.response?.world_marble_url,
+                    worldId: op.response?.id,
+                    panoUrl: op.response?.assets?.imagery?.pano_url,
+                    thumbnailUrl: op.response?.assets?.thumbnail_url,
+                  }));
+                }
+                return;
+              }
+              marblePollingRef.current = setTimeout(pollMarble, 5000);
+            } catch {
+              setMarbleStatus('failed');
+            }
+          };
+          marblePollingRef.current = setTimeout(pollMarble, 5000);
+        } else {
+          setMarbleStatus('failed');
+        }
+      } catch (err) {
+        console.warn('Marble generation skipped:', err.message);
+        setMarbleStatus('failed');
+      }
+
       // Auto-advance after 600ms
       setTimeout(() => setStep(6), 600);
     } catch (err) {
@@ -3532,6 +3617,22 @@ export default function QuestBuilder() {
               }).eq('id', quest.id);
             } catch (e) {
               console.warn('World scene save failed (non-blocking):', e);
+            }
+          }
+
+          // Save Marble world data (non-blocking)
+          if (marbleData?.worldUrl || marbleData?.operationId) {
+            try {
+              await supabase.from('quests').update({
+                marble_world_url: marbleData?.worldUrl || null,
+                marble_world_id: marbleData?.worldId || null,
+                marble_operation_id: null,
+                marble_model: 'Marble 0.1-mini',
+                marble_pano_url: marbleData?.panoUrl || null,
+                marble_thumbnail_url: marbleData?.thumbnailUrl || null,
+              }).eq('id', quest.id);
+            } catch (e) {
+              console.warn('Marble world save failed (non-blocking):', e);
             }
           }
 
