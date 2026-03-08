@@ -176,13 +176,15 @@ export default function ProgressRadar({ assessments, studentSkills, learningOutc
         ? skills.reduce((sum, s) => sum + s.rating, 0) / skills.length
         : 0;
       const current = avgRating / 4;
-      // Only show target if there's real data (learning outcomes or assessed skills)
-      const target = targetByDomain[domain] || (skills.length > 0 ? 0.75 : 0);
+      // Every domain gets a baseline target; parent outcomes or tracked skills raise it
+      const BASE_TARGET = 0.5;
+      const target = targetByDomain[domain] || (skills.length > 0 ? 0.75 : BASE_TARGET);
       return { domain, current, target, skills, skillCount: skills.length };
     });
   }, [assessments, studentSkills, learningOutcomes]);
 
-  const hasData = radarData.some(d => d.current > 0 || d.target > 0);
+  // Show empty state only when there are zero skills AND zero learning outcomes
+  const hasData = radarData.some(d => d.current > 0 || d.skillCount > 0) || (learningOutcomes || []).length > 0;
 
   const handleDomainClick = useCallback((domain) => {
     setSelectedDomain(prev => prev === domain ? null : domain);
