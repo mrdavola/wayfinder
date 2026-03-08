@@ -85,6 +85,31 @@ const injectStyles = () => {
     .sq-confetti-piece { animation: sq-confetti 700ms ease forwards; }
     .sq-journal-input:focus { border-color: var(--compass-gold) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(184,134,11,0.12) !important; }
     .sq-name-input:focus { border-color: var(--compass-gold) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(184,134,11,0.15) !important; }
+    @keyframes sq-border-pulse {
+      0%, 100% { border-left-color: rgba(184,134,11,1); }
+      50% { border-left-color: rgba(184,134,11,0.6); }
+    }
+    @keyframes sq-shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    @keyframes sq-complete-pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+    .sq-stage-active {
+      border-left: 4px solid var(--compass-gold) !important;
+      animation: sq-border-pulse 2s ease-in-out infinite;
+    }
+    .sq-stage-next-locked {
+      background: linear-gradient(90deg, var(--chalk) 40%, rgba(184,134,11,0.04) 50%, var(--chalk) 60%) !important;
+      background-size: 200% 100% !important;
+      animation: sq-shimmer 3s ease-in-out infinite;
+    }
+    .sq-stage-completed {
+      animation: sq-complete-pop 300ms ease-out;
+    }
     @media (max-width: 767px) {
       .sq-topbar-badge { display: none !important; }
       .sq-topbar-title { display: none !important; }
@@ -1355,7 +1380,7 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData, expeditionChallenge, expeditionResponse, onChallengeEvaluate }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData, expeditionChallenge, expeditionResponse, onChallengeEvaluate, isNextLocked }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
@@ -1430,7 +1455,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   ].filter(Boolean).join('. ');
 
   return (
-    <div className="sq-card" style={{
+    <div className={`sq-card${isActive ? ' sq-stage-active' : ''}${isDone ? ' sq-stage-completed' : ''}${isNextLocked ? ' sq-stage-next-locked' : ''}`} style={{
       background: 'var(--chalk)', border: '1px solid var(--pencil)',
       borderRadius: 14, padding: '24px 28px',
       boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
@@ -2974,6 +2999,14 @@ export default function StudentQuestPage() {
 
   const activeStage = activeCard ? stages.find(s => s.id === activeCard) : null;
 
+  // Determine the first locked stage after the active one (for shimmer animation)
+  const nextLockedId = (() => {
+    const activeIdx = stages.findIndex(s => s.status === 'active');
+    if (activeIdx === -1) return null;
+    const next = stages.slice(activeIdx + 1).find(s => s.status === 'locked');
+    return next ? next.id : null;
+  })();
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', fontFamily: 'var(--font-body)', display: 'flex', flexDirection: 'column' }}>
       {/* Boss encounter — full-screen challenger modal */}
@@ -3337,6 +3370,7 @@ export default function StudentQuestPage() {
                   expeditionChallenge={stageChallenges[activeStage.id] || null}
                   expeditionResponse={stageChallenges[activeStage.id] ? challengeResponseMap[stageChallenges[activeStage.id]?.id] : null}
                   onChallengeEvaluate={handleChallengeEvaluate}
+                  isNextLocked={activeStage.id === nextLockedId}
                 />
                 {activeStage.stage_type === 'choice_fork' && isBranchingQuest && activeStage.status === 'active' && (
                   <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
