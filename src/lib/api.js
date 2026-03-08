@@ -1829,6 +1829,48 @@ Generate a BRANCHING quest as JSON:
       return { success: true, feedback: 'Solid response! Keep thinking critically.', ep: 20 };
     }
   },
+
+  generateExplorationTree: async ({ skillName, level, studentAge, studentInterests }) => {
+    const text = await callAI({
+      systemPrompt: `You are Wayfinder's skill exploration engine. Given a skill to explore, generate a mini learning tree — a structured set of 5-8 learning nodes that take a student from basics to competence.
+
+You MUST respond with ONLY valid JSON matching this structure:
+{
+  "tree_title": "Exploring [Skill Name]",
+  "tree_description": "One sentence overview",
+  "nodes": [
+    {
+      "id": 1,
+      "title": "Node title (short, engaging)",
+      "description": "2-3 sentences about what this node covers",
+      "one_pager": "A comprehensive but concise summary (200-400 words, markdown formatted). This is the main learning content. Include key concepts, examples, and connections to real life.",
+      "action_item": "A specific, doable challenge or exercise. Should take 10-20 minutes. Be concrete: 'Write a...', 'Create a...', 'Research and compare...'",
+      "video_search_query": "Exact YouTube search query to find a good explainer video for K-12 students",
+      "parent_id": null,
+      "sort_order": 1
+    }
+  ]
+}
+
+Rules:
+- Node 1 is always the root (parent_id: null), an introduction/overview
+- Other nodes branch from the root or from each other via parent_id (reference by node id number)
+- Create a meaningful tree: some nodes branch from root, some are sequential chains
+- Adapt language and complexity to the student's age and level
+- Make action_items engaging and connected to student interests when possible
+- one_pager should be genuinely educational — teach the concept, don't just describe it
+- video_search_query should be specific enough to find a relevant educational video
+- Generate 5-8 nodes total`,
+      userMessage: `Generate a skill exploration tree for:
+- Skill: ${skillName}
+- Level: ${level || 'beginner'}
+- Student age: ${studentAge || 'unknown'}
+- Student interests: ${(studentInterests || []).join(', ') || 'general'}
+
+Create 5-8 learning nodes that would take this student from basics to competence in this skill.`,
+    });
+    return await parseAIJSON(text);
+  },
 };
 
 // ===================== SUBMISSION FEEDBACK =====================
