@@ -3050,6 +3050,41 @@ export default function StudentQuestPage() {
     }
   }, [immersiveMode]);
 
+  // Resolve pending Marble world if operation_id saved but pano not yet ready
+  useEffect(() => {
+    if (!quest?.marble_operation_id || quest?.marble_pano_url) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const op = await ai.pollMarbleStatus(quest.marble_operation_id);
+        if (cancelled) return;
+        if (op.done) {
+          if (!op.error && op.response) {
+            const world = op.response;
+            const update = {
+              marble_world_url: world.world_marble_url,
+              marble_world_id: world.id,
+              marble_pano_url: world.assets?.imagery?.pano_url,
+              marble_thumbnail_url: world.assets?.thumbnail_url,
+              marble_operation_id: null,
+            };
+            await supabase.from('quests').update(update).eq('id', quest.id);
+            setQuest(prev => prev ? { ...prev, ...update } : prev);
+          } else {
+            // Marble failed — clear the operation ID
+            await supabase.from('quests').update({ marble_operation_id: null }).eq('id', quest.id);
+            setQuest(prev => prev ? { ...prev, marble_operation_id: null } : prev);
+          }
+          return;
+        }
+        // Still generating — poll again
+        if (!cancelled) setTimeout(poll, 5000);
+      } catch { /* silent */ }
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [quest?.marble_operation_id, quest?.marble_pano_url]);
+
   // Background upgrade from Marble Mini to Marble Plus when entering immersive mode
   useEffect(() => {
     if (immersiveMode && quest?.marble_pano_url && quest?.marble_model === 'Marble 0.1-mini') {

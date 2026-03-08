@@ -3714,7 +3714,7 @@ export default function QuestBuilder() {
             const marbleUpdate = {
               marble_world_url: marbleData?.worldUrl || null,
               marble_world_id: marbleData?.worldId || null,
-              marble_operation_id: null,
+              marble_operation_id: marbleData?.operationId || null,
               marble_model: 'Marble 0.1-mini',
               marble_pano_url: marbleData?.panoUrl || null,
               marble_thumbnail_url: marbleData?.thumbnailUrl || null,

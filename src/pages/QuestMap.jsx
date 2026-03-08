@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft, BookOpen, Search, Wrench, FlaskConical, Mic,
@@ -8,11 +8,13 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import SpeakButton from '../components/ui/SpeakButton';
+import EnterWorldButton from '../components/immersive/EnterWorldButton';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ai, guidePlaybook as guidePlaybookApi, landmarksApi, communityProjects } from '../lib/api';
 import TreasureMap from '../components/map/TreasureMap';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
+const ImmersiveWorldView = lazy(() => import('../components/immersive/ImmersiveWorldView'));
 
 // ===================== CONSTANTS =====================
 const NODE_SPACING = 140;
@@ -1435,6 +1437,7 @@ export default function QuestMap() {
   const [stageSubmissions, setStageSubmissions] = useState({}); // keyed by stage_id
 
   const [shareCopied, setShareCopied] = useState(false);
+  const [immersiveMode, setImmersiveMode] = useState(false);
   const copyStudentLink = useCallback(() => {
     const url = `${window.location.origin}/q/${id}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -1518,6 +1521,39 @@ export default function QuestMap() {
       landmarksApi.getForQuest(quest.id).then(setMapLandmarks);
     }
   }, [quest?.id]);
+
+  // Resolve pending Marble world if operation_id saved but pano not yet ready
+  useEffect(() => {
+    if (!quest?.marble_operation_id || quest?.marble_pano_url) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const op = await ai.pollMarbleStatus(quest.marble_operation_id);
+        if (cancelled) return;
+        if (op.done) {
+          if (!op.error && op.response) {
+            const world = op.response;
+            const update = {
+              marble_world_url: world.world_marble_url,
+              marble_world_id: world.id,
+              marble_pano_url: world.assets?.imagery?.pano_url,
+              marble_thumbnail_url: world.assets?.thumbnail_url,
+              marble_operation_id: null,
+            };
+            await supabase.from('quests').update(update).eq('id', quest.id);
+            setQuest(prev => prev ? { ...prev, ...update } : prev);
+          } else {
+            await supabase.from('quests').update({ marble_operation_id: null }).eq('id', quest.id);
+            setQuest(prev => prev ? { ...prev, marble_operation_id: null } : prev);
+          }
+          return;
+        }
+        if (!cancelled) setTimeout(poll, 5000);
+      } catch { /* silent */ }
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [quest?.marble_operation_id, quest?.marble_pano_url]);
 
   // ---- Mark stage complete ----
   const completeStage = useCallback(async (stageId) => {
@@ -1819,11 +1855,32 @@ export default function QuestMap() {
         </div>
       </div>
 
+      {/* Immersive 3D World overlay */}
+      {immersiveMode && (quest?.marble_pano_url || quest?.world_scene_url) && (
+        <Suspense fallback={<div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}><Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} /></div>}>
+          <ImmersiveWorldView
+            sceneUrl={quest.marble_pano_url || quest.world_scene_url}
+            hotspots={quest.world_hotspots || []}
+            stages={stages}
+            onClose={() => setImmersiveMode(false)}
+          />
+        </Suspense>
+      )}
+
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Scrollable content column */}
         <main style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
           <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            {/* Enter World button — shown when quest has a world scene */}
+            {(quest?.marble_pano_url || quest?.world_scene_url) && !immersiveMode && (
+              <EnterWorldButton
+                sceneUrl={quest?.marble_thumbnail_url || quest?.marble_pano_url || quest?.world_scene_url}
+                sceneDescription={quest?.marble_pano_url ? '3D World Ready — Enter to explore' : quest?.world_scene_prompt}
+                onClick={() => setImmersiveMode(true)}
+              />
+            )}
 
             {/* Trail Map — full width above stage card */}
             <div style={{ width: '100%' }}>
