@@ -161,10 +161,13 @@ export default function ProgressRadar({ assessments, studentSkills, learningOutc
         ? skills.reduce((sum, s) => sum + s.rating, 0) / skills.length
         : 0;
       const current = avgRating / 4;
-      const target = targetByDomain[domain] || (skills.length > 0 ? 0.75 : 0.5);
+      // Only show target if there's real data (learning outcomes or assessed skills)
+      const target = targetByDomain[domain] || (skills.length > 0 ? 0.75 : 0);
       return { domain, current, target, skills, skillCount: skills.length };
     });
   }, [assessments, studentSkills, learningOutcomes]);
+
+  const hasData = radarData.some(d => d.current > 0 || d.target > 0);
 
   const handleDomainClick = useCallback((domain) => {
     setSelectedDomain(prev => prev === domain ? null : domain);
@@ -173,6 +176,24 @@ export default function ProgressRadar({ assessments, studentSkills, learningOutc
   const selectedData = selectedDomain
     ? radarData.find(d => d.domain === selectedDomain)
     : null;
+
+  if (!hasData) {
+    return (
+      <div style={{
+        background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 14,
+        padding: compact ? '24px 16px' : '32px 24px', textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 8 }}>&#x1F9ED;</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>
+          No progress data yet
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0, lineHeight: 1.5, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
+          The radar will fill in as this learner completes project stages and receives AI feedback.
+          Parent learning outcomes will set the year-end goal targets.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 14, padding: compact ? '14px 12px' : '20px 16px' }}>
