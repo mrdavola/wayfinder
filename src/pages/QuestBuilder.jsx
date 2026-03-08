@@ -1986,8 +1986,12 @@ function Step6Review({
 
   // Standards coverage
   const standardsCoverage = selectedStandards.map((std) => {
+    const stdId = (std.id || '').toLowerCase().replace(/^ccss\.|^ngss\.|^ccss\.ela-literacy\.|^ccss\.math\./i, '');
     const coveringStage = stages.find((stage) =>
-      (stage.academic_skills_embedded || []).includes(std.id)
+      (stage.academic_skills_embedded || []).some(skill => {
+        const skillId = (skill || '').toLowerCase().replace(/^ccss\.|^ngss\.|^ccss\.ela-literacy\.|^ccss\.math\./i, '');
+        return skillId === stdId || skill === std.id || std.id?.endsWith(skillId) || skillId?.endsWith(stdId);
+      })
     );
     return { ...std, covered: !!coveringStage, coveringStage: coveringStage?.stage_title };
   });
