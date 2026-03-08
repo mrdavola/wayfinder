@@ -507,6 +507,41 @@ async function parseAIJSON(text) {
   }
 }
 
+// ===================== MARBLE WORLD LABS =====================
+
+async function generateMarbleWorld({ textPrompt, imageUrl, displayName, model = 'Marble 0.1-mini' }) {
+  const resp = await fetch('/api/worldlabs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ textPrompt, imageUrl, displayName, model }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `Marble generation failed: ${resp.status}`);
+  }
+  return resp.json();
+}
+
+async function pollMarbleOperation(operationId) {
+  const resp = await fetch(`/api/worldlabs?operationId=${operationId}`);
+  if (!resp.ok) throw new Error(`Marble poll failed: ${resp.status}`);
+  return resp.json();
+}
+
+async function waitForMarbleWorld(operationId, { onProgress, maxWaitMs = 600000, intervalMs = 5000 } = {}) {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    const op = await pollMarbleOperation(operationId);
+    onProgress?.(op);
+    if (op.done) {
+      if (op.error) throw new Error(op.error.message || 'Marble generation failed');
+      return op.response;
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  throw new Error('Marble generation timed out');
+}
+
 export const ai = {
   generateQuest: async ({ students, standards, pathway, type, count, studentStandardsProfiles, additionalContext, useRealWorld, projectMode }) => {
     // Build rich student profiles for the prompt
@@ -1832,6 +1867,52 @@ Rules:
 Create 5-8 learning nodes that would take this student from basics to competence in this skill.`,
     });
     return await parseAIJSON(text);
+  },
+
+  async generateMarbleScene({ questId, questTitle, stages, studentInterests, careerPathway, gradeBand }) {
+    try {
+      const sceneData = await ai.generateWorldScene({ questTitle, stages, studentInterests, careerPathway, gradeBand });
+      if (!sceneData) return null;
+
+      const op = await generateMarbleWorld({
+        textPrompt: sceneData.image_prompt,
+        displayName: questTitle || 'Wayfinder World',
+        model: 'Marble 0.1-mini',
+      });
+
+      return {
+        operationId: op.operation_id,
+        hotspots: sceneData.hotspots,
+        scenePrompt: sceneData.image_prompt,
+        sceneDescription: sceneData.scene_description,
+      };
+    } catch (err) {
+      console.error('Marble scene generation failed:', err);
+      return null;
+    }
+  },
+
+  async pollMarbleStatus(operationId) {
+    return pollMarbleOperation(operationId);
+  },
+
+  async waitForMarble(operationId, callbacks) {
+    return waitForMarbleWorld(operationId, callbacks);
+  },
+
+  async upgradeMarbleWorld({ questId, textPrompt, imageUrl, displayName }) {
+    try {
+      const op = await generateMarbleWorld({
+        textPrompt: imageUrl ? undefined : textPrompt,
+        imageUrl,
+        displayName,
+        model: 'Marble 0.1-plus',
+      });
+      return { operationId: op.operation_id };
+    } catch (err) {
+      console.error('Marble upgrade failed:', err);
+      return null;
+    }
   },
 };
 

@@ -1,9 +1,10 @@
-import { Suspense, useState, useCallback } from 'react';
+import { Suspense, useState, useCallback, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { X, Map } from 'lucide-react';
+import { X, Map, Volume2, VolumeX } from 'lucide-react';
 import PanoramaSphere from './PanoramaSphere';
 import CameraController, { GyroPermissionButton } from './CameraController';
 import StageHotspot from './StageHotspot';
+import useSpeech from '../../hooks/useSpeech';
 
 export default function ImmersiveWorldView({
   sceneUrl,
@@ -18,14 +19,32 @@ export default function ImmersiveWorldView({
 }) {
   const [selectedStage, setSelectedStage] = useState(null);
   const [gyroEnabled, setGyroEnabled] = useState(false);
+  const { speak, stop, speaking } = useSpeech();
+  const [hasSpokenIntro, setHasSpokenIntro] = useState(false);
+
+  // Narrate world description on entry
+  useEffect(() => {
+    if (!hasSpokenIntro) {
+      const timer = setTimeout(() => {
+        speak('Welcome to your world. Look around and tap a hotspot to begin.');
+        setHasSpokenIntro(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [hasSpokenIntro, speak]);
 
   const handleHotspotClick = useCallback((stageNumber) => {
     const stage = stages.find(s => s.stage_number === stageNumber);
     if (stage && stage.status !== 'locked') {
       setSelectedStage(stage);
       onStageSelect?.(stage.id);
+      // Narrate the stage
+      stop();
+      if (stage.description) {
+        setTimeout(() => speak(stage.title + '. ' + stage.description), 300);
+      }
     }
-  }, [stages, onStageSelect]);
+  }, [stages, onStageSelect, speak, stop]);
 
   const needsGyroPrompt = isMobile &&
     !gyroEnabled &&
@@ -88,7 +107,7 @@ export default function ImmersiveWorldView({
       }}>
         {/* Exit button */}
         <button
-          onClick={onExit}
+          onClick={() => { stop(); onExit(); }}
           style={{
             pointerEvents: 'auto',
             padding: '8px 16px', borderRadius: 8,
@@ -102,18 +121,36 @@ export default function ImmersiveWorldView({
           <X size={14} /> Exit World
         </button>
 
-        {/* XP display */}
-        {xp != null && (
-          <div style={{
-            pointerEvents: 'auto',
-            padding: '6px 14px', borderRadius: 8,
-            background: 'rgba(0,0,0,0.6)', color: 'var(--compass-gold)',
-            fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            backdropFilter: 'blur(8px)',
-          }}>
-            {xp} EP
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Voice toggle */}
+          <button
+            onClick={() => speaking ? stop() : speak('Look around and tap a hotspot to begin.')}
+            style={{
+              pointerEvents: 'auto',
+              width: 36, height: 36, borderRadius: '50%',
+              background: speaking ? 'var(--compass-gold)' : 'rgba(0,0,0,0.6)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: speaking ? 'var(--ink)' : 'white',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            {speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+
+          {/* XP display */}
+          {xp != null && (
+            <div style={{
+              pointerEvents: 'auto',
+              padding: '6px 14px', borderRadius: 8,
+              background: 'rgba(0,0,0,0.6)', color: 'var(--compass-gold)',
+              fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
+              backdropFilter: 'blur(8px)',
+            }}>
+              {xp} EP
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom hint */}
