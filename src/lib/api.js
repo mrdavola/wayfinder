@@ -730,6 +730,17 @@ Rate each academic skill demonstrated on a 1-4 scale:
 4 = advanced (deep understanding, can teach others or extend)
 Be honest but generous. Only rate skills you can genuinely see evidence for.
 
+SCORING (1-50):
+- 1-15: Minimal effort or off-topic. Student needs significant guidance.
+- 16-25: Shows basic understanding but missing key elements.
+- 26-34: Good effort with some gaps. Close to mastery.
+- 35-42: Solid work demonstrating proficiency. Mastery achieved.
+- 43-50: Exceptional depth, creativity, or insight. Advanced mastery.
+
+Score >= 35 means the student has demonstrated mastery of this stage's learning goals.
+Always provide "hints" with 1-2 specific, actionable suggestions for improvement regardless of score.
+Set "mastery_passed" to true if score >= 35, false otherwise.
+
 Return ONLY valid JSON:
 {
   "feedback": "2-3 sentences warm-cool-warm",
@@ -740,7 +751,10 @@ Return ONLY valid JSON:
   ],
   "encouragement": "1 sentence of specific encouragement",
   "next_steps": "1 question about what to explore next",
-  "sources_referenced": [{"title": "string", "url": "string", "trust_level": "trusted|review|unverified"}]
+  "sources_referenced": [{"title": "string", "url": "string", "trust_level": "trusted|review|unverified"}],
+  "score": 35,
+  "hints": "If the student wants to improve: try X, consider Y",
+  "mastery_passed": true
 }`;
 
     const text = await callAI({
