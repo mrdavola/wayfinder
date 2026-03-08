@@ -113,7 +113,7 @@ export default function CareerExplorer() {
         {/* Empty state */}
         {insights.length === 0 && !discovering && (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--pencil)' }}>
-            <Briefcase size={32} color="var(--pencil)" style={{ marginBottom: 12 }} />
+            <Briefcase size={32} color="var(--pencil)" style={{ display: 'block', margin: '0 auto 12px' }} />
             <p style={{ fontSize: 13 }}>No career connections yet. Complete projects or click "Explore More" to discover careers!</p>
           </div>
         )}

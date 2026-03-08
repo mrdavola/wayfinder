@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase, Map } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase, Map, Target } from 'lucide-react';
+import ProgressRadar from '../components/ui/ProgressRadar';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi, skillAssessments } from '../lib/api';
@@ -377,6 +378,28 @@ export default function StudentProfilePage() {
               <Map size={13} /> Mastery Map
             </Link>
           </div>
+
+          {/* ── Progress Radar ─────────────────────────────────── */}
+          <section style={{ ...styles.section, paddingBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ ...styles.sectionTitle, marginBottom: 0 }}>
+                <Target size={16} style={{ marginRight: 6, color: T.labBlue }} />
+                Progress Radar
+              </h2>
+              <Link to={`/mastery/${id}`} style={{
+                fontSize: 11, fontWeight: 600, color: T.labBlue,
+                textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                View full Mastery Map &rarr;
+              </Link>
+            </div>
+            <ProgressRadar
+              assessments={assessmentData}
+              studentSkills={studentSkills}
+              learningOutcomes={parentInfo?.learning_outcomes || []}
+              compact
+            />
+          </section>
 
           {/* AI Field Guide toggle */}
           <div style={{
