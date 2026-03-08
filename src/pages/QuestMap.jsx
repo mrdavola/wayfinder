@@ -37,6 +37,22 @@ const injectStyles = () => {
       0%, 100% { box-shadow: 0 0 0 0 rgba(184,134,11,0.5); }
       50% { box-shadow: 0 0 0 8px rgba(184,134,11,0); }
     }
+    @keyframes qm-pulse {
+      0%, 100% { filter: drop-shadow(0 0 4px rgba(184,134,11,0.6)); }
+      50% { filter: drop-shadow(0 0 12px rgba(184,134,11,0.9)); }
+    }
+    @keyframes qm-glow-green {
+      0%, 100% { filter: drop-shadow(0 0 3px rgba(45,106,79,0.5)); }
+      50% { filter: drop-shadow(0 0 6px rgba(45,106,79,0.8)); }
+    }
+    @keyframes qm-dash-flow {
+      from { stroke-dashoffset: 10; }
+      to   { stroke-dashoffset: 0; }
+    }
+    @keyframes qm-node-enter {
+      from { opacity: 0; transform: scale(0.8); }
+      to   { opacity: 1; transform: scale(1); }
+    }
     @keyframes confetti-pop {
       0%   { transform: scale(0) rotate(0deg); opacity: 1; }
       60%  { transform: scale(1.4) rotate(20deg); opacity: 1; }
@@ -174,15 +190,17 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
           const x2 = getNodeX(i + 1);
           const y2 = getNodeY(i + 1);
           const isDone = stage.status === 'completed';
+          const nextIsActive = stages[i + 1]?.status === 'active';
           return (
             <line
               key={`line-${i}`}
               x1={x1} y1={y1 + NODE_RADIUS}
               x2={x2} y2={y2 - NODE_RADIUS}
-              stroke={isDone ? 'var(--field-green)' : 'var(--pencil)'}
+              stroke={isDone ? 'var(--field-green)' : nextIsActive ? 'var(--compass-gold)' : 'var(--pencil)'}
               strokeWidth={isDone ? 2.5 : 1.5}
               strokeDasharray={isDone ? 'none' : '6 4'}
-              opacity={0.6}
+              opacity={nextIsActive ? 0.8 : 0.6}
+              style={nextIsActive ? { animation: 'qm-dash-flow 0.8s linear infinite' } : undefined}
             />
           );
         })}
@@ -228,6 +246,9 @@ function JourneyMap({ stages, activeCard, onNodeClick, confettiNode }) {
               tabIndex={!isLocked ? 0 : undefined}
               onKeyDown={(e) => { if (!isLocked && (e.key === 'Enter' || e.key === ' ')) onNodeClick(stage.id); }}
               aria-label={`${stage.title} — ${stage.status}`}
+              style={{
+                animation: `qm-node-enter 400ms ease-out ${i * 80}ms both${isActive ? ', qm-pulse 2s ease-in-out infinite' : ''}${isCompleted ? ', qm-glow-green 3s ease-in-out infinite' : ''}`,
+              }}
             >
               {/* Pulse ring for active */}
               {isActive && (
