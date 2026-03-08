@@ -461,81 +461,84 @@ function StageCard({ stage, onComplete, completing, onNavigateToSim, submissions
     <div className="card-fade-in" style={{
       background: 'var(--chalk)',
       border: '1px solid var(--pencil)',
-      borderRadius: 12,
-      padding: '20px 24px',
-      maxWidth: 480,
+      borderRadius: 14,
+      padding: '24px 28px',
       width: '100%',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
     }}>
       {/* Stage header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-          background: stage.status === 'completed' ? 'var(--field-green)' : 'var(--parchment)',
-          border: `2px solid ${stage.status === 'completed' ? 'var(--field-green)' : 'var(--compass-gold)'}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {stage.status === 'completed'
-            ? <CheckCircle size={16} color="var(--chalk)" strokeWidth={2.5} />
-            : <StageIcon type={stage.stage_type || stage.type} size={16} color="var(--ink)" />
-          }
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)' }}>
-              Stage {stage.stage_number}
-            </span>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: stage.status === 'completed' ? 'var(--field-green)' : stage.status === 'active' ? 'var(--compass-gold)' : 'var(--pencil)',
-              textTransform: 'uppercase', letterSpacing: '0.04em',
-            }}>
-              {stage.status}
-            </span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 0 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+            background: stage.status === 'completed' ? 'var(--field-green)' : 'var(--parchment)',
+            border: `2px solid ${stage.status === 'completed' ? 'var(--field-green)' : 'var(--compass-gold)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {stage.status === 'completed'
+              ? <CheckCircle size={18} color="var(--chalk)" strokeWidth={2.5} />
+              : <StageIcon type={stage.stage_type || stage.type} size={18} color="var(--ink)" />
+            }
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)', color: 'var(--ink)', margin: '2px 0 0', flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Stage {stage.stage_number}
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase',
+                letterSpacing: '0.04em', fontWeight: 600,
+                color: stage.status === 'completed' ? 'var(--field-green)' : stage.status === 'active' ? 'var(--compass-gold)' : 'var(--pencil)',
+              }}>
+                {stage.status}
+              </span>
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>
               {stage.title}
             </h3>
-            <SpeakButton text={readText} />
           </div>
         </div>
+        <SpeakButton text={readText} />
       </div>
 
       {/* Description */}
       {stage.description && (
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'var(--ink)', lineHeight: 1.65, marginBottom: 16 }}>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--graphite)', lineHeight: 1.7, margin: '0 0 20px' }}>
           {stage.description}
         </p>
       )}
 
       {/* Duration */}
       {stage.duration && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', marginBottom: 12 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', marginBottom: 14 }}>
           Estimated: {stage.duration} {stage.duration === 1 ? 'day' : 'days'}
         </div>
       )}
 
+      {/* Divider */}
+      {stage.description && stage.guiding_questions?.length > 0 && (
+        <hr style={{ border: 'none', borderTop: '1px solid var(--pencil)', margin: '0 0 20px', opacity: 0.4 }} />
+      )}
+
       {/* Guiding questions */}
       {stage.guiding_questions?.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             Guiding Questions
           </div>
-          {stage.guiding_questions.map((q, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--compass-gold)', marginTop: 7, flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'var(--ink)', lineHeight: 1.55 }}>{q}</span>
-            </div>
-          ))}
+          <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {stage.guiding_questions.map((q, i) => (
+              <li key={i} style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{q}</li>
+            ))}
+          </ul>
         </div>
       )}
 
       {/* Deliverable */}
       {stage.deliverable && (
-        <div style={{ background: 'var(--parchment)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, borderLeft: '3px solid var(--compass-gold)' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', display: 'block', marginBottom: 4 }}>Your deliverable</span>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'var(--ink)', lineHeight: 1.5 }}>{stage.deliverable}</span>
+        <div style={{ background: 'var(--parchment)', borderRadius: 10, padding: '14px 18px', marginBottom: 20, borderLeft: '3px solid var(--compass-gold)' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Your deliverable</div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)', lineHeight: 1.6, margin: 0 }}>{stage.deliverable}</p>
         </div>
       )}
 
@@ -663,11 +666,10 @@ function SimulationEntryCard({ simulation, onEnter }) {
   return (
     <div className="card-fade-in" style={{
       background: 'var(--lab-blue)',
-      borderRadius: 12,
-      padding: '20px 24px',
-      maxWidth: 480,
+      borderRadius: 14,
+      padding: '24px 28px',
       width: '100%',
-      boxShadow: '0 4px 16px rgba(27,73,101,0.25)',
+      boxShadow: '0 4px 20px rgba(27,73,101,0.25)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1635,7 +1637,7 @@ export default function QuestMap() {
       </header>
 
       {/* QUEST HEADER */}
-      <div style={{ background: 'var(--chalk)', borderBottom: '1px solid var(--pencil)', padding: '20px 24px 24px' }}>
+      <div style={{ background: 'var(--chalk)', borderBottom: '1px solid var(--pencil)', padding: '24px 28px 28px' }}>
         <div style={{ maxWidth: 760, margin: '0 auto' }}>
           {quest?.subtitle && (
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--lab-blue)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
@@ -1647,8 +1649,8 @@ export default function QuestMap() {
           </h2>
           {quest?.narrative_hook && (
             <div style={{
-              background: 'var(--parchment)', borderRadius: 8,
-              padding: '14px 18px', borderLeft: '3px solid var(--compass-gold)',
+              background: 'var(--parchment)', borderRadius: 10,
+              padding: '16px 20px', borderLeft: '3px solid var(--compass-gold)',
               maxWidth: 640,
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
