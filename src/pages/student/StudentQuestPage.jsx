@@ -31,7 +31,7 @@ import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths } from '../../lib/api';
 import EnterWorldButton from '../../components/immersive/EnterWorldButton';
 const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
-const MarbleWorldView = lazy(() => import('../../components/immersive/MarbleWorldView'));
+// MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
 
 // ===================== MARKDOWN HELPER =====================
 function renderMarkdown(text) {
@@ -3027,7 +3027,7 @@ export default function StudentQuestPage() {
 
   // Background upgrade from Marble Mini to Marble Plus when entering immersive mode
   useEffect(() => {
-    if (immersiveMode && quest?.marble_world_url && quest?.marble_model === 'Marble 0.1-mini') {
+    if (immersiveMode && quest?.marble_pano_url && quest?.marble_model === 'Marble 0.1-mini') {
       ai.upgradeMarbleWorld({
         questId: quest.id,
         textPrompt: quest.world_scene_prompt,
@@ -3313,11 +3313,11 @@ export default function StudentQuestPage() {
       </div>
 
       {/* Enter World button — shown when quest has a world scene */}
-      {(quest?.marble_world_url || quest?.world_scene_url) && !immersiveMode && (
+      {(quest?.marble_pano_url || quest?.world_scene_url) && !immersiveMode && (
         <div style={{ padding: isMobile ? '8px 14px 0' : '12px 22px 0', position: 'relative' }}>
           <EnterWorldButton
-            sceneUrl={quest?.marble_thumbnail_url || quest?.world_scene_url}
-            sceneDescription={quest?.marble_world_url ? '3D World Ready — Enter to explore' : quest?.world_scene_prompt}
+            sceneUrl={quest?.marble_thumbnail_url || quest?.marble_pano_url || quest?.world_scene_url}
+            sceneDescription={quest?.marble_pano_url ? '3D World Ready — Enter to explore' : quest?.world_scene_prompt}
             onClick={() => setImmersiveMode(true)}
           />
           {worldRegenerating && (
@@ -3735,53 +3735,11 @@ export default function StudentQuestPage() {
         />
       )}
 
-      {/* Immersive 3D World */}
-      {immersiveMode && (quest?.marble_world_url || quest?.world_scene_url) && (
+      {/* Immersive 3D World — uses Marble pano_url (higher quality) or Gemini world_scene_url */}
+      {immersiveMode && (quest?.marble_pano_url || quest?.world_scene_url) && (
         <Suspense fallback={null}>
-          {quest.marble_world_url ? (
-            <MarbleWorldView
-              marbleUrl={quest.marble_world_url}
-              hotspots={quest.world_hotspots}
-              stages={stages}
-              activeStageId={activeCard}
-              onStageSelect={(stageId) => {
-                const s = stages.find(st => st.id === stageId);
-                if (s) setActiveCard(stageId);
-              }}
-              onStageSubmit={async (stageId, text) => {
-                const stage = stages.find(s => s.id === stageId);
-                if (!stage) return;
-                // Save submission
-                await supabase.rpc('submit_student_work', {
-                  p_quest_id: id,
-                  p_stage_id: stageId,
-                  p_student_name: studentName,
-                  p_content: text,
-                });
-                // AI review
-                try {
-                  const result = await ai.reviewSubmission({
-                    stageTitle: stage.title,
-                    stageDescription: stage.description || '',
-                    deliverable: stage.deliverable || '',
-                    submissionContent: text,
-                    studentProfile: studentProfile || { name: studentName },
-                  });
-                  if (result?.feedback) {
-                    setImmersiveFeedback(result.feedback);
-                  }
-                } catch (e) {
-                  console.error('Immersive review failed:', e);
-                }
-              }}
-              onExit={() => setImmersiveMode(false)}
-              isMobile={isMobile}
-              sceneDescription={quest.world_scene_prompt}
-              feedbackText={immersiveFeedback}
-            />
-          ) : (
             <ImmersiveWorldView
-              sceneUrl={quest.world_scene_url}
+              sceneUrl={quest.marble_pano_url || quest.world_scene_url}
               hotspots={quest.world_hotspots || []}
               stages={stages}
               activeStageId={activeCard}
@@ -3794,7 +3752,6 @@ export default function StudentQuestPage() {
               studentName={studentName}
               xp={xpData?.total_points}
             />
-          )}
         </Suspense>
       )}
     </div>
