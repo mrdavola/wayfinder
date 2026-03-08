@@ -37,6 +37,7 @@ import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
 import { getTrustTier } from '../lib/trustDomains';
+import { validateResources } from '../lib/perplexity';
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -2666,6 +2667,7 @@ function Step6Review({
                               tier={src.trust_level || getTrustTier(src.url)}
                               url={src.url}
                               sourceName={src.title || src.domain}
+                              verified={src.verified}
                             />
                             {src._editing ? (
                               <input
@@ -3313,6 +3315,22 @@ export default function QuestBuilder() {
             useRealWorld,
             projectMode,
           });
+
+      // Validate source links in parallel (non-blocking — fall back to unvalidated on error)
+      try {
+        const stagesWithValidatedSources = await Promise.all(
+          questData.stages.map(async (stage) => {
+            if (stage.sources?.length > 0) {
+              const validated = await validateResources(stage.sources);
+              return { ...stage, sources: validated.filter(r => r.verified !== false) };
+            }
+            return stage;
+          })
+        );
+        questData.stages = stagesWithValidatedSources;
+      } catch (e) {
+        console.warn('Source validation failed, using unvalidated sources:', e);
+      }
 
       cancelAnimationFrame(progressRef.current);
       clearInterval(textRef.current);

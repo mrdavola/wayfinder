@@ -1523,7 +1523,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {stage.sources.map((src, i) => (
-                  <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} />
+                  <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} verified={src.verified} />
                 ))}
               </div>
             </div>
@@ -1594,7 +1594,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {stage.sources.map((src, i) => (
-              <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} />
+              <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} verified={src.verified} />
             ))}
           </div>
         </div>

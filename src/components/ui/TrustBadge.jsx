@@ -11,7 +11,7 @@ const TIER_ICONS = {
   unknown: AlertTriangle,
 };
 
-export default function TrustBadge({ tier, url, sourceName, onOverride }) {
+export default function TrustBadge({ tier, url, sourceName, onOverride, verified }) {
   const [hovered, setHovered] = useState(false);
   const hideTimeout = useRef(null);
   const color = getTrustColor(tier);
@@ -40,6 +40,16 @@ export default function TrustBadge({ tier, url, sourceName, onOverride }) {
           maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {sourceName}
+        </span>
+      )}
+      {verified === true && (
+        <span style={{
+          fontSize: 8, fontWeight: 700, color: '#2D6A4F',
+          background: 'rgba(45,106,79,0.1)', padding: '1px 4px',
+          borderRadius: 3, fontFamily: 'var(--font-mono)',
+          marginLeft: 2, verticalAlign: 'middle', lineHeight: '14px',
+        }}>
+          VERIFIED
         </span>
       )}
       {hovered && (
