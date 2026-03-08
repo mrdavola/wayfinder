@@ -1937,6 +1937,19 @@ export const skills = {
       .upsert(rows, { onConflict: 'student_id,skill_id' })
       .select();
   },
+
+  getDependencies: async (skillIds) => {
+    return supabase
+      .from('skill_dependencies')
+      .select('*, skill:skills!skill_dependencies_skill_id_fkey(id, name, category), parent:skills!skill_dependencies_depends_on_skill_id_fkey(id, name, category)')
+      .in('skill_id', skillIds);
+  },
+
+  getAllDependencies: async () => {
+    return supabase
+      .from('skill_dependencies')
+      .select('skill_id, depends_on_skill_id, relationship');
+  },
 };
 
 // ===================== SKILL SNAPSHOTS =====================
