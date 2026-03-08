@@ -1946,6 +1946,8 @@ function Step6Review({
   onAddToLibrary,
   launching,
   saveError,
+  marbleStatus,
+  marbleData,
 }) {
   const [openStage, setOpenStage] = useState(null);
   const [editingStudents, setEditingStudents] = useState(false);
@@ -3981,6 +3983,8 @@ export default function QuestBuilder() {
                 onAddToLibrary={handleAddToLibrary}
                 launching={launching}
                 saveError={saveError}
+                marbleStatus={marbleStatus}
+                marbleData={marbleData}
               />
             )}
 
