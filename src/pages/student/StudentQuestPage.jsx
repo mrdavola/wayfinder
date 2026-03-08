@@ -1841,6 +1841,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                     submissionContent: submissionContent || '',
                     skillsDemonstrated: result.skills_demonstrated,
                     studentSkills: studentSkillsData?.data || [],
+                    score: result.score,
                   });
                   if (mastery.updates?.length) {
                     for (const update of mastery.updates) {

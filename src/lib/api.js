@@ -769,10 +769,13 @@ ${profileStr ? `Student: ${profileStr}` : ''}`,
     return await parseAIJSON(text);
   },
 
-  assessMastery: async ({ stageTitle, submissionContent, skillsDemonstrated, studentSkills }) => {
+  assessMastery: async ({ stageTitle, submissionContent, skillsDemonstrated, studentSkills, score }) => {
     const currentSkillsStr = (studentSkills || []).map(s => `${s.skill_name}: ${s.proficiency}`).join(', ');
+    const scoreContext = score != null
+      ? `\nThe student received a score of ${score}/50 on this submission (35+ = mastery). Factor this score into your proficiency assessment.`
+      : '';
     const text = await callAI({
-      systemPrompt: `You assess student skill mastery based on their work. Be conservative — only suggest updates when evidence is clear. Never lower a skill level.
+      systemPrompt: `You assess student skill mastery based on their work. Be conservative — only suggest updates when evidence is clear. Never lower a skill level.${scoreContext}
 
 You MUST respond with ONLY valid JSON:
 {
