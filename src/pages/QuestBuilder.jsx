@@ -3550,11 +3550,10 @@ export default function QuestBuilder() {
           }
         }
 
-        // Generate treasure map landmarks (non-blocking)
+        // Generate treasure map landmarks (truly non-blocking — fire and forget)
         if (savedStages?.length) {
-          try {
-            const landmarkData = await ai.generateLandmarks(savedStages);
-            if (landmarkData.length > 0) {
+          ai.generateLandmarks(savedStages).then(landmarkData => {
+            if (landmarkData?.length > 0) {
               const landmarkRows = landmarkData.map(l => {
                 const matchingStage = savedStages.find(s => s.stage_number === l.stage_number);
                 return matchingStage ? {
@@ -3565,26 +3564,21 @@ export default function QuestBuilder() {
                   ambient_sound: l.ambient_sound || null,
                 } : null;
               }).filter(Boolean);
-              await landmarksApi.bulkUpsert(landmarkRows);
+              landmarksApi.bulkUpsert(landmarkRows);
             }
-          } catch (e) {
-            console.warn('Landmark generation failed (non-blocking):', e);
-          }
+          }).catch(e => console.warn('Landmark generation failed (non-blocking):', e));
 
-          // Generate interactive data for special stage types
+          // Generate interactive data for special stage types (fire and forget)
           for (const stage of savedStages) {
             if (['puzzle_gate', 'choice_fork', 'evidence_board'].includes(stage.stage_type)) {
-              try {
-                const config = await ai.generateInteractiveData(stage, stage.stage_type);
-                await interactiveStages.upsert(stage.id, stage.stage_type, config);
-              } catch (e) {
-                console.warn(`Interactive data generation failed for stage ${stage.stage_number}:`, e);
-              }
+              ai.generateInteractiveData(stage, stage.stage_type).then(config => {
+                interactiveStages.upsert(stage.id, stage.stage_type, config);
+              }).catch(e => console.warn(`Interactive data generation failed for stage ${stage.stage_number}:`, e));
             }
           }
 
-          // Save expedition challenges (non-blocking)
-          try {
+          // Save expedition challenges (fire and forget)
+          {
             const challengesToSave = [];
             savedStages.forEach(saved => {
               const originalStage = generatedQuest.stages.find(s => s.stage_number === saved.stage_number);
@@ -3602,40 +3596,35 @@ export default function QuestBuilder() {
               }
             });
             if (challengesToSave.length > 0) {
-              await expeditionChallenges.bulkCreate(challengesToSave);
+              expeditionChallenges.bulkCreate(challengesToSave).catch(e =>
+                console.warn('Expedition challenges save failed (non-blocking):', e)
+              );
             }
-          } catch (e) {
-            console.warn('Expedition challenges save failed (non-blocking):', e);
           }
 
-          // Upload world scene image and save to quest (non-blocking)
+          // Upload world scene image and save to quest (fire and forget)
           if (generatedQuest._worldScene?._imageBase64) {
-            try {
-              const sceneUrl = await uploadWorldScene(quest.id, generatedQuest._worldScene._imageBase64, generatedQuest._worldScene._imageMime);
-              await supabase.from('quests').update({
+            uploadWorldScene(quest.id, generatedQuest._worldScene._imageBase64, generatedQuest._worldScene._imageMime).then(sceneUrl => {
+              supabase.from('quests').update({
                 world_scene_url: sceneUrl,
                 world_hotspots: generatedQuest._worldScene.hotspots || [],
                 world_scene_prompt: generatedQuest._worldScene.image_prompt || '',
               }).eq('id', quest.id);
-            } catch (e) {
-              console.warn('World scene save failed (non-blocking):', e);
-            }
+            }).catch(e => console.warn('World scene save failed (non-blocking):', e));
           }
 
-          // Save Marble world data (non-blocking)
+          // Save Marble world data (fire and forget)
           if (marbleData?.worldUrl || marbleData?.operationId) {
-            try {
-              await supabase.from('quests').update({
-                marble_world_url: marbleData?.worldUrl || null,
-                marble_world_id: marbleData?.worldId || null,
-                marble_operation_id: null,
-                marble_model: 'Marble 0.1-mini',
-                marble_pano_url: marbleData?.panoUrl || null,
-                marble_thumbnail_url: marbleData?.thumbnailUrl || null,
-              }).eq('id', quest.id);
-            } catch (e) {
-              console.warn('Marble world save failed (non-blocking):', e);
-            }
+            supabase.from('quests').update({
+              marble_world_url: marbleData?.worldUrl || null,
+              marble_world_id: marbleData?.worldId || null,
+              marble_operation_id: null,
+              marble_model: 'Marble 0.1-mini',
+              marble_pano_url: marbleData?.panoUrl || null,
+              marble_thumbnail_url: marbleData?.thumbnailUrl || null,
+            }).eq('id', quest.id).then(() => {}).catch(e =>
+              console.warn('Marble world save failed (non-blocking):', e)
+            );
           }
 
           // Save branch relationships for branching quests (non-blocking)
