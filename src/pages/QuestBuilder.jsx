@@ -3587,7 +3587,7 @@ export default function QuestBuilder() {
       return quest.id;
     } catch (err) {
       console.error('saveQuest error:', err);
-      setSaveError(typeof err?.message === 'string' ? err.message : 'Failed to save quest. Check console for details.');
+      setSaveError(typeof err?.message === 'string' ? err.message : 'Failed to save project. Check console for details.');
       return null;
     } finally {
       setLaunching(false);

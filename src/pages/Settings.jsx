@@ -592,7 +592,7 @@ export default function SettingsPage() {
           {(() => {
             const r = profile?.role || 'guide';
             const roleInfo = {
-              guide:        { label: 'Guide',        color: '#2D6A4F', bg: '#D1EAE0', desc: 'Creates and launches quests, manages students, runs simulations, and builds personalized learning paths.' },
+              guide:        { label: 'Guide',        color: '#2D6A4F', bg: '#D1EAE0', desc: 'Creates and launches projects, manages students, runs simulations, and builds personalized learning paths.' },
               school_admin: { label: 'School Admin', color: '#1B4965', bg: '#DBE9F2', desc: 'All Guide permissions plus school-level oversight: view activity across guides, manage enrollment, and access school-wide reports.' },
               superadmin:   { label: 'Superadmin',   color: '#7C3AED', bg: '#EDE9FE', desc: 'Full platform access. Can manage all schools, users, and content.' },
             }[r] || { label: r, color: 'var(--graphite)', bg: 'var(--parchment)', desc: '' };
