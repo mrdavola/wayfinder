@@ -30,6 +30,7 @@ import { getTrustTier } from '../../lib/trustDomains';
 import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths } from '../../lib/api';
 import EnterWorldButton from '../../components/immersive/EnterWorldButton';
+import VideoEmbed from '../../components/ui/VideoEmbed';
 const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
 // MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
 
@@ -1529,6 +1530,16 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               </div>
             </div>
           )}
+          {stage.video_urls?.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>
+                Watch
+              </div>
+              {stage.video_urls.filter(v => v.url).map((v, vi) => (
+                <VideoEmbed key={vi} url={v.url} title={v.title} compact />
+              ))}
+            </div>
+          )}
           {stage.guiding_questions?.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>
@@ -1596,6 +1607,20 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {stage.sources.map((src, i) => (
               <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} verified={src.verified} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Videos */}
+      {stage.video_urls?.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Watch
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {stage.video_urls.filter(v => v.url).map((v, vi) => (
+              <VideoEmbed key={vi} url={v.url} title={v.title} />
             ))}
           </div>
         </div>
@@ -3743,14 +3768,65 @@ export default function StudentQuestPage() {
               hotspots={quest.world_hotspots || []}
               stages={stages}
               activeStageId={activeCard}
+              questId={quest.id}
               onStageSelect={(stageId) => {
-                setImmersiveMode(false);
                 handleNodeClick(stageId);
+              }}
+              onSubmit={async (stageId, textContent) => {
+                // Submit via RPC (same as SubmissionPanel)
+                const { error: rpcError } = await supabase.rpc('submit_stage_work', {
+                  p_quest_id: quest.id,
+                  p_stage_id: stageId,
+                  p_student_name: studentName,
+                  p_submission_type: 'text',
+                  p_content: textContent,
+                  p_file_url: null,
+                  p_file_name: null,
+                  p_file_size: null,
+                  p_mime_type: null,
+                });
+                if (rpcError) throw new Error(rpcError.message);
+                // Update local submissions state
+                setSubmissions(prev => ({
+                  ...prev,
+                  [stageId]: { content: textContent, submission_type: 'text' },
+                }));
+                // Trigger AI review + stage advancement in background
+                const stage = stages.find(s => s.id === stageId);
+                if (stage) {
+                  ai.reviewSubmission({
+                    stageTitle: stage.title,
+                    stageDescription: stage.description || '',
+                    deliverable: stage.deliverable || '',
+                    submissionContent: textContent,
+                    studentProfile: studentProfile || { name: studentName },
+                  }).then(result => {
+                    const passed = (result.score ?? 50) >= 70;
+                    if (passed) {
+                      // Advance stage
+                      supabase.from('quest_stages').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', stageId).then(() => {
+                        // Unlock next stage
+                        const currentIdx = stages.findIndex(s => s.id === stageId);
+                        if (currentIdx >= 0 && currentIdx < stages.length - 1) {
+                          const nextStage = stages[currentIdx + 1];
+                          if (nextStage.status === 'locked') {
+                            supabase.from('quest_stages').update({ status: 'active' }).eq('id', nextStage.id);
+                          }
+                        }
+                        // Refresh stages
+                        supabase.from('quest_stages').select('*').eq('quest_id', quest.id).order('stage_number').then(({ data }) => {
+                          if (data) setStages(data);
+                        });
+                      });
+                    }
+                  }).catch(e => console.warn('Immersive AI review failed:', e));
+                }
               }}
               onExit={() => setImmersiveMode(false)}
               isMobile={isMobile}
               studentName={studentName}
               xp={xpData?.total_points}
+              submissions={submissions}
             />
         </Suspense>
       )}

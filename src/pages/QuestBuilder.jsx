@@ -38,6 +38,9 @@ import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFramewo
 import TrustBadge from '../components/ui/TrustBadge';
 import { getTrustTier } from '../lib/trustDomains';
 import { validateResources } from '../lib/perplexity';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import PanoramaSphere from '../components/immersive/PanoramaSphere';
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -813,19 +816,26 @@ function Step2Skills({
     profileStdsLoaded.current = true;
     setProfileStdsLoading(true);
 
-    Promise.all(
-      selectedStudents.map(s =>
-        supabase
-          .from('student_standards')
-          .select('*')
-          .eq('student_id', s.id)
-          .eq('status', 'active')
-          .then(({ data }) => ({ studentId: s.id, studentName: s.name, standards: data || [] }))
-      )
-    ).then(results => {
-      setStudentProfileStds(results);
-      setProfileStdsLoading(false);
-    });
+    const studentIds = selectedStudents.map(s => s.id);
+    supabase
+      .from('student_standards')
+      .select('*')
+      .in('student_id', studentIds)
+      .eq('status', 'active')
+      .then(({ data }) => {
+        const byStudent = {};
+        (data || []).forEach(row => {
+          if (!byStudent[row.student_id]) byStudent[row.student_id] = [];
+          byStudent[row.student_id].push(row);
+        });
+        const results = selectedStudents.map(s => ({
+          studentId: s.id,
+          studentName: s.name,
+          standards: byStudent[s.id] || [],
+        }));
+        setStudentProfileStds(results);
+        setProfileStdsLoading(false);
+      });
   }, [selectedStudents]);
 
   // Grade bands available for the current subject
@@ -2122,9 +2132,34 @@ function Step6Review({
           Generating 3D world...
         </div>
       )}
-      {marbleStatus === 'ready' && marbleData?.thumbnailUrl && (
+      {marbleStatus === 'ready' && marbleData?.panoUrl && (
         <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--pencil)', marginBottom: 12 }}>
-          <img src={marbleData.thumbnailUrl} alt="3D World Preview" style={{ width: '100%', display: 'block' }} />
+          <div style={{ width: '100%', height: 200, position: 'relative', cursor: 'grab', background: '#111' }}>
+            <Canvas camera={{ fov: 75, near: 0.1, far: 1000, position: [0, 0, 0.1] }}>
+              <PanoramaSphere imageUrl={marbleData.panoUrl} />
+              <OrbitControls
+                enableZoom={false}
+                enablePan={false}
+                rotateSpeed={-0.3}
+                autoRotate
+                autoRotateSpeed={0.5}
+              />
+              <ambientLight intensity={0.5} />
+            </Canvas>
+          </div>
+          <div style={{
+            padding: '8px 12px', background: 'var(--parchment)',
+            fontSize: 12, color: 'var(--field-green)', fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span>3D World ready</span>
+            <span style={{ fontSize: 10, color: 'var(--graphite)', fontWeight: 400 }}>Drag to look around</span>
+          </div>
+        </div>
+      )}
+      {marbleStatus === 'ready' && !marbleData?.panoUrl && marbleData?.thumbnailUrl && (
+        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--pencil)', marginBottom: 12 }}>
+          <img src={marbleData.thumbnailUrl} alt="3D World Preview" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />
           <div style={{
             padding: '8px 12px', background: 'var(--parchment)',
             fontSize: 12, color: 'var(--field-green)', fontWeight: 600,
@@ -2134,8 +2169,8 @@ function Step6Review({
         </div>
       )}
 
-      {/* World Preview — shows generating state or actual preview */}
-      {!generatedQuest._worldScene && !worldError && (
+      {/* World Preview — shows generating state or actual preview (only if Marble not ready) */}
+      {!marbleStatus && !generatedQuest._worldScene && !worldError && (
         <div style={{
           marginBottom: 20, borderRadius: 12, overflow: 'hidden',
           border: `1px dashed ${T.pencil}`, background: T.parchment,
@@ -2147,7 +2182,7 @@ function Step6Review({
           </span>
         </div>
       )}
-      {worldError && !generatedQuest._worldScene?._imageBase64 && (
+      {!marbleStatus && worldError && !generatedQuest._worldScene?._imageBase64 && (
         <div style={{
           marginBottom: 20, borderRadius: 12, padding: '14px 18px',
           border: `1px solid ${T.pencil}`, background: T.parchment,
@@ -2194,7 +2229,7 @@ function Step6Review({
           </button>
         </div>
       )}
-      {generatedQuest._worldScene && (
+      {!marbleStatus && generatedQuest._worldScene && (
         <div style={{
           marginBottom: 20, borderRadius: 12, overflow: 'hidden',
           border: `1px solid ${T.pencil}`, background: T.paper,
@@ -2741,6 +2776,78 @@ function Step6Review({
                       </div>
                     </div>
                   )}
+
+                  {/* Videos — AI-curated + guide-added */}
+                  <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--parchment)', borderRadius: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Videos
+                      </div>
+                      <button
+                        onClick={() => {
+                          const current = stage.video_urls || [];
+                          updateStage(i, 'video_urls', [...current, { title: '', url: '', source: 'youtube', ai_curated: false }]);
+                        }}
+                        style={{
+                          padding: '2px 8px', borderRadius: 4, border: `1px solid ${T.pencil}`,
+                          background: 'transparent', color: T.graphite, fontSize: 10,
+                          fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3,
+                        }}
+                      >
+                        <Plus size={10} /> Add Video
+                      </button>
+                    </div>
+                    {(stage.video_urls || []).length === 0 && (
+                      <div style={{ fontSize: 11, color: T.pencil, fontStyle: 'italic' }}>
+                        No videos yet — AI will suggest some, or add your own
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {(stage.video_urls || []).map((vid, vi) => (
+                        <div key={vi} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                          <input
+                            placeholder="Video title"
+                            defaultValue={vid.title}
+                            onBlur={(e) => {
+                              const newVids = [...(stage.video_urls || [])];
+                              newVids[vi] = { ...newVids[vi], title: e.target.value };
+                              updateStage(i, 'video_urls', newVids);
+                            }}
+                            style={{
+                              width: 140, fontSize: 11, padding: '3px 6px', borderRadius: 4,
+                              border: `1px solid ${T.pencil}`, fontFamily: 'var(--font-body)', outline: 'none',
+                            }}
+                          />
+                          <input
+                            placeholder="YouTube/Vimeo/Loom URL"
+                            defaultValue={vid.url}
+                            onBlur={(e) => {
+                              const newVids = [...(stage.video_urls || [])];
+                              newVids[vi] = { ...newVids[vi], url: e.target.value };
+                              updateStage(i, 'video_urls', newVids);
+                            }}
+                            style={{
+                              flex: 1, fontSize: 11, padding: '3px 6px', borderRadius: 4,
+                              border: `1px solid ${T.pencil}`, fontFamily: 'var(--font-mono)', outline: 'none',
+                            }}
+                          />
+                          {vid.ai_curated && (
+                            <span style={{ fontSize: 9, color: T.compassGold, fontWeight: 600, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>AI</span>
+                          )}
+                          <button
+                            title="Remove video"
+                            onClick={() => {
+                              const newVids = (stage.video_urls || []).filter((_, idx) => idx !== vi);
+                              updateStage(i, 'video_urls', newVids);
+                            }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0 }}
+                          >
+                            <X size={12} color={T.graphite} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Per-stage regenerate */}
                   <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -3317,18 +3424,25 @@ export default function QuestBuilder() {
       // Fetch student standards profiles if available
       let studentStandardsProfiles = null;
       try {
-        const stdResults = await Promise.all(
-          selectedStudents.map(s =>
-            supabase
-              .from('student_standards')
-              .select('*')
-              .eq('student_id', s.id)
-              .eq('status', 'active')
-              .then(({ data }) => ({ studentName: s.name, standards: data || [] }))
-          )
-        );
-        if (stdResults.some(r => r.standards.length > 0)) {
-          studentStandardsProfiles = stdResults;
+        const studentIds = selectedStudents.map(s => s.id);
+        const { data: allStds } = await supabase
+          .from('student_standards')
+          .select('*')
+          .in('student_id', studentIds)
+          .eq('status', 'active');
+        if (allStds?.length) {
+          const byStudent = {};
+          allStds.forEach(row => {
+            if (!byStudent[row.student_id]) byStudent[row.student_id] = [];
+            byStudent[row.student_id].push(row);
+          });
+          const stdResults = selectedStudents.map(s => ({
+            studentName: s.name,
+            standards: byStudent[s.id] || [],
+          }));
+          if (stdResults.some(r => r.standards.length > 0)) {
+            studentStandardsProfiles = stdResults;
+          }
         }
       } catch (e) {
         // Non-critical — continue without profiles
@@ -3380,37 +3494,16 @@ export default function QuestBuilder() {
       setProgress(100);
       setGeneratedQuest(questData);
 
-      // Fire off world scene generation in background (non-blocking)
+      // Marble is primary world renderer — Gemini panorama is fallback only
       const studentInterests = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
-      ai.generateWorldScene({
-        questTitle: questData.quest_title,
-        stages: questData.stages,
-        studentInterests,
-        careerPathway: pathwayLabels[0] || 'none',
-        gradeBand: selectedStudents[0]?.grade_band || '6-8',
-      }).then(async sceneData => {
-        if (!sceneData) return;
-        try {
-          const image = await generateWorldImage(sceneData.image_prompt);
-          if (!image) throw new Error('No image returned');
-          setGeneratedQuest(prev => prev ? ({
-            ...prev,
-            _worldScene: { ...sceneData, _imageBase64: image.base64, _imageMime: image.mimeType },
-          }) : prev);
-        } catch {
-          // Image generation failed — still save hotspot data
-          setGeneratedQuest(prev => prev ? ({ ...prev, _worldScene: sceneData }) : prev);
-        }
-      }).catch(() => {});
 
-      // Marble generation (parallel, non-blocking)
+      // Generate Marble 3D world (no Gemini fallback — saves time and credits)
       try {
         setMarbleStatus('generating');
-        const allInterests = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
         const marbleResult = await ai.generateMarbleScene({
           questTitle: questData.quest_title,
           stages: questData.stages,
-          studentInterests: allInterests,
+          studentInterests,
           careerPathway: pathwayLabels[0] || 'none',
           gradeBand: selectedStudents[0]?.grade_band,
         });
@@ -3423,6 +3516,7 @@ export default function QuestBuilder() {
               if (op.done) {
                 if (op.error) {
                   setMarbleStatus('failed');
+                  console.warn('Marble world generation failed');
                 } else {
                   setMarbleStatus('ready');
                   setMarbleData(prev => ({
@@ -3438,6 +3532,7 @@ export default function QuestBuilder() {
               marblePollingRef.current = setTimeout(pollMarble, 5000);
             } catch {
               setMarbleStatus('failed');
+              console.warn('Marble polling failed');
             }
           };
           marblePollingRef.current = setTimeout(pollMarble, 5000);
@@ -3445,7 +3540,7 @@ export default function QuestBuilder() {
           setMarbleStatus('failed');
         }
       } catch (err) {
-        console.warn('Marble generation skipped:', err.message);
+        console.warn('Marble generation failed:', err.message);
         setMarbleStatus('failed');
       }
 
@@ -3517,7 +3612,7 @@ export default function QuestBuilder() {
         const { data: savedStages, error: stagesError } = await supabase.from('quest_stages').insert(
           generatedQuest.stages.map((s, i) => ({
             quest_id: quest.id,
-            stage_number: s.stage_number || i + 1,
+            stage_number: i + 1,
             title: s.stage_title || s.title || `Stage ${i + 1}`,
             stage_type: sanitizeType(s.stage_type),
             duration_days: typeof s.duration === 'number' ? s.duration : parseInt(s.duration) || 1,
@@ -3529,6 +3624,7 @@ export default function QuestBuilder() {
             resources: Array.isArray(s.resources_needed) ? s.resources_needed : [],
             stretch_challenge: s.stretch_challenge || null,
             sources: Array.isArray(s.sources) ? s.sources : [],
+            video_urls: Array.isArray(s.video_urls) ? s.video_urls : [],
             status: (!s.depends_on || s.depends_on.length === 0) ? 'active' : 'locked',
           }))
         ).select();
@@ -3614,15 +3710,20 @@ export default function QuestBuilder() {
           }
 
           // Save Marble world data (fire and forget)
-          if (marbleData?.worldUrl || marbleData?.operationId) {
-            supabase.from('quests').update({
+          if (marbleData?.worldUrl || marbleData?.panoUrl || marbleData?.operationId) {
+            const marbleUpdate = {
               marble_world_url: marbleData?.worldUrl || null,
               marble_world_id: marbleData?.worldId || null,
               marble_operation_id: null,
               marble_model: 'Marble 0.1-mini',
               marble_pano_url: marbleData?.panoUrl || null,
               marble_thumbnail_url: marbleData?.thumbnailUrl || null,
-            }).eq('id', quest.id).then(() => {}).catch(e =>
+            };
+            // If Marble has hotspots and pano, also save as world_hotspots for student view
+            if (marbleData?.hotspots?.length > 0) {
+              marbleUpdate.world_hotspots = marbleData.hotspots;
+            }
+            supabase.from('quests').update(marbleUpdate).eq('id', quest.id).then(() => {}).catch(e =>
               console.warn('Marble world save failed (non-blocking):', e)
             );
           }

@@ -1,10 +1,12 @@
-import { Suspense, useState, useCallback, useEffect } from 'react';
+import { Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { X, Map, Volume2, VolumeX } from 'lucide-react';
+import { X, Volume2, VolumeX, Mic, MicOff, Send, CheckCircle, Loader2 } from 'lucide-react';
 import PanoramaSphere from './PanoramaSphere';
 import CameraController, { GyroPermissionButton } from './CameraController';
 import StageHotspot from './StageHotspot';
 import useSpeech from '../../hooks/useSpeech';
+import useSpeechRecognition from '../../hooks/useSpeechRecognition';
+import VideoEmbed from '../ui/VideoEmbed';
 
 export default function ImmersiveWorldView({
   sceneUrl,
@@ -12,15 +14,27 @@ export default function ImmersiveWorldView({
   stages,
   activeStageId,
   onStageSelect,
+  onSubmit,
   onExit,
   isMobile,
   studentName,
+  questId,
   xp,
+  submissions,
 }) {
   const [selectedStage, setSelectedStage] = useState(null);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const { speak, stop, speaking } = useSpeech();
   const [hasSpokenIntro, setHasSpokenIntro] = useState(false);
+  const [responseText, setResponseText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState({});
+  const textareaRef = useRef(null);
+
+  // Voice dictation
+  const { listening, supported: micSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
+    onResult: (text) => setResponseText(text),
+  });
 
   // Narrate world description on entry
   useEffect(() => {
@@ -32,6 +46,13 @@ export default function ImmersiveWorldView({
       return () => clearTimeout(timer);
     }
   }, [hasSpokenIntro, speak]);
+
+  // Reset response text when switching stages
+  useEffect(() => {
+    setResponseText('');
+    if (listening) stopListening();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStage?.id]);
 
   const handleHotspotClick = useCallback((stageNumber) => {
     const stage = stages.find(s => s.stage_number === stageNumber);
@@ -46,10 +67,47 @@ export default function ImmersiveWorldView({
     }
   }, [stages, onStageSelect, speak, stop]);
 
+  const handleSubmitResponse = useCallback(async () => {
+    if (!responseText.trim() || !selectedStage || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit?.(selectedStage.id, responseText.trim());
+      setSubmitted(prev => ({ ...prev, [selectedStage.id]: responseText.trim() }));
+      setResponseText('');
+      if (listening) stopListening();
+      // Voice feedback
+      stop();
+      setTimeout(() => speak('Nice work! Your response has been saved.'), 200);
+    } catch (err) {
+      console.error('Immersive submission error:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [responseText, selectedStage, submitting, onSubmit, listening, stopListening, stop, speak]);
+
+  const toggleMic = useCallback(() => {
+    if (listening) {
+      stopListening();
+    } else {
+      // Stop any TTS narration so mic can hear clearly
+      stop();
+      startListening();
+    }
+  }, [listening, startListening, stopListening, stop]);
+
   const needsGyroPrompt = isMobile &&
     !gyroEnabled &&
     typeof DeviceOrientationEvent !== 'undefined' &&
     typeof DeviceOrientationEvent.requestPermission === 'function';
+
+  // Check if this stage already has a submission
+  const stageHasSubmission = selectedStage && (
+    submitted[selectedStage.id] ||
+    submissions?.[selectedStage.id]
+  );
+
+  const isActive = selectedStage?.status === 'active';
+  const isCompleted = selectedStage?.status === 'completed';
 
   return (
     <div style={{
@@ -107,7 +165,7 @@ export default function ImmersiveWorldView({
       }}>
         {/* Exit button */}
         <button
-          onClick={() => { stop(); onExit(); }}
+          onClick={() => { stop(); stopListening(); onExit(); }}
           style={{
             pointerEvents: 'auto',
             padding: '8px 16px', borderRadius: 8,
@@ -178,7 +236,7 @@ export default function ImmersiveWorldView({
         <>
           {/* Backdrop */}
           <div
-            onClick={() => setSelectedStage(null)}
+            onClick={() => { setSelectedStage(null); if (listening) stopListening(); }}
             style={{
               position: 'absolute', inset: 0, zIndex: 1001,
               background: 'rgba(0,0,0,0.3)',
@@ -188,34 +246,50 @@ export default function ImmersiveWorldView({
             style={{
               position: 'absolute', zIndex: 1002,
               ...(isMobile
-                ? { bottom: 0, left: 0, right: 0, maxHeight: '60vh', borderRadius: '16px 16px 0 0' }
+                ? { bottom: 0, left: 0, right: 0, maxHeight: '75vh', borderRadius: '16px 16px 0 0' }
                 : { top: 0, right: 0, width: 420, height: '100%' }
               ),
               background: 'var(--chalk)',
               overflowY: 'auto',
               boxShadow: '-4px 0 30px rgba(0,0,0,0.3)',
               animation: isMobile ? 'slideUp 300ms ease-out' : 'slideInRight 300ms ease-out',
+              display: 'flex', flexDirection: 'column',
             }}
           >
+            {/* Header */}
             <div style={{
               padding: '14px 18px', borderBottom: '1px solid var(--pencil)',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               position: 'sticky', top: 0, background: 'var(--chalk)', zIndex: 1,
+              flexShrink: 0,
             }}>
-              <span style={{
-                fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                color: 'var(--graphite)', textTransform: 'uppercase',
-              }}>
-                Stage {selectedStage.stage_number}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  color: 'var(--graphite)', textTransform: 'uppercase',
+                }}>
+                  Stage {selectedStage.stage_number}
+                </span>
+                {isCompleted && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, color: 'var(--field-green)',
+                    fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                    background: 'rgba(45,106,79,0.1)', padding: '2px 6px', borderRadius: 4,
+                  }}>
+                    Complete
+                  </span>
+                )}
+              </div>
               <button
-                onClick={() => setSelectedStage(null)}
+                onClick={() => { setSelectedStage(null); if (listening) stopListening(); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
               >
                 <X size={16} color="var(--graphite)" />
               </button>
             </div>
-            <div style={{ padding: '20px 22px' }}>
+
+            {/* Content */}
+            <div style={{ padding: '20px 22px', flex: 1, overflowY: 'auto' }}>
               <h3 style={{
                 fontFamily: 'var(--font-display)', fontSize: 20,
                 color: 'var(--ink)', margin: '0 0 14px',
@@ -250,6 +324,7 @@ export default function ImmersiveWorldView({
                 <div style={{
                   background: 'var(--parchment)', borderRadius: 10,
                   padding: '14px 18px', borderLeft: '3px solid var(--compass-gold)',
+                  marginBottom: 18,
                 }}>
                   <div style={{
                     fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)',
@@ -263,6 +338,136 @@ export default function ImmersiveWorldView({
                   </p>
                 </div>
               )}
+
+              {/* Videos */}
+              {selectedStage.video_urls?.length > 0 && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: 'var(--graphite)',
+                    fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                    marginBottom: 10,
+                  }}>
+                    Watch
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {selectedStage.video_urls.filter(v => v.url).map((v, vi) => (
+                      <VideoEmbed key={vi} url={v.url} title={v.title} compact />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Submission area */}
+              {stageHasSubmission ? (
+                <div style={{
+                  background: 'rgba(45,106,79,0.06)', borderRadius: 10,
+                  padding: '14px 18px', border: '1px solid rgba(45,106,79,0.2)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <CheckCircle size={14} color="var(--field-green)" />
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, color: 'var(--field-green)',
+                      fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                    }}>
+                      Response submitted
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6, margin: 0 }}>
+                    {submitted[selectedStage.id] || submissions?.[selectedStage.id]?.content || 'Submitted'}
+                  </p>
+                </div>
+              ) : isActive && onSubmit ? (
+                <div style={{
+                  background: 'var(--parchment)', borderRadius: 10,
+                  padding: '16px 18px',
+                }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: 'var(--ink)',
+                    fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                    marginBottom: 10,
+                  }}>
+                    Your response
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <textarea
+                      ref={textareaRef}
+                      value={responseText}
+                      onChange={(e) => setResponseText(e.target.value)}
+                      placeholder={listening ? 'Listening... speak now' : 'Type or tap the mic to speak your response...'}
+                      rows={4}
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        padding: '10px 12px', paddingRight: 44,
+                        borderRadius: 8,
+                        border: listening
+                          ? '2px solid var(--specimen-red)'
+                          : '1px solid var(--pencil)',
+                        background: 'var(--chalk)',
+                        fontSize: 13, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+                        resize: 'vertical', lineHeight: 1.5,
+                        transition: 'border-color 200ms',
+                      }}
+                    />
+                    {/* Mic button inside textarea */}
+                    {micSupported && (
+                      <button
+                        onClick={toggleMic}
+                        title={listening ? 'Stop dictation' : 'Start voice dictation'}
+                        style={{
+                          position: 'absolute', top: 8, right: 8,
+                          width: 32, height: 32, borderRadius: '50%',
+                          background: listening ? 'var(--specimen-red)' : 'var(--parchment)',
+                          border: listening ? 'none' : '1px solid var(--pencil)',
+                          color: listening ? 'white' : 'var(--graphite)',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          animation: listening ? 'micPulse 1.5s ease-in-out infinite' : 'none',
+                        }}
+                      >
+                        {listening ? <MicOff size={14} /> : <Mic size={14} />}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Listening indicator */}
+                  {listening && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      fontSize: 11, color: 'var(--specimen-red)', fontWeight: 600,
+                      marginTop: 6, fontFamily: 'var(--font-mono)',
+                    }}>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: 'var(--specimen-red)',
+                        animation: 'micPulse 1.5s ease-in-out infinite',
+                      }} />
+                      Listening... tap mic to stop
+                    </div>
+                  )}
+
+                  {/* Submit button */}
+                  <button
+                    onClick={handleSubmitResponse}
+                    disabled={!responseText.trim() || submitting}
+                    style={{
+                      marginTop: 10, width: '100%',
+                      padding: '10px 16px', borderRadius: 8, border: 'none',
+                      background: !responseText.trim() || submitting
+                        ? 'var(--pencil)' : 'var(--field-green)',
+                      color: !responseText.trim() || submitting
+                        ? 'var(--graphite)' : 'white',
+                      fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)',
+                      cursor: !responseText.trim() || submitting ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    {submitting ? (
+                      <><Loader2 size={14} style={{ animation: 'worldSpin 1s linear infinite' }} /> Submitting...</>
+                    ) : (
+                      <><Send size={14} /> Submit Response</>
+                    )}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </>
@@ -280,6 +485,10 @@ export default function ImmersiveWorldView({
         @keyframes slideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
+        }
+        @keyframes micPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
         }
       `}</style>
     </div>
