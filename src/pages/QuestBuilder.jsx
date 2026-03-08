@@ -3424,10 +3424,26 @@ export default function QuestBuilder() {
             resources: Array.isArray(s.resources_needed) ? s.resources_needed : [],
             stretch_challenge: s.stretch_challenge || null,
             sources: Array.isArray(s.sources) ? s.sources : [],
-            status: i === 0 ? 'active' : 'locked',
+            status: (!s.depends_on || s.depends_on.length === 0) ? 'active' : 'locked',
           }))
         ).select();
         if (stagesError) throw stagesError;
+
+        // Convert depends_on stage numbers to UUID dependencies
+        if (savedStages?.length) {
+          const stageNumberToId = {};
+          savedStages.forEach(s => { stageNumberToId[s.stage_number] = s.id; });
+          for (const saved of savedStages) {
+            const original = generatedQuest.stages.find(s => (s.stage_number || 0) === saved.stage_number);
+            const depsArray = original?.depends_on || [];
+            if (depsArray.length > 0) {
+              const depIds = depsArray.map(n => stageNumberToId[n]).filter(Boolean);
+              if (depIds.length > 0) {
+                await supabase.from('quest_stages').update({ dependencies: depIds }).eq('id', saved.id);
+              }
+            }
+          }
+        }
 
         // Generate treasure map landmarks (non-blocking)
         if (savedStages?.length) {

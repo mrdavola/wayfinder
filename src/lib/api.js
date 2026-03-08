@@ -126,14 +126,33 @@ export const quests = {
 
     // Insert stages
     if (stages?.length) {
-      const stagesWithQuestId = stages.map((s, i) => ({
-        ...s,
-        quest_id: quest.id,
-        stage_number: i + 1,
-        status: i === 0 ? 'active' : 'locked',
-      }));
-      const { error: stagesError } = await supabase.from('quest_stages').insert(stagesWithQuestId);
+      const stagesWithQuestId = stages.map((s, i) => {
+        const { depends_on, dependencies, ...rest } = s;
+        return {
+          ...rest,
+          quest_id: quest.id,
+          stage_number: i + 1,
+          status: (!depends_on || depends_on.length === 0) ? 'active' : 'locked',
+        };
+      });
+      const { data: savedStages, error: stagesError } = await supabase.from('quest_stages').insert(stagesWithQuestId).select();
       if (stagesError) return { error: stagesError };
+
+      // Convert depends_on stage numbers to UUID dependencies
+      if (savedStages?.length) {
+        const stageNumberToId = {};
+        savedStages.forEach(s => { stageNumberToId[s.stage_number] = s.id; });
+        for (const saved of savedStages) {
+          const original = stages[saved.stage_number - 1];
+          const depsArray = original?.depends_on || [];
+          if (depsArray.length > 0) {
+            const depIds = depsArray.map(n => stageNumberToId[n]).filter(Boolean);
+            if (depIds.length > 0) {
+              await supabase.from('quest_stages').update({ dependencies: depIds }).eq('id', saved.id);
+            }
+          }
+        }
+      }
     }
 
     // Insert simulation
@@ -171,15 +190,62 @@ export const quests = {
 };
 
 // ===================== QUEST STAGES =====================
+
+// Dependency-aware unlock: after completing a stage, find and unlock stages whose deps are all met
+async function unlockDependentStages(questId, completedStageId) {
+  const { data: allStages } = await supabase
+    .from('quest_stages')
+    .select('id, status, dependencies, stage_number')
+    .eq('quest_id', questId);
+  if (!allStages) return;
+
+  const completedIds = new Set(
+    allStages.filter(s => s.status === 'completed' || s.id === completedStageId).map(s => s.id)
+  );
+
+  // Find locked stages whose dependencies are ALL now met
+  const toUnlock = allStages.filter(s => {
+    if (s.status !== 'locked') return false;
+    const deps = s.dependencies || [];
+    if (deps.length === 0) return false;
+    return deps.every(depId => completedIds.has(depId));
+  });
+
+  if (toUnlock.length > 0) {
+    await supabase.from('quest_stages')
+      .update({ status: 'active' })
+      .in('id', toUnlock.map(s => s.id));
+    return toUnlock;
+  }
+
+  // Fallback for linear quests (no dependencies set)
+  const current = allStages.find(s => s.id === completedStageId);
+  if (current) {
+    const next = allStages.find(s => s.stage_number === current.stage_number + 1 && s.status === 'locked');
+    if (next) {
+      await supabase.from('quest_stages').update({ status: 'active' }).eq('id', next.id);
+      return [next];
+    }
+  }
+  return [];
+}
+
+export { unlockDependentStages };
+
 export const questStages = {
-  complete: async (stageId, nextStageId) => {
+  complete: async (stageId, nextStageId, questId) => {
     // Mark current stage complete
     await supabase
       .from('quest_stages')
       .update({ status: 'completed', completed_at: new Date().toISOString() })
       .eq('id', stageId);
 
-    // Unlock next stage
+    // Use dependency-aware unlocking if questId provided
+    if (questId) {
+      return unlockDependentStages(questId, stageId);
+    }
+
+    // Legacy fallback: unlock specific next stage
     if (nextStageId) {
       await supabase
         .from('quest_stages')
@@ -545,6 +611,7 @@ Generate a quest as JSON:
       "stage_number": 1,
       "stage_title": "action-oriented title",
       "stage_type": "research",
+      "depends_on": [],
       "duration": 2,
       "description": "3-4 conversational sentences",
       "academic_skills_embedded": ["standard_id"],
@@ -574,6 +641,15 @@ Generate a quest as JSON:
   "reflection_prompts": ["prompt 1", "prompt 2", "prompt 3"],
   "parent_summary": "2-3 sentence parent-facing summary"
 }
+
+STAGE DEPENDENCIES:
+- Stage 1 always has depends_on: [] (no dependencies, it's the start)
+- Most stages depend on the previous one: depends_on: [N-1]
+- For branching: two stages can share the same dependency (parallel paths)
+- For convergence: a stage can depend on multiple stages (merge point)
+- Example: stages 3 and 4 both depend_on: [2], stage 5 depends_on: [3, 4]
+- Include at least one branch point (two parallel stages) when quest has 6+ stages
+- Keep it simple: max 1 branch point per quest
 
 Rules:
 - Academic skills INVISIBLE to student
