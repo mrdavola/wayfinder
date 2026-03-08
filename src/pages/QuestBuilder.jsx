@@ -2024,14 +2024,14 @@ function Step6Review({
 
   return (
     <div>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 16px' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '0 0 20px' }}>
         Review your project
       </h2>
 
       {/* Sharing with section */}
       <div style={{
         display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8,
-        marginBottom: 20, padding: '10px 14px',
+        marginBottom: 24, padding: '12px 16px',
         background: T.paper, borderRadius: 10, border: `1px solid ${T.parchment}`,
       }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -2294,8 +2294,8 @@ function Step6Review({
           backgroundColor: T.chalk,
           border: `1px solid ${T.pencil}`,
           borderRadius: 12,
-          padding: '20px',
-          marginBottom: 20,
+          padding: '24px',
+          marginBottom: 24,
         }}
       >
         <h1
@@ -2483,7 +2483,7 @@ function Step6Review({
       )}
 
       {/* Stage cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
         {stages.map((stage, i) => {
           const isOpen = openStage === i;
           return (
@@ -2502,7 +2502,7 @@ function Step6Review({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
-                  padding: '12px 14px',
+                  padding: '14px 16px',
                   background: isOpen ? T.parchment : T.chalk,
                   border: 'none',
                   cursor: 'pointer',

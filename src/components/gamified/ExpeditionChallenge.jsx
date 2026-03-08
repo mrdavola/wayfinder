@@ -195,7 +195,14 @@ export default function ExpeditionChallenge({ challenge, existingResponse, onEva
                   }}>
                     <input type="radio" name={`classify-${item.text}`}
                       checked={classifyAnswers[item.text] === cat}
-                      onChange={() => setClassifyAnswers(prev => ({ ...prev, [item.text]: cat }))}
+                      onClick={() => {
+                        if (classifyAnswers[item.text] === cat) {
+                          setClassifyAnswers(prev => { const next = { ...prev }; delete next[item.text]; return next; });
+                        } else {
+                          setClassifyAnswers(prev => ({ ...prev, [item.text]: cat }));
+                        }
+                      }}
+                      readOnly
                       style={{ accentColor: theme.color }}
                     />
                     {item.text}
