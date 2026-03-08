@@ -3086,5 +3086,51 @@ export const studentPaths = {
   },
 };
 
+// ===================== SKILL EXPLORATIONS =====================
+export const explorations = {
+  create: async ({ studentId, skillName, skillId }) => {
+    return supabase
+      .from('skill_explorations')
+      .insert({ student_id: studentId, skill_name: skillName, skill_id: skillId || null })
+      .select()
+      .single();
+  },
+
+  get: async (explorationId) => {
+    return supabase
+      .from('skill_explorations')
+      .select('*, exploration_nodes(*)')
+      .eq('id', explorationId)
+      .single();
+  },
+
+  listForStudent: async (studentId) => {
+    return supabase
+      .from('skill_explorations')
+      .select('*, exploration_nodes(id, status)')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+  },
+
+  complete: async (explorationId) => {
+    return supabase
+      .from('skill_explorations')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', explorationId);
+  },
+
+  createNodes: async (nodes) => {
+    return supabase.from('exploration_nodes').insert(nodes).select();
+  },
+
+  updateNode: async (nodeId, updates) => {
+    return supabase.from('exploration_nodes').update(updates).eq('id', nodeId).select().single();
+  },
+
+  getNode: async (nodeId) => {
+    return supabase.from('exploration_nodes').select('*').eq('id', nodeId).single();
+  },
+};
+
 // Named exports for world scene utilities
 export { generateWorldImage, uploadWorldScene };
