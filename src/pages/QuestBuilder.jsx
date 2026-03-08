@@ -3318,8 +3318,6 @@ export default function QuestBuilder() {
       setGeneratedQuest(questData);
 
       // Fire off world scene generation in background (non-blocking)
-      setWorldError(null);
-      setWorldRegenCount(0);
       const studentInterests = selectedStudents.flatMap(s => [...(s.interests || []), ...(s.passions || [])]);
       ai.generateWorldScene({
         questTitle: questData.quest_title,
@@ -3328,7 +3326,7 @@ export default function QuestBuilder() {
         careerPathway: pathwayLabels[0] || 'none',
         gradeBand: selectedStudents[0]?.grade_band || '6-8',
       }).then(async sceneData => {
-        if (!sceneData) { setWorldError('Scene description failed'); return; }
+        if (!sceneData) return;
         try {
           const image = await generateWorldImage(sceneData.image_prompt);
           if (!image) throw new Error('No image returned');
@@ -3336,12 +3334,11 @@ export default function QuestBuilder() {
             ...prev,
             _worldScene: { ...sceneData, _imageBase64: image.base64, _imageMime: image.mimeType },
           }) : prev);
-        } catch (imgErr) {
-          // Image generation failed — save hotspot data but show error
+        } catch {
+          // Image generation failed — still save hotspot data
           setGeneratedQuest(prev => prev ? ({ ...prev, _worldScene: sceneData }) : prev);
-          setWorldError(imgErr.message || 'Image generation failed');
         }
-      }).catch((err) => { setWorldError(err.message || 'World generation failed'); });
+      }).catch(() => {});
 
       // Auto-advance after 600ms
       setTimeout(() => setStep(6), 600);
