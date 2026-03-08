@@ -1668,10 +1668,10 @@ export default function QuestMap() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Scrollable content column */}
         <main style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
-          <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 40, alignItems: 'flex-start' }}>
+          <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-            {/* SVG Map column */}
-            <div style={{ flexShrink: 0, width: 360 }}>
+            {/* Trail Map — full width above stage card */}
+            <div style={{ width: '100%' }}>
               <TreasureMap
                 stages={stages}
                 landmarks={mapLandmarks}
@@ -1681,7 +1681,7 @@ export default function QuestMap() {
             </div>
 
             {/* Card column */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
               {/* Quest completion banner */}
               {quest?.status === 'completed' && (
