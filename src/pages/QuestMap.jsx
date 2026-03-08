@@ -1411,13 +1411,30 @@ export default function QuestMap() {
       .update({ status: 'completed', completed_at: new Date().toISOString() })
       .eq('id', stageId);
 
-    // Unlock next stage
-    const currentIndex = stages.findIndex((s) => s.id === stageId);
-    const nextStage = stages[currentIndex + 1];
-    if (nextStage) {
+    // Dependency-aware unlock: find stages whose deps are all met
+    const completedIds = new Set(
+      stages.filter(s => s.status === 'completed' || s.id === stageId).map(s => s.id)
+    );
+    const toUnlock = stages.filter(s => {
+      if (s.status !== 'locked') return false;
+      const deps = s.dependencies || [];
+      if (deps.length === 0) return false;
+      return deps.every(depId => completedIds.has(depId));
+    });
+
+    if (toUnlock.length > 0) {
       await supabase.from('quest_stages')
         .update({ status: 'active' })
-        .eq('id', nextStage.id);
+        .in('id', toUnlock.map(s => s.id));
+    } else {
+      // Linear fallback: unlock next by stage_number
+      const currentIndex = stages.findIndex((s) => s.id === stageId);
+      const nextStage = stages[currentIndex + 1];
+      if (nextStage && nextStage.status === 'locked') {
+        await supabase.from('quest_stages')
+          .update({ status: 'active' })
+          .eq('id', nextStage.id);
+      }
     }
 
     // Auto-reflection entry

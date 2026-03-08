@@ -2880,9 +2880,25 @@ export default function StudentQuestPage() {
   const completeStage = useCallback(async (stageId) => {
     await supabase.from('quest_stages').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', stageId);
 
-    const currentIdx = stages.findIndex(s => s.id === stageId);
-    const next = stages[currentIdx + 1];
-    if (next) await supabase.from('quest_stages').update({ status: 'active' }).eq('id', next.id);
+    // Dependency-aware unlock
+    const completedIds = new Set(
+      stages.filter(s => s.status === 'completed' || s.id === stageId).map(s => s.id)
+    );
+    const toUnlock = stages.filter(s => {
+      if (s.status !== 'locked') return false;
+      const deps = s.dependencies || [];
+      if (deps.length === 0) return false;
+      return deps.every(depId => completedIds.has(depId));
+    });
+
+    if (toUnlock.length > 0) {
+      await supabase.from('quest_stages').update({ status: 'active' }).in('id', toUnlock.map(s => s.id));
+    } else {
+      // Linear fallback
+      const currentIdx = stages.findIndex(s => s.id === stageId);
+      const next = stages[currentIdx + 1];
+      if (next && next.status === 'locked') await supabase.from('quest_stages').update({ status: 'active' }).eq('id', next.id);
+    }
 
     const completedStage = stages.find(s => s.id === stageId);
     if (completedStage) {
