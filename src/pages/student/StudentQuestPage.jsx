@@ -25,6 +25,7 @@ import useAmbientSound from '../../hooks/useAmbientSound';
 import CampfireChat from '../../components/social/CampfireChat';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
 import TrustBadge from '../../components/ui/TrustBadge';
+import ScoreCard, { MASTERY_THRESHOLD } from '../../components/ui/ScoreCard';
 import { getTrustTier } from '../../lib/trustDomains';
 import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths } from '../../lib/api';
@@ -1388,6 +1389,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   const [feedback, setFeedback] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [revising, setRevising] = useState(false);
+  const [attemptNumber, setAttemptNumber] = useState(1);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestText, setSuggestText] = useState('');
   const [suggestLoading, setSuggestLoading] = useState(false);
@@ -1776,12 +1778,9 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           questId={questId}
           studentName={studentName}
           onSubmitComplete={async (stageId, submissionContent) => {
-            // Advance stage FIRST — submission is already saved to Supabase
-            // Only advance stage if not already completed (group member already submitted)
-            if (!isDone) onComplete(stageId);
-            else if (onReloadSubmissions) onReloadSubmissions();
+            const currentAttempt = attemptNumber;
 
-            // AI review chain is best-effort — failures must not block the student
+            // AI review chain — determines if mastery is passed before advancing
             setFeedbackLoading(true);
             try {
               const result = await ai.reviewSubmission({
@@ -1791,8 +1790,21 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                 submissionContent: submissionContent || '',
                 studentProfile: studentProfile || { name: studentName },
               });
-              setFeedback(result);
-              // Persist feedback
+              // Merge attempt number into feedback for ScoreCard display
+              const enrichedResult = { ...result, attempt_number: currentAttempt };
+              setFeedback(enrichedResult);
+
+              // Gate stage advancement on mastery threshold
+              const passed = (result.score ?? 50) >= MASTERY_THRESHOLD;
+              if (passed) {
+                if (!isDone) onComplete(stageId);
+                else if (onReloadSubmissions) onReloadSubmissions();
+              } else {
+                // Submission saved but stage not advanced — student must resubmit
+                if (onReloadSubmissions) onReloadSubmissions();
+              }
+
+              // Persist feedback with score + hints + attempt
               try {
                 feedbackApi.add({
                   questId, stageId: stage.id, studentName,
@@ -1800,6 +1812,9 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                   skillsDemonstrated: result.skills_demonstrated,
                   encouragement: result.encouragement,
                   nextSteps: result.next_steps,
+                  score: result.score,
+                  hints: result.hints,
+                  attemptNumber: currentAttempt,
                 });
               } catch (e) { console.error('Failed to persist feedback:', e); }
               // Silently log skill assessments from submission review
@@ -1890,10 +1905,21 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           <Loader2 size={12} className="sq-spin" /> Getting feedback from your Field Guide...
         </div>
       )}
-      {feedback && <FeedbackCard feedback={feedback} />}
+      {feedback && (
+        feedback.score != null
+          ? <ScoreCard
+              feedback={feedback}
+              onResubmit={() => {
+                setAttemptNumber(n => n + 1);
+                setRevising(true);
+                setFeedback(null);
+              }}
+            />
+          : <FeedbackCard feedback={feedback} />
+      )}
 
-      {/* Revise & Resubmit */}
-      {isDone && feedback && !revising && (
+      {/* Revise & Resubmit (for legacy feedback without score, or mastery-passed stages) */}
+      {isDone && feedback && !revising && feedback.score == null && (
         <button
           onClick={() => setRevising(true)}
           style={{
@@ -1924,6 +1950,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
             studentName={studentName}
             initialText={existingSubmission?.submission_type === 'text' ? existingSubmission.content : ''}
             onSubmitComplete={(stageId, content) => {
+              const revisedAttempt = attemptNumber;
               setRevising(false);
               setFeedback(null);
               setFeedbackLoading(true);
@@ -1936,13 +1963,22 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                 submissionContent: content || '',
                 studentProfile: studentProfile || { name: studentName },
               }).then((result) => {
-                setFeedback(result);
+                const enrichedResult = { ...result, attempt_number: revisedAttempt };
+                setFeedback(enrichedResult);
+                // Gate stage advancement on mastery for revisions too
+                const passed = (result.score ?? 50) >= MASTERY_THRESHOLD;
+                if (passed && !isDone) {
+                  onComplete(stageId);
+                }
                 feedbackApi.add({
                   questId, stageId: stage.id, studentName,
                   feedbackText: result.feedback,
                   skillsDemonstrated: result.skills_demonstrated,
                   encouragement: result.encouragement,
                   nextSteps: result.next_steps,
+                  score: result.score,
+                  hints: result.hints,
+                  attemptNumber: revisedAttempt,
                 });
                 // Silently log skill assessments from submission review
                 if (result?.skill_ratings?.length > 0 && studentProfile?.id) {

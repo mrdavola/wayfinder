@@ -1762,7 +1762,7 @@ export const submissionFeedback = {
     return { data: data || [], error };
   },
 
-  add: async ({ submissionId, questId, stageId, studentName, feedbackText, skillsDemonstrated, encouragement, nextSteps }) => {
+  add: async ({ submissionId, questId, stageId, studentName, feedbackText, skillsDemonstrated, encouragement, nextSteps, score, hints, attemptNumber }) => {
     return supabase.from('submission_feedback').insert({
       submission_id: submissionId || null,
       quest_id: questId,
@@ -1772,6 +1772,9 @@ export const submissionFeedback = {
       skills_demonstrated: skillsDemonstrated || [],
       encouragement: encouragement || null,
       next_steps: nextSteps || null,
+      ...(score != null && { score }),
+      ...(hints != null && { hints }),
+      ...(attemptNumber != null && { attempt_number: attemptNumber }),
     });
   },
 };
