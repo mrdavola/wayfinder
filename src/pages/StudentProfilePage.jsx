@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase, Map, Target } from 'lucide-react';
 import ProgressRadar from '../components/ui/ProgressRadar';
+import SkillTreeView from '../components/ui/SkillTreeView';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi, skillAssessments } from '../lib/api';
@@ -46,6 +47,9 @@ export default function StudentProfilePage() {
   const [stdAiResults, setStdAiResults] = useState(null);
   const [stdInitLoading, setStdInitLoading] = useState(false);
   const [projectIdeas, setProjectIdeas] = useState([]);
+  const [profileView, setProfileView] = useState('radar');
+  const [allSkills, setAllSkills] = useState([]);
+  const [skillDeps, setSkillDeps] = useState([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [assessmentData, setAssessmentData] = useState({});
 
@@ -88,6 +92,14 @@ export default function StudentProfilePage() {
     // Load skills
     const { data: sk } = await skillsApi.getStudentSkills(id);
     if (sk) setStudentSkills(sk);
+
+    // Load skill catalog + dependencies for tree view
+    const [catalogRes, depsRes] = await Promise.all([
+      skillsApi.listCatalog(null),
+      skillsApi.getAllDependencies(),
+    ]);
+    if (catalogRes.data) setAllSkills(catalogRes.data);
+    if (depsRes.data) setSkillDeps(depsRes.data);
 
     // Load recommendations
     const { data: r } = await recsApi.list(id);
@@ -147,6 +159,45 @@ export default function StudentProfilePage() {
 
   async function handleAcceptRec(rec) {
     await recsApi.updateStatus(rec.id, 'accepted');
+
+    // Save recommended skills to student_skills so they show on the radar
+    const content = rec.content || {};
+    const allRecSkills = [
+      ...(content.core_focus || []).map(s => s.skill),
+      ...(content.interest_skills || []).map(s => s.skill),
+    ];
+
+    if (allRecSkills.length > 0 && student?.id) {
+      // Load the skills catalog to match names → IDs
+      const { data: catalog } = await skillsApi.listCatalog(student.grade_band);
+      if (catalog) {
+        const entries = [];
+        for (const recName of allRecSkills) {
+          const lower = recName.toLowerCase();
+          const match = catalog.find(s => s.name.toLowerCase() === lower)
+            || catalog.find(s => lower.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(lower));
+          if (match) {
+            // Only add if student doesn't already have a rating for this skill
+            const existing = studentSkills.find(ss => ss.skill_id === match.id);
+            if (!existing) {
+              entries.push({
+                studentId: student.id,
+                skillId: match.id,
+                proficiency: 'emerging',
+                source: 'ai_recommended',
+              });
+            }
+          }
+        }
+        if (entries.length > 0) {
+          await skillsApi.bulkUpsert(entries);
+          // Refresh skills list
+          const { data: sk } = await skillsApi.getStudentSkills(student.id);
+          if (sk) setStudentSkills(sk);
+        }
+      }
+    }
+
     setRecs(prev => prev.map(r => r.id === rec.id ? { ...r, status: 'accepted' } : r));
   }
 
@@ -303,7 +354,7 @@ export default function StudentProfilePage() {
     soft: studentSkills.filter(s => s.category === 'soft'),
     interest: studentSkills.filter(s => s.category === 'interest'),
   };
-  const latestRec = recs.find(r => r.type === 'skills' && r.status === 'pending');
+  const latestRec = recs.find(r => r.type === 'skills' && (r.status === 'pending' || r.status === 'accepted'));
 
   return (
     <div style={styles.page}>
@@ -379,13 +430,33 @@ export default function StudentProfilePage() {
             </Link>
           </div>
 
-          {/* ── Progress Radar ─────────────────────────────────── */}
+          {/* ── Progress ─────────────────────────────────── */}
           <section style={{ ...styles.section, paddingBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 style={{ ...styles.sectionTitle, marginBottom: 0 }}>
-                <Target size={16} style={{ marginRight: 6, color: T.labBlue }} />
-                Progress Radar
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h2 style={{ ...styles.sectionTitle, marginBottom: 0 }}>
+                  <Target size={16} style={{ marginRight: 6, color: T.labBlue }} />
+                  Progress
+                </h2>
+                <div style={{ display: 'flex', background: T.parchment, borderRadius: 8, padding: 2 }}>
+                  {['radar', 'tree'].map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setProfileView(v)}
+                      style={{
+                        padding: '4px 12px', fontSize: 11, fontWeight: profileView === v ? 600 : 400,
+                        borderRadius: 6, border: 'none', cursor: 'pointer',
+                        background: profileView === v ? T.chalk : 'transparent',
+                        color: profileView === v ? T.ink : T.graphite,
+                        boxShadow: profileView === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      {v === 'radar' ? 'Radar' : 'Skill Tree'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Link to={`/mastery/${id}`} style={{
                 fontSize: 11, fontWeight: 600, color: T.labBlue,
                 textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
@@ -393,12 +464,21 @@ export default function StudentProfilePage() {
                 View full Mastery Map &rarr;
               </Link>
             </div>
-            <ProgressRadar
-              assessments={assessmentData}
-              studentSkills={studentSkills}
-              learningOutcomes={parentInfo?.learning_outcomes || []}
-              compact
-            />
+            {profileView === 'radar' ? (
+              <ProgressRadar
+                assessments={assessmentData}
+                studentSkills={studentSkills}
+                learningOutcomes={parentInfo?.learning_outcomes || []}
+                compact
+              />
+            ) : (
+              <SkillTreeView
+                studentSkills={studentSkills}
+                allSkills={allSkills}
+                dependencies={skillDeps}
+                compact
+              />
+            )}
           </section>
 
           {/* AI Field Guide toggle */}
@@ -1128,6 +1208,11 @@ function RecCard({ rec, onAccept, onDismiss }) {
           <button onClick={() => onAccept(rec)} className="btn btn-primary" style={{ fontSize: 12, padding: '5px 12px' }}>
             <Check size={13} style={{ marginRight: 3 }} /> Accept
           </button>
+        </div>
+      )}
+      {rec.status === 'accepted' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 10, borderTop: `1px solid ${T.parchment}`, color: T.fieldGreen, fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+          <Check size={14} /> Accepted — recommended skills added to tracking
         </div>
       )}
     </div>

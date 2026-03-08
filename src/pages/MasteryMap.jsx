@@ -5,6 +5,8 @@ import { masteryMap } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import ProgressRadar from '../components/ui/ProgressRadar';
+import SkillTreeView from '../components/ui/SkillTreeView';
+import { skills as skillsApi } from '../lib/api';
 
 export default function MasteryMap() {
   const { studentId } = useParams();
@@ -12,6 +14,9 @@ export default function MasteryMap() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [learningOutcomes, setLearningOutcomes] = useState([]);
+  const [masteryView, setMasteryView] = useState('radar');
+  const [allSkills, setAllSkills] = useState([]);
+  const [skillDeps, setSkillDeps] = useState([]);
 
   useEffect(() => {
     if (!studentId) return;
@@ -23,6 +28,14 @@ export default function MasteryMap() {
       ]);
       setStudent(s);
       setData(profile);
+
+      // Load skill catalog + dependencies for tree view
+      const [catalogRes, depsRes] = await Promise.all([
+        skillsApi.listCatalog(null),
+        skillsApi.getAllDependencies(),
+      ]);
+      if (catalogRes.data) setAllSkills(catalogRes.data);
+      if (depsRes.data) setSkillDeps(depsRes.data);
 
       if (s?.id) {
         const { data: parentAccess } = await supabase
@@ -86,11 +99,40 @@ export default function MasteryMap() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px 32px' }}>
-        <ProgressRadar
-          assessments={data?.assessments || {}}
-          studentSkills={data?.studentSkills || []}
-          learningOutcomes={learningOutcomes}
-        />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', background: 'var(--parchment)', borderRadius: 8, padding: 2 }}>
+            {['radar', 'tree'].map(v => (
+              <button
+                key={v}
+                onClick={() => setMasteryView(v)}
+                style={{
+                  padding: '5px 16px', fontSize: 12, fontWeight: masteryView === v ? 600 : 400,
+                  borderRadius: 6, border: 'none', cursor: 'pointer',
+                  background: masteryView === v ? 'var(--chalk)' : 'transparent',
+                  color: masteryView === v ? 'var(--ink)' : 'var(--graphite)',
+                  boxShadow: masteryView === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                {v === 'radar' ? 'Radar' : 'Skill Tree'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {masteryView === 'radar' ? (
+          <ProgressRadar
+            assessments={data?.assessments || {}}
+            studentSkills={data?.studentSkills || []}
+            learningOutcomes={learningOutcomes}
+          />
+        ) : (
+          <SkillTreeView
+            studentSkills={data?.studentSkills || []}
+            allSkills={allSkills}
+            dependencies={skillDeps}
+            compact={false}
+          />
+        )}
       </div>
     </div>
   );
