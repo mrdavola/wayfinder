@@ -1,8 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 
-const ELEVENLABS_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
 const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
-const API_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
 
 // Shared cache across all hook instances
 const audioCache = new Map();
@@ -44,7 +42,7 @@ export default function useSpeech() {
   const abortRef = useRef(null);
 
   const webSpeechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-  const supported = !!ELEVENLABS_KEY || webSpeechSupported;
+  const supported = true; // always supported — server handles ElevenLabs, Web Speech as fallback
 
   const stop = useCallback(() => {
     if (audioRef.current) {
@@ -84,7 +82,6 @@ export default function useSpeech() {
   const speakElevenLabs = useCallback(async (text) => {
     stop();
 
-    // Check cache
     const cached = audioCache.get(text);
     if (cached) {
       playAudio(cached.url, audioRef, setSpeaking);
@@ -96,25 +93,14 @@ export default function useSpeech() {
     abortRef.current = controller;
 
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch('/api/voice', {
         method: 'POST',
-        headers: {
-          'xi-api-key': ELEVENLABS_KEY,
-          'Content-Type': 'application/json',
-          'Accept': 'audio/mpeg',
-        },
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voiceId: VOICE_ID }),
         signal: controller.signal,
       });
 
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`ElevenLabs ${res.status}: ${body}`);
-      }
+      if (!res.ok) throw new Error(`Voice ${res.status}`);
 
       const blob = await res.blob();
       const url = cacheSet(text, blob);
@@ -131,12 +117,8 @@ export default function useSpeech() {
 
   const speak = useCallback((text) => {
     if (!text) return;
-    if (ELEVENLABS_KEY) {
-      speakElevenLabs(text);
-    } else {
-      speakWebSpeech(text);
-    }
-  }, [speakElevenLabs, speakWebSpeech]);
+    speakElevenLabs(text);
+  }, [speakElevenLabs]);
 
   return { speak, stop, speaking, loading, supported };
 }

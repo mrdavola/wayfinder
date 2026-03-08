@@ -1,38 +1,19 @@
 // src/lib/perplexity.js
 // Perplexity API integration for finding YouTube videos and trusted educational sources
 
-const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
-
 async function callPerplexity(prompt, systemPrompt) {
-  const apiKey = import.meta.env.VITE_PERPLEXITY_API_KEY;
-  if (!apiKey) {
-    console.warn('No Perplexity API key — falling back to AI-generated links');
+  try {
+    const resp = await fetch('/api/perplexity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemPrompt }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.text;
+  } catch {
     return null;
   }
-
-  const response = await fetch(PERPLEXITY_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'sonar',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.2,
-    }),
-  });
-
-  if (!response.ok) {
-    console.error('Perplexity API error:', response.status);
-    return null;
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || null;
 }
 
 export async function findYouTubeVideos(topic, level, count = 1) {

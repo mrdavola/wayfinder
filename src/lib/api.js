@@ -380,29 +380,13 @@ async function uploadWorldScene(questId, base64ImageData, mimeType = 'image/png'
 }
 
 async function generateWorldImage(imagePrompt) {
-  const settings = getAiSettings();
-  const apiKey = settings.geminiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-image',
-    generationConfig: {
-      responseModalities: ['TEXT', 'IMAGE'],
-    },
+  const resp = await fetch('/api/image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imagePrompt }),
   });
-  const result = await model.generateContent(
-    `Generate a high-quality equirectangular panoramic photograph (2:1 aspect ratio, for 360-degree sphere projection). The image should be a seamless wrap-around environment as if taken by a 360° camera. Photorealistic, detailed, well-lit, vibrant colors. NO text or words in the image. ${imagePrompt}`
-  );
-  const response = result.response;
-  const parts = response.candidates?.[0]?.content?.parts || [];
-  const imagePart = parts.find(p => p.inlineData);
-  if (!imagePart?.inlineData?.data) {
-    throw new Error('No image generated');
-  }
-  return {
-    base64: imagePart.inlineData.data,
-    mimeType: imagePart.inlineData.mimeType || 'image/png',
-  };
+  if (!resp.ok) throw new Error(`Image proxy error: ${resp.status}`);
+  return resp.json();
 }
 
 // Content safety preamble — prepended to every AI system prompt
@@ -475,48 +459,26 @@ function getPreferredProvider() {
 // If messages is provided, treats the last entry as the new user message and
 // the rest as history. Otherwise sends userMessage as a single-turn call.
 async function callGemini({ systemPrompt, userMessage, messages }) {
-  const settings = getAiSettings();
-  const apiKey = settings.geminiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: systemPrompt,
+  const resp = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'gemini', systemPrompt, userMessage, messages }),
   });
-
-  if (messages && messages.length > 0) {
-    // Convert Anthropic-style history to Gemini format.
-    // Gemini requires history to start with a 'user' turn — strip any leading model turns.
-    const converted = messages.slice(0, -1).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
-    const firstUserIdx = converted.findIndex(m => m.role === 'user');
-    const history = firstUserIdx > 0 ? converted.slice(firstUserIdx) : converted;
-    const lastMsg = messages[messages.length - 1];
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastMsg.content);
-    return result.response.text();
-  } else {
-    const result = await model.generateContent(userMessage);
-    return result.response.text();
-  }
+  if (!resp.ok) throw new Error(`AI proxy error: ${resp.status}`);
+  const data = await resp.json();
+  return data.text;
 }
 
 // ── Anthropic call (fallback / user choice) ─────────────────────────────────
 async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens = 2048 }) {
-  const settings = getAiSettings();
-  const apiKey = settings.anthropicKey || import.meta.env.VITE_ANTHROPIC_API_KEY || '';
-  const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  const msgs = messages || [{ role: 'user', content: userMessage }];
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: msgs,
+  const resp = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'anthropic', systemPrompt, userMessage, messages, maxTokens }),
   });
-  return response.content[0].text;
+  if (!resp.ok) throw new Error(`AI proxy error: ${resp.status}`);
+  const data = await resp.json();
+  return data.text;
 }
 
 // ── Route to preferred provider ──────────────────────────────────────────────
