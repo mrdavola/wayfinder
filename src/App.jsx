@@ -21,6 +21,7 @@ import StudentLogin from './pages/student/StudentLogin';
 import StudentHome from './pages/student/StudentHome';
 import StudentProjectBuilder from './pages/student/StudentProjectBuilder';
 import LearnerIntakeForm from './pages/student/LearnerIntakeForm';
+import ExploreSkillPage from './pages/student/ExploreSkillPage';
 import StudentProfilePage from './pages/StudentProfilePage';
 import GroupBuilderPage from './pages/GroupBuilderPage';
 import ParentDashboard from './pages/parent/ParentDashboard';
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/student/login" element={<StudentLogin />} />
           <Route path="/student" element={<StudentHome />} />
           <Route path="/student/project/new" element={<StudentProjectBuilder />} />
+          <Route path="/student/explore/:explorationId" element={<ExploreSkillPage />} />
 
           {/* Career Explorer */}
           <Route path="/careers/:studentId" element={<CareerExplorer />} />
