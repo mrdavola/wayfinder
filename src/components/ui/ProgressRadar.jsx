@@ -7,22 +7,37 @@ import {
 
 const RATING_LABELS = ['Uncharted', 'Emerging', 'Developing', 'Proficient', 'Advanced'];
 
+// Exact name matches first, then partial keyword matches via categorizeToDomain
 const DOMAIN_MAP = {
-  'Mathematics': 'Math', 'Math': 'Math', 'Algebra': 'Math', 'Geometry': 'Math',
-  'Statistics': 'Math', 'Number Sense': 'Math',
-  'Reading': 'Reading & Writing', 'Writing': 'Reading & Writing', 'ELA': 'Reading & Writing',
-  'English': 'Reading & Writing', 'Literacy': 'Reading & Writing', 'Communication': 'Reading & Writing',
-  'Science': 'Science', 'Biology': 'Science', 'Chemistry': 'Science', 'Physics': 'Science',
-  'Environmental': 'Science', 'Engineering': 'Science',
+  // Math
+  'Mathematics': 'Math', 'Math': 'Math', 'Math Reasoning': 'Math', 'Algebra': 'Math',
+  'Geometry': 'Math', 'Statistics': 'Math', 'Number Sense': 'Math',
+  'Fractions & Decimals': 'Math', 'Fractions': 'Math', 'Data Analysis': 'Math',
+  // Reading & Writing
+  'Reading': 'Reading & Writing', 'Reading Comprehension': 'Reading & Writing',
+  'Writing': 'Reading & Writing', 'ELA': 'Reading & Writing', 'English': 'Reading & Writing',
+  'Literacy': 'Reading & Writing', 'Communication': 'Reading & Writing',
+  'Storytelling': 'Reading & Writing', 'Public Speaking': 'Reading & Writing',
+  // Science
+  'Science': 'Science', 'Scientific Thinking': 'Science', 'Biology': 'Science',
+  'Chemistry': 'Science', 'Physics': 'Science', 'Environmental Science': 'Science',
+  'Environmental': 'Science', 'Engineering': 'Science', 'Animal Science': 'Science',
+  'Culinary Science': 'Science',
+  // Social Studies
   'Social Studies': 'Social Studies', 'History': 'Social Studies', 'Geography': 'Social Studies',
   'Civics': 'Social Studies', 'Economics': 'Social Studies',
+  // Critical Thinking
   'Critical Thinking': 'Critical Thinking', 'Problem Solving': 'Critical Thinking',
-  'Analysis': 'Critical Thinking', 'Research': 'Critical Thinking', 'Reasoning': 'Critical Thinking',
-  'Creativity': 'Creativity & Design', 'Design': 'Creativity & Design',
+  'Research': 'Critical Thinking', 'Reasoning': 'Critical Thinking', 'Perseverance': 'Critical Thinking',
+  // Creativity & Design
+  'Creativity': 'Creativity & Design', 'Design': 'Creativity & Design', 'Digital Design': 'Creativity & Design',
   'Art': 'Creativity & Design', 'Innovation': 'Creativity & Design',
+  'Music': 'Creativity & Design', 'Game Design': 'Creativity & Design',
+  // Social-Emotional
   'Collaboration': 'Social-Emotional', 'Leadership': 'Social-Emotional',
   'Teamwork': 'Social-Emotional', 'Empathy': 'Social-Emotional', 'Self-Management': 'Social-Emotional',
-  'Technology': 'Technology', 'Digital Literacy': 'Technology', 'Coding': 'Technology', 'Data': 'Technology',
+  // Technology
+  'Technology': 'Technology', 'Digital Literacy': 'Technology', 'Coding': 'Technology',
 };
 
 const DEFAULT_DOMAINS = [
