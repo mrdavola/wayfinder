@@ -1515,62 +1515,10 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
-      {isLocked ? (
-        <div style={{ opacity: 0.55, pointerEvents: 'none' }}>
-          {stage.description && (
-            <p style={{ fontSize: 14, color: 'var(--graphite)', lineHeight: 1.7, fontFamily: 'var(--font-body)', margin: '0 0 16px' }}>
-              {stage.description}
-            </p>
-          )}
-          {stage.sources?.length > 0 && (
-            <div style={{ padding: '10px 12px', background: 'rgba(27,73,101,0.04)', borderRadius: 8, marginBottom: 16 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                Sources
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {stage.sources.map((src, i) => (
-                  <TrustBadge key={i} tier={src.trust_level || getTrustTier(src.url)} url={src.url} sourceName={src.title || src.domain} verified={src.verified} />
-                ))}
-              </div>
-            </div>
-          )}
-          {stage.video_urls?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>
-                Watch
-              </div>
-              {stage.video_urls.filter(v => v.url).map((v, vi) => (
-                <VideoEmbed key={vi} url={v.url} title={v.title} compact />
-              ))}
-            </div>
-          )}
-          {stage.guiding_questions?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>
-                Questions to explore
-              </div>
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {stage.guiding_questions.map((q, i) => (
-                  <li key={i} style={{ fontSize: 13, color: 'var(--graphite)', fontFamily: 'var(--font-body)', marginBottom: 6, lineHeight: 1.6 }}>{q}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {stage.deliverable && (
-            <div style={{ background: 'var(--parchment)', borderRadius: 10, padding: '14px 16px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, fontFamily: 'var(--font-mono)' }}>
-                Deliverable
-              </div>
-              <p style={{ fontSize: 13, color: 'var(--ink)', fontFamily: 'var(--font-body)', margin: 0, lineHeight: 1.6 }}>
-                {stage.deliverable}
-              </p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
+      {/* Full stage content — visible for all stages, submission disabled when locked */}
+      <>
       {/* Narrative hook from landmark */}
-      {landmark?.narrative_hook && !isLocked && (
+      {landmark?.narrative_hook && (
         <div style={{
           padding: '12px 16px', marginBottom: 16, borderRadius: 8,
           background: 'linear-gradient(135deg, var(--parchment) 0%, #EDE8DC 100%)',
@@ -1776,24 +1724,37 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
+      {/* Locked stage hint — complete previous stages first */}
+      {isLocked && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8, marginTop: 8,
+          background: 'rgba(184,134,11,0.06)', border: '1px dashed rgba(184,134,11,0.3)',
+          fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <Lock size={14} color="var(--compass-gold)" />
+          Complete earlier stages to unlock this one and submit your work.
+        </div>
+      )}
+
       {/* Stretch challenge */}
-      {stage.stretch_challenge && isActive && (
+      {!isLocked && stage.stretch_challenge && isActive && (
         <StretchChallenge text={stage.stretch_challenge} />
       )}
 
       {/* Interactive stage types */}
-      {stage.stage_type === 'puzzle_gate' && interactiveData?.config && (
+      {!isLocked && stage.stage_type === 'puzzle_gate' && interactiveData?.config && (
         <PuzzleGate config={interactiveData.config} onComplete={() => onComplete?.(stage.id)} />
       )}
-      {stage.stage_type === 'choice_fork' && interactiveData?.config && (
+      {!isLocked && stage.stage_type === 'choice_fork' && interactiveData?.config && (
         <ChoiceFork config={interactiveData.config} onChoose={(idx) => onComplete?.(stage.id)} />
       )}
-      {stage.stage_type === 'evidence_board' && interactiveData?.config && (
+      {!isLocked && stage.stage_type === 'evidence_board' && interactiveData?.config && (
         <EvidenceBoard config={interactiveData.config} onComplete={() => onComplete?.(stage.id)} />
       )}
 
       {/* Work submission — show for active stage OR completed stage if this student hasn't submitted */}
-      {isDone && !existingSubmission && !revising && (
+      {!isLocked && isDone && !existingSubmission && !revising && (
         <div style={{
           fontSize: 11, color: 'var(--lab-blue)', fontWeight: 600,
           fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
@@ -1802,7 +1763,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           You haven't submitted work yet — add yours below!
         </div>
       )}
-      {(isActive || (isDone && !existingSubmission && !revising)) && (
+      {!isLocked && (isActive || (isDone && !existingSubmission && !revising)) && (
         <SubmissionPanel
           stageId={stage.id}
           questId={questId}
@@ -1926,7 +1887,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       )}
 
       {/* Read-only submission for completed stages */}
-      {isDone && existingSubmission && !revising && (
+      {!isLocked && isDone && existingSubmission && !revising && (
         <SubmissionView submission={existingSubmission} />
       )}
 
@@ -2031,7 +1992,6 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       )}
 
         </>
-      )}
     </div>
   );
 }
