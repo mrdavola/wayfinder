@@ -2730,7 +2730,7 @@ export const expeditionChallenges = {
       .from('expedition_challenges')
       .select('*')
       .eq('stage_id', stageId)
-      .single();
+      .maybeSingle();
     if (error) return null;
     return data;
   },
@@ -2754,7 +2754,7 @@ export const challengeResponses = {
       .select('*')
       .eq('challenge_id', challengeId)
       .eq('student_id', studentId)
-      .single();
+      .maybeSingle();
     if (error) return null;
     return data;
   },
@@ -2859,7 +2859,7 @@ export const buddyPairs = {
       .select('*, student_a:students!buddy_pairs_student_a_id_fkey(id, name, avatar_emoji), student_b:students!buddy_pairs_student_b_id_fkey(id, name, avatar_emoji)')
       .or(`student_a_id.eq.${studentId},student_b_id.eq.${studentId}`)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
     if (error) return null;
     return data;
   },
