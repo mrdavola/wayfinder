@@ -2413,6 +2413,14 @@ export default function StudentQuestPage() {
         .eq('id', id)
         .single();
 
+      console.log('[StudentQuestPage] Quest loaded:', {
+        id: data?.id,
+        marble_pano_url: data?.marble_pano_url,
+        marble_operation_id: data?.marble_operation_id,
+        marble_thumbnail_url: data?.marble_thumbnail_url,
+        world_scene_url: data?.world_scene_url,
+      });
+
       if (err || !data) {
         setError(err?.message || 'Project not found.');
         setLoading(false);

@@ -4057,11 +4057,13 @@ export default function QuestBuilder() {
           if (generatedQuest._worldScene?._imageBase64) {
             try {
               const sceneUrl = await uploadWorldScene(quest.id, generatedQuest._worldScene._imageBase64, generatedQuest._worldScene._imageMime);
-              await supabase.from('quests').update({
+              const { error: sceneError } = await supabase.from('quests').update({
                 world_scene_url: sceneUrl,
                 world_hotspots: generatedQuest._worldScene.hotspots || [],
                 world_scene_prompt: generatedQuest._worldScene.image_prompt || '',
               }).eq('id', quest.id);
+              if (sceneError) console.error('[saveQuest] World scene save DB error:', sceneError);
+              else console.log('[saveQuest] World scene saved:', sceneUrl);
             } catch (e) {
               console.warn('World scene save failed:', e);
             }
@@ -4082,10 +4084,18 @@ export default function QuestBuilder() {
               if (marbleData?.hotspots?.length > 0) {
                 marbleUpdate.world_hotspots = marbleData.hotspots;
               }
-              await supabase.from('quests').update(marbleUpdate).eq('id', quest.id);
+              console.log('[saveQuest] Saving marble data:', JSON.stringify(marbleUpdate, null, 2));
+              const { error: marbleError } = await supabase.from('quests').update(marbleUpdate).eq('id', quest.id);
+              if (marbleError) {
+                console.error('[saveQuest] Marble save DB error:', marbleError);
+              } else {
+                console.log('[saveQuest] Marble data saved successfully for quest', quest.id);
+              }
             } catch (e) {
               console.warn('Marble world save failed:', e);
             }
+          } else {
+            console.warn('[saveQuest] No marble data to save. marbleData:', marbleData);
           }
 
           // Save branch relationships for branching quests (non-blocking)
