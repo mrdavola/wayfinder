@@ -1,10 +1,12 @@
 // src/lib/perplexity.js
 // Perplexity API integration for finding YouTube videos and trusted educational sources
 
+import { authedFetch } from './api';
+
 async function callPerplexity(prompt, systemPrompt) {
   // Try server-side proxy first (works on Vercel)
   try {
-    const resp = await fetch('/api/perplexity', {
+    const resp = await authedFetch('/api/perplexity', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, systemPrompt }),

@@ -1,7 +1,14 @@
+// api/voice.js — ElevenLabs TTS proxy
+
+import { requireAuth } from './_auth.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // Require authenticated Supabase session
+  if (await requireAuth(req, res)) return;
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
@@ -14,9 +21,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'text is required' });
   }
 
+  // Sanitize voiceId to prevent SSRF via path traversal
+  const safeVoiceId = voiceId.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!safeVoiceId || safeVoiceId !== voiceId) {
+    return res.status(400).json({ error: 'Invalid voiceId' });
+  }
+
   try {
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${safeVoiceId}`,
       {
         method: 'POST',
         headers: {
@@ -25,7 +38,7 @@ export default async function handler(req, res) {
           Accept: 'audio/mpeg',
         },
         body: JSON.stringify({
-          text,
+          text: text.slice(0, 5000), // Limit text length
           model_id: 'eleven_multilingual_v2',
           voice_settings: {
             stability: 0.5,

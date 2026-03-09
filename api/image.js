@@ -1,4 +1,7 @@
+// api/image.js — Gemini image generation proxy
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { requireAuth } from './_auth.js';
 
 const PANORAMIC_PREFIX =
   "Generate a high-quality equirectangular panoramic photograph (2:1 aspect ratio, for 360-degree sphere projection). The image should be a seamless wrap-around environment as if taken by a 360° camera. Photorealistic, detailed, well-lit, vibrant colors. NO text or words in the image. ";
@@ -7,6 +10,9 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  // Require authenticated Supabase session
+  if (await requireAuth(req, res)) return;
 
   const { imagePrompt } = req.body || {};
 

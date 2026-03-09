@@ -65,7 +65,9 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, o
 
   async function regeneratePin() {
     setRegenerating(true);
-    const newPin = String(Math.floor(1000 + Math.random() * 9000));
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    const newPin = String(1000 + (array[0] % 9000));
     const { error } = await supabase
       .from('students')
       .update({ pin: newPin })

@@ -35,9 +35,13 @@ const ImmersiveWorldView = lazy(() => import('../../components/immersive/Immersi
 // MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
 
 // ===================== MARKDOWN HELPER =====================
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 function renderMarkdown(text) {
   if (!text) return '';
-  return text
+  // Escape HTML first to prevent XSS, then apply markdown formatting
+  return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^[-*] (.+)$/gm, '<li>$1</li>')

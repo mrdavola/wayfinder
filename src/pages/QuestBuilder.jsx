@@ -3763,40 +3763,47 @@ export default function QuestBuilder() {
               }
             });
             if (challengesToSave.length > 0) {
-              expeditionChallenges.bulkCreate(challengesToSave).catch(e =>
-                console.warn('Expedition challenges save failed (non-blocking):', e)
-              );
+              try {
+                await expeditionChallenges.bulkCreate(challengesToSave);
+              } catch (e) {
+                console.warn('Expedition challenges save failed:', e);
+              }
             }
           }
 
-          // Upload world scene image and save to quest (fire and forget)
+          // Upload world scene image and save to quest (AWAITED — critical for student view)
           if (generatedQuest._worldScene?._imageBase64) {
-            uploadWorldScene(quest.id, generatedQuest._worldScene._imageBase64, generatedQuest._worldScene._imageMime).then(sceneUrl => {
-              supabase.from('quests').update({
+            try {
+              const sceneUrl = await uploadWorldScene(quest.id, generatedQuest._worldScene._imageBase64, generatedQuest._worldScene._imageMime);
+              await supabase.from('quests').update({
                 world_scene_url: sceneUrl,
                 world_hotspots: generatedQuest._worldScene.hotspots || [],
                 world_scene_prompt: generatedQuest._worldScene.image_prompt || '',
               }).eq('id', quest.id);
-            }).catch(e => console.warn('World scene save failed (non-blocking):', e));
+            } catch (e) {
+              console.warn('World scene save failed:', e);
+            }
           }
 
-          // Save Marble world data (fire and forget)
+          // Save Marble world data (AWAITED — critical for student/guide world view)
           if (marbleData?.worldUrl || marbleData?.panoUrl || marbleData?.operationId) {
-            const marbleUpdate = {
-              marble_world_url: marbleData?.worldUrl || null,
-              marble_world_id: marbleData?.worldId || null,
-              marble_operation_id: marbleData?.operationId || null,
-              marble_model: 'Marble 0.1-mini',
-              marble_pano_url: marbleData?.panoUrl || null,
-              marble_thumbnail_url: marbleData?.thumbnailUrl || null,
-            };
-            // If Marble has hotspots and pano, also save as world_hotspots for student view
-            if (marbleData?.hotspots?.length > 0) {
-              marbleUpdate.world_hotspots = marbleData.hotspots;
+            try {
+              const marbleUpdate = {
+                marble_world_url: marbleData?.worldUrl || null,
+                marble_world_id: marbleData?.worldId || null,
+                marble_operation_id: marbleData?.operationId || null,
+                marble_model: 'Marble 0.1-mini',
+                marble_pano_url: marbleData?.panoUrl || null,
+                marble_thumbnail_url: marbleData?.thumbnailUrl || null,
+              };
+              // If Marble has hotspots and pano, also save as world_hotspots for student view
+              if (marbleData?.hotspots?.length > 0) {
+                marbleUpdate.world_hotspots = marbleData.hotspots;
+              }
+              await supabase.from('quests').update(marbleUpdate).eq('id', quest.id);
+            } catch (e) {
+              console.warn('Marble world save failed:', e);
             }
-            supabase.from('quests').update(marbleUpdate).eq('id', quest.id).then(() => {}).catch(e =>
-              console.warn('Marble world save failed (non-blocking):', e)
-            );
           }
 
           // Save branch relationships for branching quests (non-blocking)

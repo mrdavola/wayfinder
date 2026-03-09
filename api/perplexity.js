@@ -1,7 +1,14 @@
+// api/perplexity.js — Perplexity search proxy
+
+import { requireAuth } from './_auth.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // Require authenticated Supabase session
+  if (await requireAuth(req, res)) return;
 
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) {

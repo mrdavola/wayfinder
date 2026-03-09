@@ -1,5 +1,17 @@
 import { supabase } from './supabase';
 
+// ── Authenticated fetch for serverless API endpoints ────────────────────────
+// Attaches the Supabase JWT so api/_auth.js can verify the caller
+export async function authedFetch(url, options = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const headers = {
+    ...options.headers,
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+  };
+  return fetch(url, { ...options, headers });
+}
+
 // ===================== AUTH =====================
 export const auth = {
   signUp: async ({ email, password, fullName }) => {
@@ -380,7 +392,7 @@ async function uploadWorldScene(questId, base64ImageData, mimeType = 'image/png'
 }
 
 async function generateWorldImage(imagePrompt) {
-  const resp = await fetch('/api/image', {
+  const resp = await authedFetch('/api/image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ imagePrompt }),
@@ -459,7 +471,7 @@ function getPreferredProvider() {
 // If messages is provided, treats the last entry as the new user message and
 // the rest as history. Otherwise sends userMessage as a single-turn call.
 async function callGemini({ systemPrompt, userMessage, messages }) {
-  const resp = await fetch('/api/ai', {
+  const resp = await authedFetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider: 'gemini', systemPrompt, userMessage, messages }),
@@ -471,7 +483,7 @@ async function callGemini({ systemPrompt, userMessage, messages }) {
 
 // ── Anthropic call (fallback / user choice) ─────────────────────────────────
 async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens = 2048 }) {
-  const resp = await fetch('/api/ai', {
+  const resp = await authedFetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider: 'anthropic', systemPrompt, userMessage, messages, maxTokens }),
@@ -510,7 +522,7 @@ async function parseAIJSON(text) {
 // ===================== MARBLE WORLD LABS =====================
 
 async function generateMarbleWorld({ textPrompt, imageUrl, displayName, model = 'Marble 0.1-mini' }) {
-  const resp = await fetch('/api/worldlabs', {
+  const resp = await authedFetch('/api/worldlabs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ textPrompt, imageUrl, displayName, model }),
@@ -523,7 +535,7 @@ async function generateMarbleWorld({ textPrompt, imageUrl, displayName, model = 
 }
 
 async function pollMarbleOperation(operationId) {
-  const resp = await fetch(`/api/worldlabs?operationId=${operationId}`);
+  const resp = await authedFetch(`/api/worldlabs?operationId=${operationId}`);
   if (!resp.ok) throw new Error(`Marble poll failed: ${resp.status}`);
   return resp.json();
 }

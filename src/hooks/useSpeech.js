@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { authedFetch } from '../lib/api';
 
 const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
 
@@ -93,7 +94,7 @@ export default function useSpeech() {
     abortRef.current = controller;
 
     try {
-      const res = await fetch('/api/voice', {
+      const res = await authedFetch('/api/voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, voiceId: VOICE_ID }),
