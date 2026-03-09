@@ -3344,14 +3344,53 @@ export default function StudentQuestPage() {
         </div>
       </div>
 
-      {/* Enter World button — shown when quest has a world scene */}
-      {(quest?.marble_pano_url || quest?.world_scene_url) && !immersiveMode && (
+      {/* 3D World section — shown when quest has any marble/world data */}
+      {(quest?.marble_pano_url || quest?.marble_thumbnail_url || quest?.world_scene_url) && !immersiveMode && (
         <div style={{ padding: isMobile ? '8px 14px 0' : '12px 22px 0', position: 'relative' }}>
-          <EnterWorldButton
-            sceneUrl={quest?.marble_thumbnail_url || quest?.marble_pano_url || quest?.world_scene_url}
-            sceneDescription={quest?.marble_pano_url ? '3D World Ready — Enter to explore' : quest?.world_scene_prompt}
-            onClick={() => setImmersiveMode(true)}
-          />
+          <div style={{
+            background: 'var(--parchment)', borderRadius: 14, border: '1px solid var(--pencil)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: '14px 20px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, margin: 0, color: 'var(--ink)' }}>
+                3D World
+              </h3>
+              {quest?.marble_operation_id && !quest?.marble_pano_url && (
+                <span style={{
+                  fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--compass-gold)',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--compass-gold)', animation: 'enterWorldPulse 2s ease-in-out infinite' }} />
+                  Generating...
+                </span>
+              )}
+            </div>
+            {quest?.marble_pano_url || quest?.world_scene_url ? (
+              <EnterWorldButton
+                sceneUrl={quest?.marble_thumbnail_url || quest?.marble_pano_url || quest?.world_scene_url}
+                sceneDescription={quest?.marble_pano_url ? '3D World Ready — Enter to explore' : quest?.world_scene_prompt}
+                onClick={() => setImmersiveMode(true)}
+              />
+            ) : quest?.marble_thumbnail_url ? (
+              <div style={{ position: 'relative' }}>
+                <img
+                  src={quest.marble_thumbnail_url}
+                  alt="3D World preview"
+                  style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block', filter: quest?.marble_operation_id ? 'brightness(0.6)' : 'none' }}
+                />
+                {quest?.marble_operation_id && (
+                  <div style={{
+                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                  }}>
+                    World is being created...
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
           {worldRegenerating && (
             <div style={{
               position: 'absolute', bottom: 8, right: isMobile ? 22 : 30,
