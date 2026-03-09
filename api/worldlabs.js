@@ -17,8 +17,10 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'WORLDLABS_API_KEY not configured' });
   }
 
-  // Require authenticated Supabase session
-  if (await requireAuth(req, res)) return;
+  // POST (generate world) requires auth; GET (poll status) is open for student view
+  if (req.method === 'POST') {
+    if (await requireAuth(req, res)) return;
+  }
 
   const headers = {
     'WLT-Api-Key': apiKey,

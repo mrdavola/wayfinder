@@ -1,14 +1,15 @@
 // api/voice.js — ElevenLabs TTS proxy
 
-import { requireAuth } from './_auth.js';
+import { verifyAuth } from './_auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Require authenticated Supabase session
-  if (await requireAuth(req, res)) return;
+  // Verify auth if present (students use TTS but aren't authenticated)
+  const { user } = await verifyAuth(req);
+  req.user = user;
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {

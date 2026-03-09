@@ -34,14 +34,22 @@ export default function TrustBadge({ tier, url, sourceName, onOverride, verified
       onMouseLeave={hideTooltip}
     >
       <Icon size={12} color={color} />
-      {sourceName && (
+      {sourceName && url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" style={{
+          fontSize: 10, color, fontFamily: 'var(--font-mono)',
+          maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          textDecoration: 'underline', textUnderlineOffset: 2,
+        }}>
+          {sourceName}
+        </a>
+      ) : sourceName ? (
         <span style={{
           fontSize: 10, color, fontFamily: 'var(--font-mono)',
           maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {sourceName}
         </span>
-      )}
+      ) : null}
       {verified === true && (
         <span style={{
           fontSize: 8, fontWeight: 700, color: '#2D6A4F',

@@ -14,14 +14,19 @@ async function callPerplexity(prompt, systemPrompt) {
     if (resp.ok) {
       const data = await resp.json();
       if (data.text) return data.text;
+    } else {
+      console.warn('[Perplexity] Server proxy returned', resp.status);
     }
-  } catch {
-    // Server route not available (local dev with Vite)
+  } catch (e) {
+    console.log('[Perplexity] Server proxy unavailable, trying client-side:', e.message);
   }
 
   // Fallback: direct client-side call using VITE_ key
   const apiKey = import.meta.env.VITE_PERPLEXITY_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.warn('[Perplexity] No VITE_PERPLEXITY_API_KEY found, cannot search');
+    return null;
+  }
 
   try {
     const resp = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -39,10 +44,14 @@ async function callPerplexity(prompt, systemPrompt) {
         ],
       }),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      console.warn('[Perplexity] Client-side API returned', resp.status, await resp.text().catch(() => ''));
+      return null;
+    }
     const data = await resp.json();
     return data.choices?.[0]?.message?.content ?? null;
-  } catch {
+  } catch (e) {
+    console.warn('[Perplexity] Client-side call failed:', e.message);
     return null;
   }
 }
@@ -53,26 +62,54 @@ export async function findYouTubeVideos(topic, level, count = 2) {
     'You are a YouTube educational video curator for K-12 students. You have access to real web search results. Return only valid JSON arrays with REAL video URLs from your search results. Always use full youtube.com/watch?v= URLs. NEVER fabricate or guess video IDs — only return URLs you found in actual search results. If you cannot find a real video, return an empty array [].'
   );
 
-  if (!text) return [];
+  if (!text) {
+    console.warn('[findYouTubeVideos] Perplexity returned no text');
+    return [];
+  }
   try {
+    // Extract JSON array from response — Perplexity may wrap it in text
     const cleaned = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.warn('[findYouTubeVideos] No JSON array found in response:', cleaned.slice(0, 200));
+      return [];
+    }
+    const parsed = JSON.parse(jsonMatch[0]);
     if (!Array.isArray(parsed)) return [];
-    // Validate each video via YouTube oEmbed before returning
+
+    // Filter to only entries with valid YouTube URL format
+    const withValidUrls = parsed.filter(v =>
+      v.url && /youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/.test(v.url)
+    );
+
+    // Validate each video via YouTube oEmbed — but keep videos where oEmbed fails
+    // due to network errors (only drop confirmed 404s)
     const validated = await Promise.all(
-      parsed.map(async (v) => {
+      withValidUrls.map(async (v) => {
         try {
           const resp = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(v.url)}&format=json`);
           if (resp.ok) {
             const meta = await resp.json();
             return { ...v, title: v.title || meta.title, verified: true };
           }
-          return null; // Video doesn't exist
-        } catch { return null; }
+          if (resp.status === 404 || resp.status === 401) {
+            return null; // Video confirmed not to exist
+          }
+          // Other errors (rate limit, CORS) — keep the video but mark unverified
+          return { ...v, verified: false };
+        } catch {
+          // Network error (CORS, etc.) — keep the video but mark unverified
+          return { ...v, verified: false };
+        }
       })
     );
-    return validated.filter(Boolean);
-  } catch { return []; }
+    const results = validated.filter(Boolean);
+    console.log(`[findYouTubeVideos] Found ${parsed.length} from Perplexity, ${results.length} after validation`);
+    return results;
+  } catch (e) {
+    console.warn('[findYouTubeVideos] Parse error:', e.message);
+    return [];
+  }
 }
 
 export async function findTrustedSources(topic, level, count = 3) {
@@ -81,12 +118,23 @@ export async function findTrustedSources(topic, level, count = 3) {
     'You are an educational resource curator focused on K-12 content. You have access to real web search results. Return only valid JSON arrays with REAL URLs from your search results. NEVER fabricate URLs. If you cannot find real resources, return an empty array [].'
   );
 
-  if (!text) return [];
+  if (!text) {
+    console.warn('[findTrustedSources] Perplexity returned no text');
+    return [];
+  }
   try {
     const cleaned = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.warn('[findTrustedSources] No JSON array found in response:', cleaned.slice(0, 200));
+      return [];
+    }
+    const parsed = JSON.parse(jsonMatch[0]);
     return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
+  } catch (e) {
+    console.warn('[findTrustedSources] Parse error:', e.message);
+    return [];
+  }
 }
 
 export async function checkLink(url) {

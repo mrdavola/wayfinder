@@ -70,7 +70,6 @@ const LOADING_TEXTS = [
   'Creating guiding questions...',
   'Building deliverables for each stage...',
   'Calibrating difficulty levels...',
-  'Finding reliable sources...',
   'Designing expedition challenges...',
   'Reviewing for age-appropriateness...',
   'Polishing the final project...',
@@ -1850,8 +1849,198 @@ function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWor
   );
 }
 
+// ── Word Scramble Mini-Game ──────────────────────────────────────────────────
+function WordScramble({ students }) {
+  const words = React.useMemo(() => {
+    const pool = [];
+    (students || []).forEach(s => {
+      (s.interests || []).forEach(i => pool.push(i));
+      (s.passions || []).forEach(p => pool.push(p));
+    });
+    // Add generic fun words if pool is small
+    const extras = ['creativity', 'teamwork', 'discovery', 'adventure', 'innovation', 'design', 'explore', 'research', 'strategy', 'imagine'];
+    extras.forEach(w => { if (!pool.includes(w)) pool.push(w); });
+    return pool.filter(w => w.length >= 4 && w.length <= 12);
+  }, [students]);
+
+  const [wordIdx, setWordIdx] = React.useState(0);
+  const [guess, setGuess] = React.useState('');
+  const [solved, setSolved] = React.useState(0);
+  const [showHint, setShowHint] = React.useState(false);
+  const [shake, setShake] = React.useState(false);
+  const inputRef = React.useRef(null);
+
+  const currentWord = words[wordIdx % words.length] || 'loading';
+
+  const scrambled = React.useMemo(() => {
+    const arr = currentWord.toLowerCase().split('');
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    // Make sure it's actually scrambled
+    return arr.join('') === currentWord.toLowerCase()
+      ? arr.reverse().join('')
+      : arr.join('');
+  }, [currentWord]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (guess.toLowerCase().trim() === currentWord.toLowerCase()) {
+      setSolved(s => s + 1);
+      setGuess('');
+      setShowHint(false);
+      setWordIdx(i => i + 1);
+    } else {
+      setShake(true);
+      setTimeout(() => setShake(false), 400);
+    }
+  };
+
+  const skip = () => {
+    setGuess('');
+    setShowHint(false);
+    setWordIdx(i => i + 1);
+  };
+
+  return (
+    <div style={{
+      marginTop: 24, padding: '20px 24px', background: 'var(--parchment)',
+      borderRadius: 12, maxWidth: 360, width: '100%', textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+        While you wait... unscramble this word!
+      </div>
+      <div style={{
+        fontSize: 28, fontFamily: 'var(--font-mono)', fontWeight: 700,
+        color: T.ink, letterSpacing: '0.15em', marginBottom: 4,
+        animation: shake ? 'shake 0.4s ease' : 'none',
+      }}>
+        {scrambled.toUpperCase()}
+      </div>
+      {showHint && (
+        <div style={{ fontSize: 11, color: T.compassGold, fontFamily: 'var(--font-body)', marginBottom: 6 }}>
+          Hint: starts with "{currentWord[0].toUpperCase()}" and has {currentWord.length} letters
+        </div>
+      )}
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'center' }}>
+        <input
+          ref={inputRef}
+          value={guess}
+          onChange={e => setGuess(e.target.value)}
+          placeholder="Your guess..."
+          style={{
+            width: 160, fontSize: 14, padding: '6px 10px', borderRadius: 6,
+            border: `1px solid ${T.pencil}`, fontFamily: 'var(--font-body)',
+            outline: 'none', textAlign: 'center',
+          }}
+          autoFocus
+        />
+        <button type="submit" style={{
+          padding: '6px 14px', borderRadius: 6, border: 'none',
+          background: T.ink, color: T.chalk, fontSize: 12, fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'var(--font-body)',
+        }}>
+          Go
+        </button>
+      </form>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 10 }}>
+        <button onClick={() => setShowHint(true)} style={{
+          fontSize: 11, color: T.graphite, background: 'none', border: 'none',
+          cursor: 'pointer', textDecoration: 'underline', fontFamily: 'var(--font-body)',
+        }}>
+          Hint
+        </button>
+        <button onClick={skip} style={{
+          fontSize: 11, color: T.graphite, background: 'none', border: 'none',
+          cursor: 'pointer', textDecoration: 'underline', fontFamily: 'var(--font-body)',
+        }}>
+          Skip
+        </button>
+      </div>
+      {solved > 0 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: T.fieldGreen, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+          {solved} solved!
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Student Spotlight Cards ─────────────────────────────────────────────────
+function StudentSpotlight({ students }) {
+  const [idx, setIdx] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!students?.length) return;
+    const timer = setInterval(() => setIdx(i => (i + 1) % students.length), 4000);
+    return () => clearInterval(timer);
+  }, [students?.length]);
+
+  if (!students?.length) return null;
+  const s = students[idx % students.length];
+  const interests = [...(s.interests || []), ...(s.passions || [])].filter(Boolean);
+
+  return (
+    <div style={{
+      marginTop: 20, padding: '14px 20px', background: 'white',
+      borderRadius: 10, border: `1px solid ${T.pencil}`,
+      maxWidth: 360, width: '100%', transition: 'opacity 0.3s',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%', background: T.parchment,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 14, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)',
+        }}>
+          {s.avatar_emoji || s.name?.charAt(0)?.toUpperCase()}
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, fontFamily: 'var(--font-body)' }}>
+            Building for {s.name}
+          </div>
+          {s.grade_band && (
+            <div style={{ fontSize: 10, color: T.graphite, fontFamily: 'var(--font-mono)' }}>
+              {s.grade_band}
+            </div>
+          )}
+        </div>
+      </div>
+      {interests.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {interests.slice(0, 6).map((int, i) => (
+            <span key={i} style={{
+              fontSize: 10, padding: '2px 8px', borderRadius: 10,
+              background: `${T.compassGold}18`, color: T.ink,
+              fontFamily: 'var(--font-body)', fontWeight: 500,
+            }}>
+              {int}
+            </span>
+          ))}
+        </div>
+      )}
+      {s.about_me && (
+        <div style={{ fontSize: 11, color: T.graphite, fontFamily: 'var(--font-body)', marginTop: 6, fontStyle: 'italic', lineHeight: 1.4 }}>
+          "{s.about_me.length > 100 ? s.about_me.slice(0, 100) + '...' : s.about_me}"
+        </div>
+      )}
+      {students.length > 1 && (
+        <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 8 }}>
+          {students.map((_, i) => (
+            <div key={i} style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: i === idx % students.length ? T.compassGold : T.pencil,
+              transition: 'background 0.3s',
+            }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Step 5: Generating ─────────────────────────────────────────────────────────
-function Step5Generating({ progress, loadingText, error, onRegenerate }) {
+function Step5Generating({ progress, loadingText, error, onRegenerate, students }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0' }}>
       {error ? (
@@ -1887,18 +2076,12 @@ function Step5Generating({ progress, loadingText, error, onRegenerate }) {
               color: T.graphite,
               fontSize: 14,
               fontFamily: 'var(--font-body)',
-              marginBottom: 16,
+              marginBottom: 8,
               minHeight: 22,
               transition: 'opacity 0.3s',
             }}
           >
             {loadingText}
-          </p>
-          <p style={{
-            color: T.pencil, fontSize: 11, fontFamily: 'var(--font-mono)',
-            marginBottom: 24,
-          }}>
-            This usually takes 30–60 seconds
           </p>
 
           {/* Progress bar */}
@@ -1921,9 +2104,25 @@ function Step5Generating({ progress, loadingText, error, onRegenerate }) {
               }}
             />
           </div>
-          <div style={{ marginTop: 10, fontSize: 12, fontFamily: 'var(--font-mono)', color: T.pencil }}>
+          <div style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-mono)', color: T.pencil }}>
             {Math.round(progress)}%
           </div>
+
+          {/* Student spotlights */}
+          <StudentSpotlight students={students} />
+
+          {/* Word scramble mini-game */}
+          <WordScramble students={students} />
+
+          <style>{`
+            @keyframes shake {
+              0%, 100% { transform: translateX(0); }
+              20% { transform: translateX(-6px); }
+              40% { transform: translateX(6px); }
+              60% { transform: translateX(-4px); }
+              80% { transform: translateX(4px); }
+            }
+          `}</style>
         </>
       )}
     </div>
@@ -1968,6 +2167,8 @@ function Step6Review({
   const [stageRegenLoading, setStageRegenLoading] = useState(false);
   const [findingResources, setFindingResources] = useState({}); // { stageIdx: true }
   const [findingVideos, setFindingVideos] = useState({}); // { stageIdx: true }
+  const [findingAllResources, setFindingAllResources] = useState(false);
+  const [findingAllVideos, setFindingAllVideos] = useState(false);
   const worldImageInputRef = useRef(null);
   const playbookDays = generatedQuest?.playbookDays || null;
   const [playbookLoading, setPlaybookLoading] = useState(false);
@@ -2549,6 +2750,82 @@ function Step6Review({
           </div>
         </div>
       )}
+
+      {/* Find All Sources / Videos bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+        padding: '10px 14px', background: T.parchment, borderRadius: 8,
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: T.graphite, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 'auto' }}>
+          Enrich all stages
+        </span>
+        <button
+          disabled={findingAllResources}
+          onClick={async () => {
+            setFindingAllResources(true);
+            const gradeBand = selectedStudents[0]?.grade_band || 'middle school';
+            try {
+              await Promise.all(stages.map(async (stage, i) => {
+                if ((stage.sources || []).length > 0) return; // skip if already has sources
+                setFindingResources(prev => ({ ...prev, [i]: true }));
+                try {
+                  const topic = `${stage.stage_title || stage.title} ${generatedQuest.quest_title || ''}`.trim();
+                  const sources = await findTrustedSources(topic, gradeBand, 3);
+                  if (sources.length > 0) {
+                    updateStage(i, 'sources', sources.map(s => ({ title: s.title, url: s.url, type: s.type, trust_level: s.trust_level, ai_curated: true })));
+                  }
+                } catch (e) { console.warn(`Source search failed for stage ${i}:`, e); }
+                setFindingResources(prev => ({ ...prev, [i]: false }));
+              }));
+            } finally {
+              setFindingAllResources(false);
+            }
+          }}
+          style={{
+            padding: '5px 12px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+            background: findingAllResources ? T.parchment : T.chalk, color: T.graphite,
+            fontSize: 11, fontWeight: 600, cursor: findingAllResources ? 'wait' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4,
+            opacity: findingAllResources ? 0.6 : 1,
+          }}
+        >
+          {findingAllResources ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={12} />}
+          {findingAllResources ? 'Finding Sources...' : 'Find All Sources'}
+        </button>
+        <button
+          disabled={findingAllVideos}
+          onClick={async () => {
+            setFindingAllVideos(true);
+            const gradeBand = selectedStudents[0]?.grade_band || 'middle school';
+            try {
+              await Promise.all(stages.map(async (stage, i) => {
+                if ((stage.video_urls || []).length > 0) return; // skip if already has videos
+                setFindingVideos(prev => ({ ...prev, [i]: true }));
+                try {
+                  const topic = `${stage.stage_title || stage.title} ${generatedQuest.quest_title || ''}`.trim();
+                  const videos = await findYouTubeVideos(topic, gradeBand, 2);
+                  if (videos.length > 0) {
+                    updateStage(i, 'video_urls', videos.map(v => ({ title: v.title, url: v.url, source: 'youtube', channel: v.channel, ai_curated: false, verified: v.verified })));
+                  }
+                } catch (e) { console.warn(`Video search failed for stage ${i}:`, e); }
+                setFindingVideos(prev => ({ ...prev, [i]: false }));
+              }));
+            } finally {
+              setFindingAllVideos(false);
+            }
+          }}
+          style={{
+            padding: '5px 12px', borderRadius: 6, border: `1px solid ${T.pencil}`,
+            background: findingAllVideos ? T.parchment : T.chalk, color: T.graphite,
+            fontSize: 11, fontWeight: 600, cursor: findingAllVideos ? 'wait' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4,
+            opacity: findingAllVideos ? 0.6 : 1,
+          }}
+        >
+          {findingAllVideos ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={12} />}
+          {findingAllVideos ? 'Finding Videos...' : 'Find All Videos'}
+        </button>
+      </div>
 
       {/* Stage cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
@@ -4133,6 +4410,7 @@ export default function QuestBuilder() {
                 loadingText={LOADING_TEXTS[loadingTextIdx]}
                 error={genError}
                 onRegenerate={runGeneration}
+                students={selectedStudents}
               />
             )}
 

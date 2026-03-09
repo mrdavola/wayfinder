@@ -1,15 +1,17 @@
 // api/ai.js — Vercel Serverless Function
 // Proxies AI calls to Anthropic or Gemini, keeping API keys server-side
 
-import { requireAuth } from './_auth.js';
+import { verifyAuth } from './_auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Require authenticated Supabase session
-  if (await requireAuth(req, res)) return;
+  // Verify auth if present (guides are authenticated, students are not)
+  // Students need AI access for Field Guide, feedback, etc.
+  const { user } = await verifyAuth(req);
+  req.user = user; // may be null for student requests
 
   const { provider, systemPrompt, userMessage, messages, maxTokens = 2048 } = req.body;
 
