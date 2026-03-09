@@ -3634,9 +3634,9 @@ export default function QuestBuilder() {
   const [launching, setLaunching] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
-  // Marble Mini world
-  const [marbleStatus, setMarbleStatus] = useState(null); // null | 'generating' | 'ready' | 'failed'
-  const [marbleData, setMarbleData] = useState(null);
+  // Marble Mini world (restore from sessionStorage if available)
+  const [marbleStatus, setMarbleStatus] = useState(() => saved.current?.marbleStatus || null); // null | 'generating' | 'ready' | 'failed'
+  const [marbleData, setMarbleData] = useState(() => saved.current?.marbleData || null);
   const marblePollingRef = useRef(null);
 
   useEffect(() => {
@@ -3644,6 +3644,36 @@ export default function QuestBuilder() {
       if (marblePollingRef.current) clearTimeout(marblePollingRef.current);
     };
   }, []);
+
+  // Resume marble polling if restored from sessionStorage mid-generation
+  useEffect(() => {
+    if (marbleStatus === 'generating' && marbleData?.operationId && !marblePollingRef.current) {
+      const pollMarble = async () => {
+        try {
+          const op = await ai.pollMarbleStatus(marbleData.operationId);
+          if (op.done) {
+            if (op.error) {
+              setMarbleStatus('failed');
+            } else {
+              setMarbleStatus('ready');
+              setMarbleData(prev => ({
+                ...prev,
+                worldUrl: op.response?.world_marble_url,
+                worldId: op.response?.id,
+                panoUrl: op.response?.assets?.imagery?.pano_url,
+                thumbnailUrl: op.response?.assets?.thumbnail_url,
+              }));
+            }
+            return;
+          }
+          marblePollingRef.current = setTimeout(pollMarble, 5000);
+        } catch {
+          setMarbleStatus('failed');
+        }
+      };
+      marblePollingRef.current = setTimeout(pollMarble, 1000);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 7 (Launch)
   const [launchedQuestId, setLaunchedQuestId] = useState(null);
@@ -3658,9 +3688,10 @@ export default function QuestBuilder() {
       step, questType, selectedStudentId, selectedStudentIds,
       selectedInterests, selectedStandards, customTopic, additionalContext,
       selectedPathways, customCareer, generatedQuest,
+      marbleStatus, marbleData,
     };
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-  }, [step, questType, selectedStudentId, selectedStudentIds, selectedInterests, selectedStandards, customTopic, additionalContext, selectedPathways, customCareer, generatedQuest, launchedQuestId]);
+  }, [step, questType, selectedStudentId, selectedStudentIds, selectedInterests, selectedStandards, customTopic, additionalContext, selectedPathways, customCareer, generatedQuest, launchedQuestId, marbleStatus, marbleData]);
 
   // Refs for generation timers
   const progressRef = useRef(null);

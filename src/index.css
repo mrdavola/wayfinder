@@ -239,3 +239,7 @@ img, svg { display: block; }
     display: none !important;
   }
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
