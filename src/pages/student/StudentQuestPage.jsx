@@ -483,7 +483,7 @@ function MobileStageNav({ stages, activeCard, onNodeClick }) {
                 color: isDone || isActive ? 'var(--chalk)' : 'var(--pencil)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', padding: 0,
-                opacity: isLocked ? 0.4 : 1,
+                opacity: isLocked ? 0.55 : 1,
                 transition: 'all 150ms',
                 boxShadow: isSelected ? '0 0 0 3px rgba(27,73,101,0.15)' : 'none',
               }}

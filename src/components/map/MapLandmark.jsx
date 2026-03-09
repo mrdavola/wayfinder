@@ -34,15 +34,15 @@ export default function MapLandmark({ cx, cy, stage, landmark, isSelected, isAct
 
   return (
     <g
-      onClick={status !== 'locked' ? onClick : undefined}
+      onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{ cursor: status !== 'locked' ? 'pointer' : 'default' }}
-      role={status !== 'locked' ? 'button' : undefined}
-      tabIndex={status !== 'locked' ? 0 : undefined}
+      style={{ cursor: 'pointer' }}
+      role="button"
+      tabIndex={0}
       aria-label={`${landmark?.landmark_name || stage.title} — ${status}`}
       onKeyDown={(e) => {
-        if (status !== 'locked' && (e.key === 'Enter' || e.key === ' ')) onClick?.();
+        if (e.key === 'Enter' || e.key === ' ') onClick?.();
       }}
     >
       {status === 'active' && (
@@ -58,19 +58,19 @@ export default function MapLandmark({ cx, cy, stage, landmark, isSelected, isAct
       )}
       <circle cx={cx} cy={cy} r={r}
         fill={colors.fill} stroke={colors.stroke} strokeWidth={2}
-        opacity={status === 'locked' ? 0.4 : 1}
+        opacity={status === 'locked' ? 0.55 : 1}
         style={{ transition: 'all 300ms ease' }}
       />
       <foreignObject x={cx - 12} y={cy - 12} width={24} height={24}
-        style={{ opacity: status === 'locked' ? 0.3 : 1 }}>
+        style={{ opacity: status === 'locked' ? 0.45 : 1 }}>
         <Icon size={24} color={colors.icon} />
       </foreignObject>
       <text x={cx} y={cy + r + 16} textAnchor="middle"
         fontFamily="var(--font-mono)" fontSize={9}
-        fill="var(--graphite)" opacity={status === 'locked' ? 0.3 : 0.8}>
+        fill="var(--graphite)" opacity={status === 'locked' ? 0.45 : 0.8}>
         {(landmark?.landmark_name || `Stage ${stage.stage_number}`).slice(0, 20)}
       </text>
-      {hovered && status !== 'locked' && (
+      {hovered && (
         <foreignObject x={cx - 80} y={cy - r - 44} width={160} height={36}>
           <div style={{
             background: 'var(--ink)', color: 'var(--chalk)', padding: '4px 10px',
