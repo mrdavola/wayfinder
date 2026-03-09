@@ -3367,29 +3367,17 @@ export default function StudentQuestPage() {
                 </span>
               )}
             </div>
-            {quest?.marble_pano_url || quest?.world_scene_url ? (
+            {quest?.marble_operation_id && !quest?.marble_pano_url && !quest?.marble_thumbnail_url ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--graphite)', fontSize: 14 }}>
+                World is being created...
+              </div>
+            ) : (
               <EnterWorldButton
-                sceneUrl={quest?.marble_thumbnail_url || quest?.marble_pano_url || quest?.world_scene_url}
-                sceneDescription={quest?.marble_pano_url ? '3D World Ready — Enter to explore' : quest?.world_scene_prompt}
+                sceneUrl={quest?.marble_pano_url || quest?.marble_thumbnail_url || quest?.world_scene_url}
+                sceneDescription={quest?.marble_pano_url ? '3D World Ready — Enter to explore' : 'Explore your project world'}
                 onClick={() => setImmersiveMode(true)}
               />
-            ) : quest?.marble_thumbnail_url ? (
-              <div style={{ position: 'relative' }}>
-                <img
-                  src={quest.marble_thumbnail_url}
-                  alt="3D World preview"
-                  style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block', filter: quest?.marble_operation_id ? 'brightness(0.6)' : 'none' }}
-                />
-                {quest?.marble_operation_id && (
-                  <div style={{
-                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-                  }}>
-                    World is being created...
-                  </div>
-                )}
-              </div>
-            ) : null}
+            )}
           </div>
           {worldRegenerating && (
             <div style={{
@@ -3807,10 +3795,10 @@ export default function StudentQuestPage() {
       )}
 
       {/* Immersive 3D World — uses Marble pano_url (higher quality) or Gemini world_scene_url */}
-      {immersiveMode && (quest?.marble_pano_url || quest?.world_scene_url) && (
+      {immersiveMode && (quest?.marble_pano_url || quest?.marble_thumbnail_url || quest?.world_scene_url) && (
         <Suspense fallback={null}>
             <ImmersiveWorldView
-              sceneUrl={quest.marble_pano_url || quest.world_scene_url}
+              sceneUrl={quest.marble_pano_url || quest.marble_thumbnail_url || quest.world_scene_url}
               hotspots={quest.world_hotspots || []}
               stages={stages}
               activeStageId={activeCard}
