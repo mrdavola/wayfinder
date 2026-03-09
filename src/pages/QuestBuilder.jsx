@@ -37,7 +37,7 @@ import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
 import { getTrustTier } from '../lib/trustDomains';
-import { validateResources } from '../lib/perplexity';
+import { findYouTubeVideos, findTrustedSources } from '../lib/perplexity';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import PanoramaSphere from '../components/immersive/PanoramaSphere';
@@ -1966,6 +1966,8 @@ function Step6Review({
   const [stageRegenIdx, setStageRegenIdx] = useState(null); // index of stage being regenerated
   const [stageRegenFeedback, setStageRegenFeedback] = useState('');
   const [stageRegenLoading, setStageRegenLoading] = useState(false);
+  const [findingResources, setFindingResources] = useState({}); // { stageIdx: true }
+  const [findingVideos, setFindingVideos] = useState({}); // { stageIdx: true }
   const worldImageInputRef = useRef(null);
   const playbookDays = generatedQuest?.playbookDays || null;
   const [playbookLoading, setPlaybookLoading] = useState(false);
@@ -2708,14 +2710,65 @@ function Step6Review({
                     </div>
                   )}
 
-                  {/* Sources — with toggle and edit */}
-                  {stage.sources?.length > 0 && (
+                  {/* Sources — on-demand via Perplexity or manual */}
                     <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--parchment)', borderRadius: 8 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                        Sources
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Sources
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            disabled={findingResources[i]}
+                            onClick={async () => {
+                              setFindingResources(prev => ({ ...prev, [i]: true }));
+                              try {
+                                const topic = `${stage.stage_title || stage.title} ${generatedQuest.quest_title || ''}`.trim();
+                                const sources = await findTrustedSources(topic, selectedStudents[0]?.grade_band || 'middle school', 3);
+                                if (sources.length > 0) {
+                                  const existing = stage.sources || [];
+                                  updateStage(i, 'sources', [...existing, ...sources.map(s => ({ ...s, verified: null }))]);
+                                }
+                              } catch (e) { console.warn('Source search failed:', e); }
+                              setFindingResources(prev => ({ ...prev, [i]: false }));
+                            }}
+                            style={{
+                              padding: '2px 8px', borderRadius: 4, border: `1px solid ${T.pencil}`,
+                              background: 'transparent', color: T.graphite, fontSize: 10,
+                              fontWeight: 600, cursor: findingResources[i] ? 'wait' : 'pointer',
+                              display: 'flex', alignItems: 'center', gap: 3,
+                              opacity: findingResources[i] ? 0.6 : 1,
+                            }}
+                          >
+                            {findingResources[i] ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={10} />}
+                            {findingResources[i] ? 'Searching...' : 'Find Sources'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              const current = stage.sources || [];
+                              updateStage(i, 'sources', [...current, { title: '', url: '', trust_level: 'review', verified: null }]);
+                            }}
+                            style={{
+                              padding: '2px 8px', borderRadius: 4, border: `1px solid ${T.pencil}`,
+                              background: 'transparent', color: T.graphite, fontSize: 10,
+                              fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3,
+                            }}
+                          >
+                            <Plus size={10} /> Add
+                          </button>
+                        </div>
                       </div>
+                    {(stage.sources || []).length === 0 && !findingResources[i] && (
+                      <div style={{ fontSize: 11, color: T.pencil, fontStyle: 'italic' }}>
+                        No sources yet — click "Find Sources" or add your own
+                      </div>
+                    )}
+                    {findingResources[i] && (stage.sources || []).length === 0 && (
+                      <div style={{ fontSize: 11, color: T.graphite, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Searching for trusted sources...
+                      </div>
+                    )}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {stage.sources.map((src, si) => (
+                        {(stage.sources || []).map((src, si) => (
                           <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: src._hidden ? 0.4 : 1 }}>
                             <button
                               title={src._hidden ? 'Show this source' : 'Hide this source'}
@@ -2775,31 +2828,62 @@ function Step6Review({
                         ))}
                       </div>
                     </div>
-                  )}
 
-                  {/* Videos — AI-curated + guide-added */}
+                  {/* Videos — on-demand via Perplexity or manual */}
                   <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--parchment)', borderRadius: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         Videos
                       </div>
-                      <button
-                        onClick={() => {
-                          const current = stage.video_urls || [];
-                          updateStage(i, 'video_urls', [...current, { title: '', url: '', source: 'youtube', ai_curated: false }]);
-                        }}
-                        style={{
-                          padding: '2px 8px', borderRadius: 4, border: `1px solid ${T.pencil}`,
-                          background: 'transparent', color: T.graphite, fontSize: 10,
-                          fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3,
-                        }}
-                      >
-                        <Plus size={10} /> Add Video
-                      </button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          disabled={findingVideos[i]}
+                          onClick={async () => {
+                            setFindingVideos(prev => ({ ...prev, [i]: true }));
+                            try {
+                              const topic = `${stage.stage_title || stage.title} ${generatedQuest.quest_title || ''}`.trim();
+                              const videos = await findYouTubeVideos(topic, selectedStudents[0]?.grade_band || 'middle school', 2);
+                              if (videos.length > 0) {
+                                const existing = stage.video_urls || [];
+                                updateStage(i, 'video_urls', [...existing, ...videos.map(v => ({ title: v.title, url: v.url, source: 'youtube', channel: v.channel, ai_curated: false, verified: v.verified }))]);
+                              }
+                            } catch (e) { console.warn('Video search failed:', e); }
+                            setFindingVideos(prev => ({ ...prev, [i]: false }));
+                          }}
+                          style={{
+                            padding: '2px 8px', borderRadius: 4, border: `1px solid ${T.pencil}`,
+                            background: 'transparent', color: T.graphite, fontSize: 10,
+                            fontWeight: 600, cursor: findingVideos[i] ? 'wait' : 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 3,
+                            opacity: findingVideos[i] ? 0.6 : 1,
+                          }}
+                        >
+                          {findingVideos[i] ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={10} />}
+                          {findingVideos[i] ? 'Searching...' : 'Find Videos'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            const current = stage.video_urls || [];
+                            updateStage(i, 'video_urls', [...current, { title: '', url: '', source: 'youtube', ai_curated: false }]);
+                          }}
+                          style={{
+                            padding: '2px 8px', borderRadius: 4, border: `1px solid ${T.pencil}`,
+                            background: 'transparent', color: T.graphite, fontSize: 10,
+                            fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3,
+                          }}
+                        >
+                          <Plus size={10} /> Add
+                        </button>
+                      </div>
                     </div>
-                    {(stage.video_urls || []).length === 0 && (
+                    {(stage.video_urls || []).length === 0 && !findingVideos[i] && (
                       <div style={{ fontSize: 11, color: T.pencil, fontStyle: 'italic' }}>
-                        No videos yet — AI will suggest some, or add your own
+                        No videos yet — click "Find Videos" or add your own
+                      </div>
+                    )}
+                    {findingVideos[i] && (stage.video_urls || []).length === 0 && (
+                      <div style={{ fontSize: 11, color: T.graphite, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Searching for educational videos...
                       </div>
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -3471,26 +3555,13 @@ export default function QuestBuilder() {
             projectMode,
           });
 
-      // Validate source links in parallel (non-blocking — fall back to unvalidated on error)
-      try {
-        const stagesWithValidatedSources = await Promise.all(
-          questData.stages.map(async (stage) => {
-            if (stage.sources?.length > 0) {
-              const validated = await validateResources(stage.sources);
-              return { ...stage, sources: validated.filter(r => r.verified !== false) };
-            }
-            return stage;
-          })
-        );
-        questData.stages = stagesWithValidatedSources;
-      } catch (e) {
-        console.warn('Source validation failed, using unvalidated sources:', e);
-      }
+      // Sources and videos are NOT generated by AI (it hallucinates URLs).
+      // Guides can find real ones via Perplexity in the review step, or add manually.
+      questData.stages = questData.stages.map(s => ({ ...s, sources: [], video_urls: [] }));
 
       cancelAnimationFrame(progressRef.current);
       clearInterval(textRef.current);
 
-      // Animate to 100%
       setProgress(100);
       setGeneratedQuest(questData);
 

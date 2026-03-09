@@ -617,8 +617,6 @@ Generate a quest as JSON:
       "guiding_questions": ["Question 1?", "Question 2?"],
       "resources_needed": ["resource 1"],
       "stretch_challenge": "optional advanced challenge for stages 4+",
-      "sources": [{"title": "Source name", "url": "full URL", "domain": "domain.tld", "trust_level": "trusted|review|unverified"}],
-      "video_urls": [{"title": "descriptive title", "url": "full YouTube/Vimeo URL", "source": "youtube"}],
       "expedition_challenge": {
         "challenge_type": "estimate|pattern|quick_write|classify|decode",
         "challenge_text": "Real-world-framed challenge. NEVER 'quiz' or 'test'. Frame as a professional problem or fun brain-teaser.",
@@ -676,14 +674,10 @@ Adapt ALL student-facing language to the learner's grade level:
 - 9-12 (ages 14-18): Academic language appropriate. Technical terms expected.
 Use the student's grade_band from their profile to calibrate.
 
-- For each stage, include a "sources" array with any real-world references used in the description, guiding questions, or deliverable. Prefer Tier 1 sources. If a stage uses no external references, use an empty array.
-- For each stage, include 1-2 relevant educational video URLs in "video_urls". Prefer YouTube videos from reputable educational channels (Khan Academy, CrashCourse, TED-Ed, Veritasium, SmarterEveryDay, National Geographic). Use real, specific video URLs you are confident exist. If unsure of exact URLs, include a "search_query" field instead of "url" so the system can find the right video. Mark all as "ai_curated": true.${useRealWorld ? `
+${useRealWorld ? `
 
 REAL-WORLD INTEGRATION:
 - Ground every stage in a REAL, current, verifiable problem.
-- Include real stakeholders, organizations, data points, and news.
-- Each stage must have a "sources" array with citations.
-- Tag projects as "Verified Real World" if all sources are Tier 1/2.
 - Weave real-world context naturally into descriptions and guiding questions — don't bolt it on.` : ''}
 
 EXPEDITION CHALLENGES (one per stage, optional — include for 60-70% of stages):
