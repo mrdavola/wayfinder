@@ -100,8 +100,13 @@ export default function YearPlan() {
 
   const handleGenerateNow = (item) => {
     sessionStorage.setItem('yearplan_prefill', JSON.stringify({
-      title: item.title, description: item.description,
-      standards: item.target_standards, planItemId: item.id,
+      title: item.title,
+      description: item.description,
+      standards: item.target_standards,
+      planItemId: item.id,
+      studentId: activePlan.student_id,
+      interestTags: item.interest_tags,
+      autoGenerate: true,
     }));
     navigate('/quest/new');
   };

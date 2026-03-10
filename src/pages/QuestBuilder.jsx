@@ -3610,6 +3610,7 @@ export default function QuestBuilder() {
   const [isBranching, setIsBranching] = useState(false);
 
   // Year Plan prefill: read from sessionStorage on mount
+  const yearPlanAutoGenRef = useRef(false);
   useEffect(() => {
     try {
       const prefill = sessionStorage.getItem('yearplan_prefill');
@@ -3617,12 +3618,46 @@ export default function QuestBuilder() {
         const data = JSON.parse(prefill);
         sessionStorage.removeItem('yearplan_prefill');
         yearPlanItemRef.current = data.planItemId || null;
+
+        // Pre-fill context
         if (data.title) {
-          setAdditionalContext(prev => prev ? prev : `Project idea: "${data.title}" — ${data.description || ''}`);
+          setAdditionalContext(`Project idea: "${data.title}" — ${data.description || ''}`);
+          setCustomTopic(data.title);
+        }
+
+        // Pre-fill standards
+        if (data.standards?.length > 0) {
+          setSelectedStandards(data.standards.map(s => s.code || s.label || s));
+        }
+
+        // Pre-fill student
+        if (data.studentId) {
+          setSelectedStudentId(data.studentId);
+          setSelectedStudentIds([data.studentId]);
+          setQuestType('individual');
+        }
+
+        // Pre-fill interests
+        if (data.interestTags?.length > 0) {
+          setSelectedInterests(data.interestTags);
+        }
+
+        // Auto-generate: skip to Step 5 once students are loaded
+        if (data.autoGenerate) {
+          yearPlanAutoGenRef.current = true;
         }
       }
     } catch {}
   }, []);
+
+  // Auto-generate from Year Plan: wait for students to load, then jump to generation
+  useEffect(() => {
+    if (yearPlanAutoGenRef.current && !studentsLoading && students.length > 0 && selectedStudentId) {
+      yearPlanAutoGenRef.current = false;
+      // Small delay to let state settle
+      setTimeout(() => setStep(5), 100);
+    }
+  }, [studentsLoading, students.length, selectedStudentId]);
 
   // Step 5 (Generating)
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
