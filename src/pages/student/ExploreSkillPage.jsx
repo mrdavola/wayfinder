@@ -152,7 +152,6 @@ export default function ExploreSkillPage() {
 
   /* ── select a node ───────────────────────────────────────────────────── */
   const handleSelectNode = useCallback((node) => {
-    if (node.status === 'locked') return;
     setSelectedNodeId(node.id);
     setSubmissionText(node.submission_text || '');
     setFeedback(node.score != null ? {
@@ -463,7 +462,7 @@ export default function ExploreSkillPage() {
                 <g
                   key={node.id}
                   onClick={() => handleSelectNode(node)}
-                  style={{ cursor: isLocked ? 'not-allowed' : 'pointer' }}
+                  style={{ cursor: 'pointer' }}
                   {...(isActive ? { style: { cursor: 'pointer', animation: 'pulse-glow 2s ease-in-out infinite' } } : {})}
                 >
                   {/* Selection ring */}
@@ -614,6 +613,7 @@ function NodeDetailPanel({
   const embedUrl = toEmbedUrl(node.video_url);
   const canComplete = feedback?.mastery_passed && node.status !== 'completed';
   const isCompleted = node.status === 'completed';
+  const isLocked = node.status === 'locked';
 
   return (
     <div style={{ padding: 24, overflowY: 'auto', height: '100%' }}>
@@ -641,6 +641,21 @@ function NodeDetailPanel({
                 borderRadius: 999,
               }}>
                 Completed
+              </span>
+            )}
+            {isLocked && (
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                background: T.parchment,
+                color: T.pencil,
+                padding: '2px 8px',
+                borderRadius: 999,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}>
+                <Lock size={10} /> Preview
               </span>
             )}
           </div>
@@ -779,8 +794,8 @@ function NodeDetailPanel({
         </div>
       )}
 
-      {/* Submission area (only for non-completed active nodes with an action_item) */}
-      {node.action_item && !isCompleted && (
+      {/* Submission area (only for non-completed, non-locked active nodes with an action_item) */}
+      {node.action_item && !isCompleted && !isLocked && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 8 }}>
             Your Response
@@ -911,7 +926,7 @@ function NodeDetailPanel({
       )}
 
       {/* No action_item, non-root, active node: just complete directly */}
-      {!node.action_item && node.status === 'active' && node.node_type !== 'root' && (
+      {!node.action_item && node.status === 'active' && !isLocked && node.node_type !== 'root' && (
         <button
           onClick={onComplete}
           disabled={completing}
