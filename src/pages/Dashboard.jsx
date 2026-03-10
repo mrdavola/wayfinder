@@ -362,7 +362,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
         }}
       >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
-          {standards.slice(0, 2).map((std) => {
+          {standards.filter(Boolean).slice(0, 2).map((std) => {
             const short = std.split('.').slice(-1)[0];
             return (
               <span key={std} className="skill-tag default">
