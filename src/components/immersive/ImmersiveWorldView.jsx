@@ -25,27 +25,45 @@ export default function ImmersiveWorldView({
   const [selectedStage, setSelectedStage] = useState(null);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const { speak, stop, speaking } = useSpeech();
+  const [muted, setMuted] = useState(() => {
+    try { return sessionStorage.getItem('immersive-muted') === '1'; } catch { return false; }
+  });
   const [hasSpokenIntro, setHasSpokenIntro] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState({});
   const textareaRef = useRef(null);
 
+  // Persist mute preference
+  const toggleMute = useCallback(() => {
+    setMuted(prev => {
+      const next = !prev;
+      try { sessionStorage.setItem('immersive-muted', next ? '1' : '0'); } catch {}
+      if (next) stop(); // immediately silence when muting
+      return next;
+    });
+  }, [stop]);
+
+  // Gated speak — only narrates when not muted
+  const narrate = useCallback((text) => {
+    if (!muted && text) speak(text);
+  }, [muted, speak]);
+
   // Voice dictation
   const { listening, supported: micSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
     onResult: (text) => setResponseText(text),
   });
 
-  // Narrate world description on entry
+  // Narrate world description on entry (only if not muted)
   useEffect(() => {
-    if (!hasSpokenIntro) {
+    if (!hasSpokenIntro && !muted) {
       const timer = setTimeout(() => {
-        speak('Welcome to your world. Look around and tap a hotspot to begin.');
+        narrate('Welcome to your world. Look around and tap a hotspot to begin.');
         setHasSpokenIntro(true);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [hasSpokenIntro, speak]);
+  }, [hasSpokenIntro, muted, narrate]);
 
   // Reset response text when switching stages
   useEffect(() => {
@@ -59,13 +77,12 @@ export default function ImmersiveWorldView({
     if (stage && stage.status !== 'locked') {
       setSelectedStage(stage);
       onStageSelect?.(stage.id);
-      // Narrate the stage
       stop();
       if (stage.description) {
-        setTimeout(() => speak(stage.title + '. ' + stage.description), 300);
+        setTimeout(() => narrate(stage.title + '. ' + stage.description), 300);
       }
     }
-  }, [stages, onStageSelect, speak, stop]);
+  }, [stages, onStageSelect, narrate, stop]);
 
   const handleSubmitResponse = useCallback(async () => {
     if (!responseText.trim() || !selectedStage || submitting) return;
@@ -77,13 +94,13 @@ export default function ImmersiveWorldView({
       if (listening) stopListening();
       // Voice feedback
       stop();
-      setTimeout(() => speak('Nice work! Your response has been saved.'), 200);
+      setTimeout(() => narrate('Nice work! Your response has been saved.'), 200);
     } catch (err) {
       console.error('Immersive submission error:', err);
     } finally {
       setSubmitting(false);
     }
-  }, [responseText, selectedStage, submitting, onSubmit, listening, stopListening, stop, speak]);
+  }, [responseText, selectedStage, submitting, onSubmit, listening, stopListening, stop, narrate]);
 
   const toggleMic = useCallback(() => {
     if (listening) {
@@ -180,20 +197,22 @@ export default function ImmersiveWorldView({
         </button>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Voice toggle */}
+          {/* Mute / unmute toggle */}
           <button
-            onClick={() => speaking ? stop() : speak('Look around and tap a hotspot to begin.')}
+            onClick={toggleMute}
+            title={muted ? 'Turn narration on' : 'Turn narration off'}
             style={{
               pointerEvents: 'auto',
               width: 36, height: 36, borderRadius: '50%',
-              background: speaking ? 'var(--compass-gold)' : 'rgba(0,0,0,0.6)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              color: speaking ? 'var(--ink)' : 'white',
+              background: muted ? 'rgba(0,0,0,0.6)' : speaking ? 'var(--compass-gold)' : 'rgba(0,0,0,0.6)',
+              border: muted ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.2)',
+              color: muted ? 'rgba(255,255,255,0.4)' : speaking ? 'var(--ink)' : 'white',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               backdropFilter: 'blur(8px)',
+              transition: 'all 200ms',
             }}
           >
-            {speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
           </button>
 
           {/* XP display */}
