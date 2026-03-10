@@ -3072,14 +3072,25 @@ export default function StudentQuestPage() {
               const op = await ai.pollMarbleStatus(result.operationId);
               if (op.done && !op.error) {
                 const world = op.response;
+                const plusPano = world.assets?.imagery?.pano_url;
+                const plusThumb = world.assets?.thumbnail_url;
                 await supabase.from('quests').update({
                   marble_world_url: world.world_marble_url,
                   marble_world_id: world.id,
                   marble_model: 'Marble 0.1-plus',
-                  marble_pano_url: world.assets?.imagery?.pano_url,
-                  marble_thumbnail_url: world.assets?.thumbnail_url,
+                  marble_pano_url: plusPano,
+                  marble_thumbnail_url: plusThumb,
                 }).eq('id', quest.id);
-                console.log('Marble Plus upgrade complete');
+                // Update local state so the immersive view swaps to the higher-res pano
+                setQuest(prev => prev ? {
+                  ...prev,
+                  marble_world_url: world.world_marble_url,
+                  marble_world_id: world.id,
+                  marble_model: 'Marble 0.1-plus',
+                  marble_pano_url: plusPano || prev.marble_pano_url,
+                  marble_thumbnail_url: plusThumb || prev.marble_thumbnail_url,
+                } : prev);
+                console.log('Marble Plus upgrade complete — UI updated');
                 return;
               }
               if (!op.done) setTimeout(poll, 10000);

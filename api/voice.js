@@ -52,7 +52,11 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('ElevenLabs error:', response.status, errorText);
-      return res.status(500).json({ error: 'ElevenLabs API request failed' });
+      return res.status(response.status).json({
+        error: 'ElevenLabs API request failed',
+        status: response.status,
+        detail: errorText.slice(0, 200),
+      });
     }
 
     const arrayBuffer = await response.arrayBuffer();

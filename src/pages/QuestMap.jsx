@@ -1862,7 +1862,7 @@ export default function QuestMap() {
             sceneUrl={quest.marble_pano_url || quest.marble_thumbnail_url || quest.world_scene_url}
             hotspots={quest.world_hotspots || []}
             stages={stages}
-            onClose={() => setImmersiveMode(false)}
+            onExit={() => setImmersiveMode(false)}
           />
         </Suspense>
       )}
