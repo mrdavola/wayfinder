@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Star } from 'lucide-react';
 import { rewardItems, inventory, tokens } from '../../lib/api';
 import { STBadge } from '../../components/xp/STBadge';
+import { getStudentSession } from '../../lib/studentSession';
 import './ShopPage.css';
 
 const TABS = [
@@ -18,18 +19,18 @@ export default function ShopPage() {
   const [ownedSlugs, setOwnedSlugs] = useState(new Set());
   const [balance, setBalance] = useState(0);
   const [buying, setBuying] = useState(null);
-  const studentProfile = JSON.parse(sessionStorage.getItem('student_profile') || 'null');
+  const session = getStudentSession();
 
   useEffect(() => {
-    if (!studentProfile?.id) return;
+    if (!session?.studentId) return;
     loadData();
   }, []);
 
   async function loadData() {
     const [allItems, inv, bal] = await Promise.all([
       rewardItems.getAll(),
-      inventory.getForStudent(studentProfile.id),
-      tokens.getBalance(studentProfile.id),
+      inventory.getForStudent(session.studentId),
+      tokens.getBalance(session.studentId),
     ]);
     setItems(allItems);
     setOwnedSlugs(new Set(inv.map(i => i.item_slug)));
@@ -43,7 +44,7 @@ export default function ShopPage() {
     if (balance < item.st_cost) return;
     setBuying(item.slug);
     try {
-      const result = await inventory.buyItem(studentProfile.id, item.slug, item.st_cost);
+      const result = await inventory.buyItem(session.studentId, item.slug, item.st_cost);
       if (result.error) {
         alert(result.error);
         return;
@@ -57,7 +58,7 @@ export default function ShopPage() {
     }
   }
 
-  if (!studentProfile) {
+  if (!session?.studentId) {
     return <div className="shop-page"><p>Please sign in as a student first.</p></div>;
   }
 

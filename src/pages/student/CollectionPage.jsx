@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import { rewardItems, inventory } from '../../lib/api';
+import { getStudentSession } from '../../lib/studentSession';
 import './CollectionPage.css';
 
 const CATEGORIES = [
@@ -16,17 +17,17 @@ export default function CollectionPage() {
   const [allItems, setAllItems] = useState([]);
   const [ownedMap, setOwnedMap] = useState({});
   const [activeSlugs, setActiveSlugs] = useState(new Set());
-  const studentProfile = JSON.parse(sessionStorage.getItem('student_profile') || 'null');
+  const session = getStudentSession();
 
   useEffect(() => {
-    if (!studentProfile?.id) return;
+    if (!session?.studentId) return;
     loadData();
   }, []);
 
   async function loadData() {
     const [items, inv] = await Promise.all([
       rewardItems.getAll(),
-      inventory.getForStudent(studentProfile.id),
+      inventory.getForStudent(session.studentId),
     ]);
     setAllItems(items);
     const owned = {};
@@ -41,14 +42,14 @@ export default function CollectionPage() {
 
   async function handleSetActive(item) {
     if (!ownedMap[item.slug]) return;
-    await inventory.setActive(studentProfile.id, item.slug, item.category);
+    await inventory.setActive(session.studentId, item.slug, item.category);
     const newActive = new Set(activeSlugs);
     allItems.filter(i => i.category === item.category).forEach(i => newActive.delete(i.slug));
     newActive.add(item.slug);
     setActiveSlugs(newActive);
   }
 
-  if (!studentProfile) {
+  if (!session?.studentId) {
     return <div className="collection-page"><p>Please sign in as a student first.</p></div>;
   }
 

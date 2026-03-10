@@ -2580,7 +2580,7 @@ export const tokens = {
       .from('student_tokens')
       .select('balance, total_earned')
       .eq('student_id', studentId)
-      .single();
+      .maybeSingle();
     return data || { balance: 0, total_earned: 0 };
   },
 
