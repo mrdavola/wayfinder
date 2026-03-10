@@ -3868,6 +3868,14 @@ export default function StudentQuestPage() {
                 }
               }}
               onExit={() => setImmersiveMode(false)}
+              onGoToStage={(stageId) => {
+                setImmersiveMode(false);
+                setActiveCard(stageId);
+                // Scroll to the stage card after exiting immersive mode
+                setTimeout(() => {
+                  document.getElementById(`stage-${stageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+              }}
               isMobile={isMobile}
               studentName={studentName}
               xp={xpData?.total_points}
