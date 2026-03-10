@@ -373,30 +373,34 @@ export default function ImmersiveWorldView({
                     </span>
                   </div>
                 </div>
-              ) : (isActive && (onSubmit || onGoToStage)) ? (
-                <button
-                  onClick={() => {
-                    stop();
-                    if (onGoToStage) {
-                      onGoToStage(selectedStage.id);
-                    } else {
-                      onExit?.();
-                    }
-                  }}
-                  style={{
-                    width: '100%', padding: '12px 18px', borderRadius: 10,
-                    border: 'none', background: 'var(--field-green)', color: 'white',
-                    fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', gap: 8,
-                    transition: 'opacity 150ms',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                >
-                  Start Challenge <ArrowRight size={15} />
-                </button>
               ) : null}
+
+              {/* Go to stage button — always visible for any non-locked stage */}
+              <button
+                onClick={() => {
+                  stop();
+                  if (onGoToStage) {
+                    onGoToStage(selectedStage.id);
+                  } else {
+                    onExit?.();
+                  }
+                }}
+                style={{
+                  width: '100%', padding: '12px 18px', borderRadius: 10,
+                  border: 'none',
+                  background: isActive ? 'var(--field-green)' : 'var(--ink)',
+                  color: 'white',
+                  fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 8,
+                  transition: 'opacity 150ms',
+                  marginTop: 4,
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >
+                {isActive ? 'Start Challenge' : isCompleted ? 'View Stage' : 'Go to Stage'} <ArrowRight size={15} />
+              </button>
             </div>
           </div>
         </>
