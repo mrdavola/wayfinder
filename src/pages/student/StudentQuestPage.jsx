@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
-import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments, buddyPairs, buddyMessages } from '../../lib/api';
+import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments, buddyPairs, buddyMessages, tokens, ST_VALUES, inventory } from '../../lib/api';
 import ExpeditionChallenge from '../../components/gamified/ExpeditionChallenge';
 import ChallengerEncounter from '../../components/gamified/ChallengerEncounter';
 import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
@@ -2931,10 +2931,13 @@ export default function StudentQuestPage() {
       if (result) {
         setXpData(prev => ({ ...prev, total_points: result.total_points, current_rank: result.new_rank, current_streak: result.current_streak }));
         setXpToast({ points: xp.EP_VALUES.stage_complete, rankUp: result.rank_changed, newRank: result.new_rank });
+        // Award Star Tokens for stage completion
+        tokens.award(studentProfile.id, ST_VALUES.stage_complete, 'earn_stage', 'Completed stage').catch(console.error);
         if (result.rank_changed) {
           explorerLog.add(studentProfile.id, 'rank_up',
             `${studentName} reached the rank of ${result.new_rank.replace('_', ' ')}!`
           );
+          tokens.award(studentProfile.id, ST_VALUES.rank_up, 'earn_rankup', `Ranked up to ${result.new_rank}`).catch(console.error);
         }
         explorerLog.add(studentProfile.id, 'stage_complete',
           `${studentName} completed a stage in "${quest.title}"`
@@ -2945,11 +2948,21 @@ export default function StudentQuestPage() {
           explorerLog.add(studentProfile.id, 'badge_earned',
             `${studentName} earned the "${newBadges[0].badges?.name}" badge!`
           );
+          // Award ST for any newly earned badges
+          for (const badge of newBadges) {
+            tokens.award(studentProfile.id, ST_VALUES.badge_earned, 'earn_badge', `Earned badge: ${badge.badges?.name || badge.slug}`).catch(console.error);
+          }
+          // Check for milestone unlocks (companions, titles)
+          const xpResult = await xp.getStudentXP(studentProfile.id);
+          const badgeSlugs = newBadges.map(b => b.slug || b.badge_slug);
+          inventory.checkMilestoneUnlocks(studentProfile.id, xpResult.current_rank, badgeSlugs).catch(console.error);
         }
       }
       // Log if quest completed
       if (allDone) {
         await xp.award(studentProfile.id, 'project_complete', id, null);
+        // Award Star Tokens for project completion
+        tokens.award(studentProfile.id, ST_VALUES.project_complete, 'earn_project', 'Completed project').catch(console.error);
         explorerLog.add(studentProfile.id, 'project_complete', `${studentName} completed "${quest.title}"!`);
       }
     }

@@ -2340,7 +2340,7 @@ export const guidePlaybook = {
 
 // ===================== XP & PROGRESSION =====================
 
-const EP_VALUES = {
+export const EP_VALUES = {
   stage_complete: 50,
   quality_bonus_min: 10,
   quality_bonus_max: 30,
@@ -2349,6 +2349,16 @@ const EP_VALUES = {
   peer_help: 15,
   project_complete: 200,
   streak_bonus: 10,
+};
+
+export const ST_VALUES = {
+  stage_complete: 5,
+  project_complete: 25,
+  skill_node: 3,
+  skill_tree: 15,
+  badge_earned: 10,
+  rank_up: 20,
+  streak_7day: 10,
 };
 
 const RANK_THRESHOLDS = [
@@ -2560,6 +2570,212 @@ export const explorerLog = {
       .from('explorer_log')
       .insert({ student_id: studentId, event_type: eventType, message });
     if (error) { console.error('Add log error:', error); }
+  },
+};
+
+// ── Star Tokens ──────────────────────────────────────────
+export const tokens = {
+  async getBalance(studentId) {
+    const { data } = await supabase
+      .from('student_tokens')
+      .select('balance, total_earned')
+      .eq('student_id', studentId)
+      .single();
+    return data || { balance: 0, total_earned: 0 };
+  },
+
+  async award(studentId, amount, eventType, description = null, itemSlug = null) {
+    const { data, error } = await supabase.rpc('award_tokens', {
+      p_student_id: studentId,
+      p_amount: amount,
+      p_event_type: eventType,
+      p_description: description,
+      p_item_slug: itemSlug,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async spend(studentId, amount, itemSlug) {
+    const { data, error } = await supabase.rpc('spend_tokens', {
+      p_student_id: studentId,
+      p_amount: amount,
+      p_item_slug: itemSlug,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async getHistory(studentId, limit = 20) {
+    const { data } = await supabase
+      .from('token_events')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return data || [];
+  },
+};
+
+// ── Reward Items Catalog ─────────────────────────────────
+export const rewardItems = {
+  async getAll() {
+    const { data } = await supabase
+      .from('reward_items')
+      .select('*')
+      .order('sort_order');
+    return data || [];
+  },
+
+  async getByCategory(category) {
+    const { data } = await supabase
+      .from('reward_items')
+      .select('*')
+      .eq('category', category)
+      .order('sort_order');
+    return data || [];
+  },
+};
+
+// ── Student Inventory ────────────────────────────────────
+export const inventory = {
+  async getForStudent(studentId) {
+    const { data } = await supabase
+      .from('student_inventory')
+      .select('*, reward_items(*)')
+      .eq('student_id', studentId)
+      .order('acquired_at', { ascending: false });
+    return data || [];
+  },
+
+  async setActive(studentId, itemSlug, category) {
+    // Deactivate all items in category for this student
+    const { data: categoryItems } = await supabase
+      .from('student_inventory')
+      .select('id, item_slug, reward_items(category)')
+      .eq('student_id', studentId);
+
+    const idsToDeactivate = (categoryItems || [])
+      .filter(i => i.reward_items?.category === category)
+      .map(i => i.id);
+
+    if (idsToDeactivate.length > 0) {
+      await supabase
+        .from('student_inventory')
+        .update({ is_active: false })
+        .in('id', idsToDeactivate);
+    }
+
+    // Activate the selected item
+    await supabase
+      .from('student_inventory')
+      .update({ is_active: true })
+      .eq('student_id', studentId)
+      .eq('item_slug', itemSlug);
+  },
+
+  async getActiveItems(studentId) {
+    const { data } = await supabase
+      .from('student_inventory')
+      .select('*, reward_items(*)')
+      .eq('student_id', studentId)
+      .eq('is_active', true);
+    return data || [];
+  },
+
+  async buyItem(studentId, itemSlug, stCost) {
+    return tokens.spend(studentId, stCost, itemSlug);
+  },
+
+  async checkMilestoneUnlocks(studentId, currentRank, earnedBadgeSlugs) {
+    const { data: milestoneItems } = await supabase
+      .from('reward_items')
+      .select('*')
+      .not('milestone_type', 'is', null);
+
+    const { data: owned } = await supabase
+      .from('student_inventory')
+      .select('item_slug')
+      .eq('student_id', studentId);
+    const ownedSlugs = new Set((owned || []).map(i => i.item_slug));
+
+    const rankOrder = ['apprentice', 'scout', 'pathfinder', 'trailblazer', 'navigator', 'expedition_leader'];
+    const currentRankIdx = rankOrder.indexOf(currentRank);
+    const newUnlocks = [];
+
+    for (const item of (milestoneItems || [])) {
+      if (ownedSlugs.has(item.slug)) continue;
+
+      let unlocked = false;
+      if (item.milestone_type === 'rank') {
+        const requiredIdx = rankOrder.indexOf(item.milestone_value);
+        unlocked = currentRankIdx >= requiredIdx;
+      } else if (item.milestone_type === 'badge') {
+        unlocked = earnedBadgeSlugs.includes(item.milestone_value);
+      }
+
+      if (unlocked) {
+        await supabase
+          .from('student_inventory')
+          .insert({ student_id: studentId, item_slug: item.slug })
+          .select()
+          .single();
+        newUnlocks.push(item);
+      }
+    }
+
+    return newUnlocks;
+  },
+};
+
+// ── Guide Kudos ──────────────────────────────────────────
+export const kudos = {
+  async give(guideId, studentId, epAmount, stAmount, reason) {
+    const { data, error } = await supabase
+      .from('guide_kudos')
+      .insert({ guide_id: guideId, student_id: studentId, ep_amount: epAmount, st_amount: stAmount, reason })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (epAmount > 0) {
+      await supabase.rpc('award_xp', {
+        p_student_id: studentId,
+        p_event_type: 'peer_help',
+        p_points: epAmount,
+        p_metadata: { source: 'guide_kudos', reason },
+      });
+    }
+
+    if (stAmount > 0) {
+      await tokens.award(studentId, stAmount, 'earn_kudos', `Kudos from guide: ${reason}`);
+    }
+
+    await explorerLog.add(studentId, 'badge_earned', `Received kudos: "${reason}" (+${epAmount} EP, +${stAmount} ST)`);
+
+    return data;
+  },
+
+  async getForStudent(studentId, limit = 20) {
+    const { data } = await supabase
+      .from('guide_kudos')
+      .select('*, profiles(display_name)')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return data || [];
+  },
+};
+
+// ── Leaderboard ──────────────────────────────────────────
+export const leaderboard = {
+  async getWeekly(schoolId, limit = 5) {
+    const { data, error } = await supabase.rpc('get_weekly_leaderboard', {
+      p_school_id: schoolId,
+      p_limit: limit,
+    });
+    if (error) throw error;
+    return data || [];
   },
 };
 

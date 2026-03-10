@@ -3,9 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckCircle, Clock, ChevronRight,
   LogOut, Loader2, AlertCircle, Lock, Sparkles, Plus, X, Sliders, GitBranch,
+  ShoppingBag, Trophy, Flame,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { explorerLog, skills as skillsApi, explorations as explorationsApi } from '../../lib/api';
+import { explorerLog, skills as skillsApi, explorations as explorationsApi, xp, tokens, inventory, leaderboard } from '../../lib/api';
+import ExplorerRankBadge from '../../components/xp/ExplorerRankBadge';
+import XPBar from '../../components/xp/XPBar';
+import { STBadge } from '../../components/xp/STBadge';
 import { generateExploration } from '../../lib/explorationPipeline';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
@@ -554,6 +558,11 @@ export default function StudentHome() {
   const [showExploreModal, setShowExploreModal] = useState(false);
   const [prefilledSkill, setPrefilledSkill] = useState('');
   const [studentExplorations, setStudentExplorations] = useState([]);
+  const [xpData, setXpData] = useState(null);
+  const [stBalance, setStBalance] = useState(0);
+  const [activeItems, setActiveItems] = useState([]);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(true);
 
   // PIN-only auth: redirect if no session
   useEffect(() => {
@@ -601,6 +610,27 @@ export default function StudentHome() {
     (async () => {
       const { data } = await explorationsApi.listForStudent(session.studentId);
       setStudentExplorations(data || []);
+    })();
+  }, [session?.studentId]);
+
+  // Load gamification data
+  useEffect(() => {
+    if (!session?.studentId) return;
+    const studentId = session.studentId;
+
+    xp.getStudentXP(studentId).then(setXpData).catch(console.error);
+    tokens.getBalance(studentId).then(d => setStBalance(d.balance)).catch(console.error);
+    inventory.getActiveItems(studentId).then(setActiveItems).catch(console.error);
+
+    (async () => {
+      const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
+      if (student?.school_id) {
+        leaderboard.getWeekly(student.school_id).then(setLeaderboardData).catch(console.error);
+        supabase.from('schools').select('enable_leaderboard').eq('id', student.school_id).single()
+          .then(({ data }) => {
+            if (data) setShowLeaderboard(data.enable_leaderboard !== false);
+          }).catch(console.error);
+      }
     })();
   }, [session?.studentId]);
 
@@ -695,6 +725,52 @@ export default function StudentHome() {
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--graphite)' }}>
             Pick up where you left off or explore what's next.
           </p>
+        </div>
+
+        {/* Explorer Profile Card */}
+        {xpData && (
+          <div style={{
+            background: 'var(--paper)', border: '1.5px solid var(--pencil)',
+            borderRadius: 16, padding: 20, marginBottom: 24,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              {activeItems.find(i => i.reward_items?.category === 'companion') && (
+                <span style={{ fontSize: '1.5rem' }}>
+                  {activeItems.find(i => i.reward_items?.category === 'companion').reward_items.icon}
+                </span>
+              )}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <ExplorerRankBadge rank={xpData.current_rank} size="sm" />
+                  <STBadge balance={stBalance} size="sm" />
+                  {xpData.current_streak > 0 && (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 2,
+                      fontSize: '0.75rem', color: 'var(--specimen-red)', fontWeight: 600,
+                    }}>
+                      <Flame size={14} /> {xpData.current_streak}d streak
+                    </span>
+                  )}
+                </div>
+                {activeItems.find(i => i.reward_items?.category === 'title') && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--graphite)', fontStyle: 'italic', marginTop: 2 }}>
+                    {activeItems.find(i => i.reward_items?.category === 'title').reward_items.name}
+                  </div>
+                )}
+              </div>
+            </div>
+            <XPBar totalPoints={xpData.total_points} currentRank={xpData.current_rank} />
+          </div>
+        )}
+
+        {/* Shop + Collection buttons */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+          <button onClick={() => navigate('/student/shop')} className="btn btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <ShoppingBag size={16} /> Explorer Shop
+          </button>
+          <button onClick={() => navigate('/student/collection')} className="btn btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <Trophy size={16} /> My Collection
+          </button>
         </div>
 
         {/* Create my own project CTA */}
@@ -955,6 +1031,37 @@ export default function StudentHome() {
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', maxWidth: 320, margin: '0 auto', marginBottom: 16 }}>
               Your guide hasn't assigned any projects to you yet — or create your own!
             </p>
+          </div>
+        )}
+
+        {/* Weekly Leaderboard */}
+        {showLeaderboard && leaderboardData.length > 0 && (
+          <div style={{
+            background: 'var(--paper)', border: '1.5px solid var(--pencil)',
+            borderRadius: 16, padding: 20, marginBottom: 24,
+          }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', marginBottom: 12 }}>
+              This Week's Top Explorers
+            </h3>
+            {leaderboardData.map((entry, i) => (
+              <div key={entry.student_id} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0',
+                borderBottom: i < leaderboardData.length - 1 ? '1px solid var(--pencil)' : 'none',
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem',
+                  color: i === 0 ? 'var(--compass-gold)' : 'var(--graphite)', minWidth: 24,
+                }}>
+                  #{i + 1}
+                </span>
+                <span style={{ fontSize: '1.25rem' }}>{entry.student_emoji || '\u{1F9ED}'}</span>
+                <span style={{ flex: 1, fontWeight: 500 }}>{entry.student_name}</span>
+                <ExplorerRankBadge rank={entry.current_rank} size="sm" />
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.8rem', color: 'var(--field-green)' }}>
+                  +{entry.ep_this_week} EP
+                </span>
+              </div>
+            ))}
           </div>
         )}
 

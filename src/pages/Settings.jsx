@@ -335,6 +335,7 @@ export default function SettingsPage() {
   const [location, setLocation] = useState('');
   const [standardsFramework, setStandardsFramework] = useState('common_core');
   const [gradeBands, setGradeBands] = useState([]);
+  const [enableLeaderboard, setEnableLeaderboard] = useState(true);
 
   // ── Avatar upload ──
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -364,6 +365,7 @@ export default function SettingsPage() {
         setLocation(school.location || '');
         setStandardsFramework(school.standards_framework || 'common_core');
         setGradeBands(school.grade_bands || []);
+        setEnableLeaderboard(school.enable_leaderboard ?? true);
       }
     }
   }, [profile]);
@@ -415,7 +417,7 @@ export default function SettingsPage() {
     try {
       const { error } = await supabase
         .from('schools')
-        .update({ name: schoolName, location, standards_framework: standardsFramework, grade_bands: gradeBands })
+        .update({ name: schoolName, location, standards_framework: standardsFramework, grade_bands: gradeBands, enable_leaderboard: enableLeaderboard })
         .eq('id', profile.school_id);
       if (error) throw error;
       await refreshProfile();
@@ -690,6 +692,20 @@ export default function SettingsPage() {
               </label>
             ))}
           </div>
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={enableLeaderboard}
+              onChange={e => setEnableLeaderboard(e.target.checked)}
+            />
+            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Show weekly leaderboard on student home</span>
+          </label>
+          <p style={{ fontSize: '0.75rem', color: 'var(--graphite)', marginTop: 4, marginLeft: 24 }}>
+            When enabled, students see a "This Week's Top Explorers" section on their home page.
+          </p>
         </div>
 
         <div style={S.saveRow}>

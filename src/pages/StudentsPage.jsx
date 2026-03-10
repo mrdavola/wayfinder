@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus, Share2, UserCheck, ExternalLink, RefreshCw } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Check, ChevronLeft, Users, Eye, EyeOff, Copy, Link2, Loader2, Plus, Share2, UserCheck, ExternalLink, RefreshCw, Gift } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { invites as invitesApi, buddyPairs } from '../lib/api';
+import { invites as invitesApi, buddyPairs, xp } from '../lib/api';
+import ExplorerRankBadge from '../components/xp/ExplorerRankBadge';
+import KudosModal from '../components/guide/KudosModal';
 import TopBar from '../components/layout/TopBar';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ function countActiveQuests(student) {
 
 // ── Student Row ───────────────────────────────────────────────────────────────
 
-function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete, onPinRegenerated, pairingMode, selectedForPairing, onTogglePairing, buddyInfo }) {
+function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete, onPinRegenerated, pairingMode, selectedForPairing, onTogglePairing, buddyInfo, xpData, onKudos }) {
   const activeQuestCount = countActiveQuests(student);
 
   if (isEditing) {
@@ -52,11 +54,13 @@ function StudentRow({ student, isEditing, onEdit, onCancelEdit, onSave, onDelete
       selectedForPairing={selectedForPairing}
       onTogglePairing={onTogglePairing}
       buddyInfo={buddyInfo}
+      xpData={xpData}
+      onKudos={onKudos}
     />
   );
 }
 
-function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, onPinRegenerated, pairingMode, selectedForPairing, onTogglePairing, buddyInfo }) {
+function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, onPinRegenerated, pairingMode, selectedForPairing, onTogglePairing, buddyInfo, xpData, onKudos }) {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pinVisible, setPinVisible] = useState(false);
@@ -121,6 +125,14 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, o
             {student.onboarded_at && (
               <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(45,106,79,0.08)', padding: '1px 6px', borderRadius: 4 }}>
                 Onboarded
+              </span>
+            )}
+            {xpData && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+                <ExplorerRankBadge rank={xpData.current_rank} size="sm" />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--graphite)' }}>
+                  {xpData.total_points} EP
+                </span>
               </span>
             )}
             {student.parent_access?.length > 0 && (
@@ -265,6 +277,16 @@ function ViewRow({ student, activeQuestCount, onEdit, onDelete, onShareParent, o
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--graphite)'; e.currentTarget.style.background = 'transparent'; }}
             >
               <Edit2 size={16} />
+            </button>
+            <button
+              style={styles.rowIconBtn}
+              aria-label={`Give kudos to ${student.name}`}
+              title="Give Kudos"
+              onClick={(e) => { e.stopPropagation(); onKudos?.(student); }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--compass-gold)'; e.currentTarget.style.background = 'rgba(184,134,11,0.07)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--graphite)'; e.currentTarget.style.background = 'transparent'; }}
+            >
+              <Gift size={16} />
             </button>
             <button
               style={styles.rowIconBtn}
@@ -760,6 +782,8 @@ export default function StudentsPage() {
   const [pairs, setPairs] = useState([]);
   const [pairingMode, setPairingMode] = useState(false);
   const [selectedForPairing, setSelectedForPairing] = useState([]);
+  const [studentXpMap, setStudentXpMap] = useState({});
+  const [kudosTarget, setKudosTarget] = useState(null);
 
   // Load students
   useEffect(() => {
@@ -795,6 +819,12 @@ export default function StudentsPage() {
       setLoadError(error.message || 'Could not load students.');
     } else {
       setStudents(data || []);
+      // Load XP for all students
+      (data || []).forEach(s => {
+        xp.getStudentXP(s.id).then(xpData => {
+          setStudentXpMap(prev => ({ ...prev, [s.id]: xpData }));
+        }).catch(console.error);
+      });
     }
     setLoading(false);
   }
@@ -996,6 +1026,8 @@ export default function StudentsPage() {
                       else setSelectedForPairing(prev => prev.filter(x => x !== id));
                     }}
                     buddyInfo={getBuddy(student.id)}
+                    xpData={studentXpMap[student.id]}
+                    onKudos={(s) => setKudosTarget(s)}
                   />
                 </div>
               ))}
@@ -1018,6 +1050,18 @@ export default function StudentsPage() {
         </div>
       </main>
 
+      {kudosTarget && (
+        <KudosModal
+          student={kudosTarget}
+          guideId={profile?.id}
+          onClose={() => setKudosTarget(null)}
+          onSuccess={() => {
+            xp.getStudentXP(kudosTarget.id).then(data => {
+              setStudentXpMap(prev => ({ ...prev, [kudosTarget.id]: data }));
+            }).catch(console.error);
+          }}
+        />
+      )}
     </div>
   );
 }

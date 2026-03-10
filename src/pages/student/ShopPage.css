@@ -1,0 +1,46 @@
+.shop-page { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+.shop-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.shop-header h1 { font-family: var(--font-display); font-size: 1.75rem; color: var(--ink); }
+.shop-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+.shop-tab {
+  padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--pencil);
+  background: var(--paper); color: var(--graphite); cursor: pointer;
+  font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+  transition: all 0.2s;
+}
+.shop-tab:hover { border-color: var(--compass-gold); }
+.shop-tab.active { background: var(--compass-gold); color: #78350f; border-color: var(--compass-gold); }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.shop-card {
+  background: var(--paper); border: 1.5px solid var(--pencil); border-radius: 12px;
+  padding: 16px; text-align: center; transition: all 0.2s; position: relative;
+}
+.shop-card:hover { border-color: var(--compass-gold); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.shop-card.owned { opacity: 0.7; }
+.shop-card.locked { opacity: 0.5; }
+.shop-card-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.shop-card-name { font-family: var(--font-display); font-size: 1rem; color: var(--ink); margin-bottom: 4px; }
+.shop-card-desc { font-size: 0.75rem; color: var(--graphite); margin-bottom: 12px; line-height: 1.4; }
+.shop-card-rarity {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;
+}
+.rarity-common { background: #e5e7eb; color: #374151; }
+.rarity-rare { background: #dbeafe; color: #1d4ed8; }
+.rarity-legendary { background: #fef3c7; color: #92400e; }
+.shop-buy-btn {
+  padding: 6px 16px; border-radius: 20px; border: none; cursor: pointer;
+  font-weight: 600; font-size: 0.8rem; transition: all 0.2s;
+  background: var(--compass-gold); color: #78350f;
+}
+.shop-buy-btn:hover { filter: brightness(1.1); }
+.shop-buy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.shop-owned-badge {
+  padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 0.8rem;
+  background: var(--field-green); color: white; display: inline-block;
+}
+.shop-locked-badge {
+  padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 0.75rem;
+  background: var(--pencil); color: var(--graphite); display: inline-flex;
+  align-items: center; gap: 4px;
+}

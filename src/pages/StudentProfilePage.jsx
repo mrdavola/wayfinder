@@ -5,7 +5,11 @@ import ProgressRadar from '../components/ui/ProgressRadar';
 import SkillTreeView from '../components/ui/SkillTreeView';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi, skillAssessments } from '../lib/api';
+import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi, skillAssessments, xp, tokens, badgesApi, inventory, kudos as kudosApi } from '../lib/api';
+import ExplorerRankBadge from '../components/xp/ExplorerRankBadge';
+import XPBar from '../components/xp/XPBar';
+import { STBadge } from '../components/xp/STBadge';
+import BadgeGrid from '../components/xp/BadgeGrid';
 import { STANDARDS_FRAMEWORKS, getStandardsByGradeBand } from '../data/standardsFrameworks';
 import TopBar from '../components/layout/TopBar';
 
@@ -52,6 +56,12 @@ export default function StudentProfilePage() {
   const [skillDeps, setSkillDeps] = useState([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [assessmentData, setAssessmentData] = useState({});
+  const [xpData, setXpData] = useState(null);
+  const [stData, setStData] = useState({ balance: 0, total_earned: 0 });
+  const [allBadges, setAllBadges] = useState([]);
+  const [earnedBadges, setEarnedBadges] = useState([]);
+  const [activeItems, setActiveItems] = useState([]);
+  const [kudosHistory, setKudosHistory] = useState([]);
 
   useEffect(() => {
     if (id && user) loadAll();
@@ -124,6 +134,14 @@ export default function StudentProfilePage() {
     // Load project ideas
     const { data: ideas } = await suggestionsApi.list(id);
     if (ideas) setProjectIdeas(ideas);
+
+    // Load gamification data
+    xp.getStudentXP(id).then(setXpData).catch(console.error);
+    tokens.getBalance(id).then(setStData).catch(console.error);
+    badgesApi.getAll().then(setAllBadges).catch(console.error);
+    badgesApi.getStudentBadges(id).then(setEarnedBadges).catch(console.error);
+    inventory.getActiveItems(id).then(setActiveItems).catch(console.error);
+    kudosApi.getForStudent(id).then(setKudosHistory).catch(console.error);
 
     setLoading(false);
   }
@@ -927,6 +945,67 @@ export default function StudentProfilePage() {
                 </p>
               )}
             </section>
+          )}
+
+          {/* ── Explorer Progress ─────────────────────────────────────── */}
+          {xpData && (
+            <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', marginBottom: 16 }}>
+                Explorer Progress
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+                <ExplorerRankBadge rank={xpData.current_rank} />
+                <STBadge balance={stData.balance} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--graphite)' }}>
+                  {xpData.total_points} EP total
+                </span>
+              </div>
+              <XPBar totalPoints={xpData.total_points} currentRank={xpData.current_rank} />
+
+              <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: '0.875rem', color: 'var(--graphite)', flexWrap: 'wrap' }}>
+                {activeItems.find(i => i.reward_items?.category === 'companion') && (
+                  <span>
+                    Companion: {activeItems.find(i => i.reward_items?.category === 'companion').reward_items.icon}{' '}
+                    {activeItems.find(i => i.reward_items?.category === 'companion').reward_items.name}
+                  </span>
+                )}
+                {activeItems.find(i => i.reward_items?.category === 'title') && (
+                  <span>Title: {activeItems.find(i => i.reward_items?.category === 'title').reward_items.name}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Badges ─────────────────────────────────────────────────── */}
+          {allBadges.length > 0 && (
+            <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', marginBottom: 16 }}>
+                Badges ({earnedBadges.length} / {allBadges.length})
+              </h3>
+              <BadgeGrid allBadges={allBadges} earnedBadges={earnedBadges} />
+            </div>
+          )}
+
+          {/* ── Recent Kudos ───────────────────────────────────────────── */}
+          {kudosHistory.length > 0 && (
+            <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', marginBottom: 16 }}>
+                Recent Kudos
+              </h3>
+              {kudosHistory.slice(0, 5).map(k => (
+                <div key={k.id} style={{
+                  padding: '8px 0', borderBottom: '1px solid var(--pencil)',
+                  fontSize: '0.875rem',
+                }}>
+                  <span style={{ fontWeight: 600 }}>{k.profiles?.display_name || 'Guide'}</span>
+                  {' — '}
+                  <span style={{ color: 'var(--graphite)' }}>{k.reason}</span>
+                  <span style={{ float: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                    +{k.ep_amount} EP, +{k.st_amount} ST
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* ── Parent Info ──────────────────────────────────────────── */}

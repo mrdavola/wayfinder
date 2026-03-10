@@ -25,6 +25,8 @@ const StudentHome = lazy(() => import('./pages/student/StudentHome'));
 const StudentProjectBuilder = lazy(() => import('./pages/student/StudentProjectBuilder'));
 const LearnerIntakeForm = lazy(() => import('./pages/student/LearnerIntakeForm'));
 const ExploreSkillPage = lazy(() => import('./pages/student/ExploreSkillPage'));
+const ShopPage = lazy(() => import('./pages/student/ShopPage'));
+const CollectionPage = lazy(() => import('./pages/student/CollectionPage'));
 const StudentProfilePage = lazy(() => import('./pages/StudentProfilePage'));
 const GroupBuilderPage = lazy(() => import('./pages/GroupBuilderPage'));
 const ParentDashboard = lazy(() => import('./pages/parent/ParentDashboard'));
@@ -66,6 +68,8 @@ export default function App() {
             <Route path="/student" element={<StudentHome />} />
             <Route path="/student/project/new" element={<StudentProjectBuilder />} />
             <Route path="/student/explore/:explorationId" element={<ExploreSkillPage />} />
+            <Route path="/student/shop" element={<ShopPage />} />
+            <Route path="/student/collection" element={<CollectionPage />} />
 
             {/* Career Explorer */}
             <Route path="/careers/:studentId" element={<CareerExplorer />} />

@@ -13,7 +13,8 @@ import {
   ArrowLeft, Lock, Check, Play, BookOpen, Target,
   Send, Loader2, Award, ChevronRight, X, Sparkles,
 } from 'lucide-react';
-import { explorations, ai, skills as skillsApi, skillSnapshots } from '../../lib/api';
+import { explorations, ai, skills as skillsApi, skillSnapshots, xp, tokens, ST_VALUES, badgesApi, inventory } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { getStudentSession } from '../../lib/studentSession';
 import ScoreCard, { MASTERY_THRESHOLD } from '../../components/ui/ScoreCard';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
@@ -227,6 +228,16 @@ export default function ExploreSkillPage() {
 
       setNodes(updatedNodes);
 
+      // Award EP + ST for skill node completion
+      if (session?.studentId) {
+        supabase.rpc('award_xp', {
+          p_student_id: session.studentId,
+          p_event_type: 'skill_node',
+          p_points: 30,
+        }).catch(console.error);
+        tokens.award(session.studentId, ST_VALUES.skill_node, 'earn_skill_node', `Completed skill node: ${selectedNode.title || selectedNode.label}`).catch(console.error);
+      }
+
       // 3. Check if all non-root nodes are completed
       const allDone = updatedNodes
         .filter(n => n.node_type !== 'root')
@@ -250,6 +261,24 @@ export default function ExploreSkillPage() {
 
     // Mark exploration as completed
     await explorations.complete(explorationId);
+
+    // Award EP + ST for skill tree completion
+    if (session?.studentId) {
+      supabase.rpc('award_xp', {
+        p_student_id: session.studentId,
+        p_event_type: 'skill_tree',
+        p_points: 100,
+      }).catch(console.error);
+      tokens.award(session.studentId, ST_VALUES.skill_tree, 'earn_skill_tree', 'Completed skill tree').catch(console.error);
+
+      // Check for badges and milestone unlocks
+      const newBadges = await badgesApi.checkAndAward(session.studentId);
+      if (newBadges?.length > 0) {
+        for (const badge of newBadges) {
+          tokens.award(session.studentId, ST_VALUES.badge_earned, 'earn_badge', `Earned badge: ${badge.name || badge.slug}`).catch(console.error);
+        }
+      }
+    }
 
     if (!session?.studentId || !exploration?.skill_id) return;
 
