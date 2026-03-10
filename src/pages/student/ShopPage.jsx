@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Star } from 'lucide-react';
 import { rewardItems, inventory, tokens } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { STBadge } from '../../components/xp/STBadge';
 import { getStudentSession } from '../../lib/studentSession';
 import './ShopPage.css';
@@ -41,15 +42,23 @@ export default function ShopPage() {
 
   async function handleBuy(item) {
     if (buying || ownedSlugs.has(item.slug)) return;
-    if (balance < item.st_cost) return;
+    const cost = item.st_cost || 0;
+    if (balance < cost) return;
     setBuying(item.slug);
     try {
-      const result = await inventory.buyItem(session.studentId, item.slug, item.st_cost);
-      if (result.error) {
-        alert(result.error);
-        return;
+      if (cost === 0) {
+        // Free item — just add to inventory directly
+        await supabase.from('student_inventory')
+          .insert({ student_id: session.studentId, item_slug: item.slug })
+          .select().single();
+      } else {
+        const result = await inventory.buyItem(session.studentId, item.slug, cost);
+        if (result.error) {
+          alert(result.error);
+          return;
+        }
+        setBalance(result.balance);
       }
-      setBalance(result.balance);
       setOwnedSlugs(prev => new Set([...prev, item.slug]));
     } catch (err) {
       console.error('Purchase failed:', err);
@@ -85,6 +94,7 @@ export default function ShopPage() {
       <div className="shop-grid">
         {filtered.map(item => {
           const owned = ownedSlugs.has(item.slug);
+          const isFree = !item.st_cost && !item.milestone_type;
           const locked = !item.st_cost && item.milestone_type;
           const tooExpensive = item.st_cost && balance < item.st_cost;
 
@@ -110,8 +120,14 @@ export default function ShopPage() {
                   onClick={() => handleBuy(item)}
                   disabled={tooExpensive || buying === item.slug}
                 >
-                  <Star size={12} fill="#78350f" style={{ marginRight: 4, verticalAlign: -1 }} />
-                  {buying === item.slug ? '...' : item.st_cost}
+                  {isFree ? (
+                    buying === item.slug ? '...' : 'Free'
+                  ) : (
+                    <>
+                      <Star size={12} fill="#78350f" style={{ marginRight: 4, verticalAlign: -1 }} />
+                      {buying === item.slug ? '...' : item.st_cost}
+                    </>
+                  )}
                 </button>
               )}
             </div>
