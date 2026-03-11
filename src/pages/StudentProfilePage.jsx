@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase, Map, Target } from 'lucide-react';
-import ProgressRadar from '../components/ui/ProgressRadar';
 import SkillTreeView from '../components/ui/SkillTreeView';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -28,6 +27,116 @@ const PROFICIENCY_COLORS = {
   advanced: { bg: '#E0E7FF', text: '#3730A3', label: 'Advanced' },
 };
 
+const PROFICIENCY_ORDER = { advanced: 4, proficient: 3, developing: 2, emerging: 1, none: 0 };
+
+const BAR_COLORS = {
+  emerging: '#FEF3C7',
+  developing: '#DBEAFE',
+  proficient: '#D1FAE5',
+  advanced: '#E0E7FF',
+};
+
+function ratingToLevel(rating) {
+  if (rating >= 4) return 'advanced';
+  if (rating >= 3) return 'proficient';
+  if (rating >= 2) return 'developing';
+  if (rating >= 1) return 'emerging';
+  return 'none';
+}
+
+function SkillProgressBars({ assessments, studentSkills }) {
+  // Merge assessments and studentSkills into a unified skill list
+  const skillMap = {};
+
+  // From assessments (grouped by skill name)
+  Object.entries(assessments || {}).forEach(([name, info]) => {
+    const rating = info.latest?.rating || 0;
+    skillMap[name] = {
+      label: name,
+      rating,
+      level: ratingToLevel(rating),
+      evidenceCount: info.history?.length || 0,
+    };
+  });
+
+  // From studentSkills — only add if not already present from assessments
+  (studentSkills || []).forEach(s => {
+    const name = s.skill_name || s.name;
+    if (!name) return;
+    if (!skillMap[name]) {
+      skillMap[name] = {
+        label: name,
+        rating: s.current_level || 0,
+        level: ratingToLevel(s.current_level || 0),
+        evidenceCount: 0,
+      };
+    }
+  });
+
+  const skills = Object.values(skillMap)
+    .filter(s => s.rating > 0)
+    .sort((a, b) => b.rating - a.rating || a.label.localeCompare(b.label));
+
+  if (skills.length === 0) {
+    return (
+      <div style={{
+        background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 14,
+        padding: '24px 16px', textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>
+          No progress data yet
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--graphite)', margin: 0, lineHeight: 1.5, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
+          Skill progress bars will appear as this learner completes project stages and receives feedback.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: 'var(--chalk)', border: '1px solid var(--pencil)', borderRadius: 14,
+      padding: '16px 20px',
+    }}>
+      {skills.map((skill) => {
+        const percentage = Math.round((skill.rating / 4) * 100);
+        const color = BAR_COLORS[skill.level] || 'var(--parchment)';
+        const levelInfo = PROFICIENCY_COLORS[skill.level] || PROFICIENCY_COLORS.none;
+
+        return (
+          <div key={skill.label} style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span style={{ width: 140, fontSize: '0.85rem', fontWeight: 500, color: 'var(--ink)', flexShrink: 0 }}>
+                {skill.label}
+              </span>
+              <div style={{ flex: 1, height: 10, background: 'var(--parchment)', borderRadius: 5, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${percentage}%`, height: '100%', background: color,
+                  borderRadius: 5, transition: 'width 0.5s ease',
+                }} />
+              </div>
+              <span style={{
+                fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: 8,
+                background: levelInfo.bg, color: levelInfo.text, whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
+                {levelInfo.label}
+              </span>
+              <span style={{ width: 40, fontSize: '0.8rem', color: 'var(--graphite)', textAlign: 'right', flexShrink: 0 }}>
+                {percentage}%
+              </span>
+            </div>
+            {skill.evidenceCount > 0 && (
+              <div style={{ marginLeft: 156, marginTop: 2, fontSize: '0.7rem', color: 'var(--pencil)' }}>
+                Evidence from {skill.evidenceCount} {skill.evidenceCount === 1 ? 'submission' : 'submissions'}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function StudentProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -51,7 +160,7 @@ export default function StudentProfilePage() {
   const [stdAiResults, setStdAiResults] = useState(null);
   const [stdInitLoading, setStdInitLoading] = useState(false);
   const [projectIdeas, setProjectIdeas] = useState([]);
-  const [profileView, setProfileView] = useState('radar');
+  const [profileView, setProfileView] = useState('bars');
   const [allSkills, setAllSkills] = useState([]);
   const [skillDeps, setSkillDeps] = useState([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
@@ -178,7 +287,7 @@ export default function StudentProfilePage() {
   async function handleAcceptRec(rec) {
     await recsApi.updateStatus(rec.id, 'accepted');
 
-    // Save recommended skills to student_skills so they show on the radar
+    // Save recommended skills to student_skills so they show in progress bars
     const content = rec.content || {};
     const allRecSkills = [
       ...(content.core_focus || []).map(s => s.skill),
@@ -457,7 +566,7 @@ export default function StudentProfilePage() {
                   Progress
                 </h2>
                 <div style={{ display: 'flex', background: T.parchment, borderRadius: 8, padding: 2 }}>
-                  {['radar', 'tree'].map(v => (
+                  {['bars', 'tree'].map(v => (
                     <button
                       key={v}
                       onClick={() => setProfileView(v)}
@@ -470,7 +579,7 @@ export default function StudentProfilePage() {
                         fontFamily: 'var(--font-body)',
                       }}
                     >
-                      {v === 'radar' ? 'Radar' : 'Skill Tree'}
+                      {v === 'bars' ? 'Progress' : 'Skill Tree'}
                     </button>
                   ))}
                 </div>
@@ -482,12 +591,10 @@ export default function StudentProfilePage() {
                 View full Mastery Map &rarr;
               </Link>
             </div>
-            {profileView === 'radar' ? (
-              <ProgressRadar
+            {profileView === 'bars' ? (
+              <SkillProgressBars
                 assessments={assessmentData}
                 studentSkills={studentSkills}
-                learningOutcomes={parentInfo?.learning_outcomes || []}
-                compact
               />
             ) : (
               <SkillTreeView
