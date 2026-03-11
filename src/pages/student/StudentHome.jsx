@@ -1,3 +1,6 @@
+// DEPRECATED: Replaced by CampHub.jsx as of 2026-03-10 World Engine redesign
+// Keeping for rollback. Remove after World Engine is stable.
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
