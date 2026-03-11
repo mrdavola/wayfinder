@@ -2,10 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Compass, MessageCircle, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { xp } from '../../lib/api';
 import { blueprintToCSSVars, AMBIENT_PRESETS, getParticleCSS } from '../../lib/worldEngine';
 import { getStudentSession } from '../../lib/studentSession';
 import useAmbientSound from '../../hooks/useAmbientSound';
 import WorldChat from '../../components/world/WorldChat';
+import XPToast from '../../components/xp/XPToast';
+import ExplorerRankBadge from '../../components/xp/ExplorerRankBadge';
 
 // Map blueprint ambientAudio presets → useAmbientSound sound types
 const PRESET_TO_SOUND = {
@@ -127,7 +130,7 @@ function AtmosphereLayer({ particleType }) {
 }
 
 // ===================== WORLD TOP BAR =====================
-function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studentSession, onNavigate, audioEnabled, onToggleAudio }) {
+function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studentSession, onNavigate, audioEnabled, onToggleAudio, xpData }) {
   const navigate = useNavigate();
 
   return (
@@ -228,7 +231,7 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
         })}
       </div>
 
-      {/* Student name + XP placeholder */}
+      {/* Student name + rank badge */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         color: 'var(--world-text, #f0f0f0)',
@@ -238,13 +241,14 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
           <span style={{ fontSize: 18 }}>{studentSession.avatarEmoji}</span>
         )}
         <span style={{ fontWeight: 500 }}>{studentSession?.studentName || 'Explorer'}</span>
+        <ExplorerRankBadge rank={xpData?.current_rank || 'apprentice'} size="sm" showLabel={false} />
         <span style={{
           padding: '2px 8px', borderRadius: 10,
           background: 'rgba(255,255,255,0.1)',
           fontSize: 11, fontFamily: 'var(--font-mono)',
           color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
         }}>
-          — XP
+          {xpData?.total_points || 0} EP
         </span>
       </div>
     </div>
@@ -470,6 +474,8 @@ export default function WorldRenderer() {
   const [error, setError] = useState(null);
   const [studentSession, setStudentSessionState] = useState(null);
   const [showChat, setShowChat] = useState(false);
+  const [xpData, setXpData] = useState(null);
+  const [xpToast, setXpToast] = useState({ show: false, points: 0, rankUp: false, newRank: null });
   const [transitionText, setTransitionText] = useState('');
   // Transition phases: 'hidden' → 'fade-out' → 'narrative' → 'fade-in' → 'hidden'
   const [transitionPhase, setTransitionPhase] = useState('hidden');
@@ -477,10 +483,13 @@ export default function WorldRenderer() {
   // Ambient sound
   const { enabled: audioEnabled, toggle: toggleAudio, play: playSound, stop: stopSound } = useAmbientSound();
 
-  // Load student session
+  // Load student session + XP data
   useEffect(() => {
     const session = getStudentSession();
     setStudentSessionState(session);
+    if (session?.studentId) {
+      xp.getStudentXP(session.studentId).then(data => setXpData(data));
+    }
   }, []);
 
   // Load quest data
@@ -673,6 +682,7 @@ export default function WorldRenderer() {
         onNavigate={handleNavigate}
         audioEnabled={audioEnabled}
         onToggleAudio={toggleAudio}
+        xpData={xpData}
       />
 
       {/* Layer 2: Location content */}
@@ -693,6 +703,16 @@ export default function WorldRenderer() {
       {/* Transition overlay */}
       <TransitionOverlay text={transitionText} phase={transitionPhase} />
 
+      {/* XP Toast */}
+      {xpToast.show && (
+        <XPToast
+          points={xpToast.points}
+          rankUp={xpToast.rankUp}
+          newRank={xpToast.newRank}
+          onDone={() => setXpToast({ show: false, points: 0, rankUp: false, newRank: null })}
+        />
+      )}
+
       {/* Layer 3: Chat panel */}
       {showChat && (
         <WorldChat
@@ -701,9 +721,25 @@ export default function WorldRenderer() {
           blueprint={blueprint}
           studentSession={studentSession}
           onClose={() => setShowChat(false)}
-          onStageComplete={() => {
-            // Reload quest data after stage completion
+          onStageComplete={async () => {
             setShowChat(false);
+            // Award XP for stage completion
+            const studentId = studentSession?.studentId;
+            const stageId = currentStage?.id;
+            if (studentId) {
+              const oldRank = xpData?.current_rank || 'apprentice';
+              const result = await xp.award(studentId, 'stage_complete', questId, stageId);
+              const updatedXP = await xp.getStudentXP(studentId);
+              setXpData(updatedXP);
+              const newRank = updatedXP?.current_rank || 'apprentice';
+              const rankUp = newRank !== oldRank;
+              setXpToast({
+                show: true,
+                points: result?.points || 50,
+                rankUp,
+                newRank: rankUp ? newRank : null,
+              });
+            }
           }}
         />
       )}
