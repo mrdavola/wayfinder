@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Paperclip, Mic, Award } from 'lucide-react';
+import { X, Send, Plus, FileUp, Camera, Mic, Square, Award } from 'lucide-react';
 import { ai, guideMessages, submissionFeedback } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 
@@ -157,6 +157,9 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   const inputRef = useRef(null);
   const initRef = useRef(false);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   // Task 10: Challenger state
   const [challengerActive, setChallengerActive] = useState(false);
@@ -167,6 +170,18 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   const [submissionMode, setSubmissionMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+
+  // Attachment menu + recording state
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+
+  // Close attach menu on outside click
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const close = () => setAttachMenuOpen(false);
+    const timer = setTimeout(() => document.addEventListener('click', close), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+  }, [attachMenuOpen]);
 
   const mentor = blueprint?.mentor || {};
   const mentorName = mentor.name || 'Mentor';
@@ -386,6 +401,47 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
     }
 
     setAttachedFile(file);
+  }, []);
+
+  const handleCameraCapture = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 52428800) {
+      alert('File is too large. Maximum size is 50MB.');
+      return;
+    }
+    setAttachedFile(file);
+    setAttachMenuOpen(false);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' });
+        setAttachedFile(file);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+      setAttachMenuOpen(false);
+    } catch (err) {
+      alert('Could not access microphone. Please allow microphone access and try again.');
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setRecording(false);
   }, []);
 
   const uploadFile = useCallback(async (file) => {
@@ -928,9 +984,11 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
               fontFamily: 'var(--font-mono)',
               color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
             }}>
-              <Paperclip size={12} />
+              {attachedFile.type?.startsWith('audio') ? <Mic size={12} />
+                : attachedFile.type?.startsWith('image') || attachedFile.type?.startsWith('video') ? <Camera size={12} />
+                : <FileUp size={12} />}
               <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {attachedFile.name}
+                {attachedFile.type?.startsWith('audio') ? 'Voice recording' : attachedFile.name}
               </span>
               <button
                 onClick={() => setAttachedFile(null)}
@@ -946,63 +1004,126 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
             </div>
           )}
 
+          {/* Hidden file inputs */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+            accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.txt,.pptx,.xlsx"
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            style={{ display: 'none' }}
+            accept="image/*,video/*"
+            capture="environment"
+            onChange={handleCameraCapture}
+          />
+
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-            {/* Attachment + mic buttons in submission mode */}
-            {submissionMode && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  style={{ display: 'none' }}
-                  onChange={handleFileSelect}
-                  accept="image/*,application/pdf,.doc,.docx,.txt,.pptx,.xlsx"
-                />
+            {/* + button with attachment menu */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              {recording ? (
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={stopRecording}
+                  title="Stop recording"
+                  style={{
+                    width: isMobile ? 44 : 36, height: isMobile ? 44 : 36,
+                    borderRadius: 8,
+                    border: '1px solid rgba(231,76,60,0.4)',
+                    background: 'rgba(231,76,60,0.15)',
+                    color: '#e74c3c',
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    animation: 'world-chat-dot 1.4s ease-in-out infinite',
+                  }}
+                >
+                  <Square size={14} fill="#e74c3c" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setAttachMenuOpen(prev => !prev)}
                   disabled={sending || submitting}
-                  title="Attach a file"
+                  title="Add attachment"
                   style={{
                     width: isMobile ? 44 : 36, height: isMobile ? 44 : 36,
                     borderRadius: 8,
                     border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.04)',
-                    color: 'var(--world-text-muted, rgba(240,240,240,0.5))',
+                    background: attachMenuOpen ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                    color: attachMenuOpen
+                      ? 'var(--world-text, #f0f0f0)'
+                      : 'var(--world-text-muted, rgba(240,240,240,0.5))',
                     cursor: (sending || submitting) ? 'default' : 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                    transition: 'background 200ms, color 200ms',
-                  }}
-                  onMouseEnter={e => {
-                    if (!sending && !submitting) {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                      e.currentTarget.style.color = 'var(--world-text, #f0f0f0)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                    e.currentTarget.style.color = 'var(--world-text-muted, rgba(240,240,240,0.5))';
+                    transition: 'background 200ms, color 200ms, transform 200ms',
+                    transform: attachMenuOpen ? 'rotate(45deg)' : 'none',
                   }}
                 >
-                  <Paperclip size={15} />
+                  <Plus size={17} />
                 </button>
-                <button
-                  disabled
-                  title="Voice recording (coming soon)"
-                  style={{
-                    width: isMobile ? 44 : 36, height: isMobile ? 44 : 36,
-                    borderRadius: 8,
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    background: 'rgba(255,255,255,0.02)',
-                    color: 'var(--world-text-muted, rgba(240,240,240,0.25))',
-                    cursor: 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Mic size={15} />
-                </button>
-              </>
-            )}
+              )}
+
+              {/* Popover menu */}
+              {attachMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: 0,
+                  marginBottom: 6,
+                  background: 'rgba(20,20,30,0.95)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 10,
+                  padding: '4px 0',
+                  minWidth: 170,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                  backdropFilter: 'blur(12px)',
+                  zIndex: 100,
+                }}>
+                  {[
+                    {
+                      icon: <FileUp size={15} />,
+                      label: 'Upload file',
+                      onClick: () => { fileInputRef.current?.click(); setAttachMenuOpen(false); },
+                    },
+                    {
+                      icon: <Camera size={15} />,
+                      label: 'Photo or video',
+                      onClick: () => { cameraInputRef.current?.click(); setAttachMenuOpen(false); },
+                    },
+                    {
+                      icon: <Mic size={15} />,
+                      label: 'Record audio',
+                      onClick: () => startRecording(),
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={item.onClick}
+                      style={{
+                        width: '100%',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 14px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--world-text, #f0f0f0)',
+                        fontFamily: 'var(--font-body)',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        transition: 'background 150ms',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ color: 'var(--world-text-muted, rgba(240,240,240,0.6))', display: 'flex' }}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <textarea
               ref={inputRef}
