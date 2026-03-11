@@ -10,6 +10,9 @@ function AtmosphereLayer({ particleType }) {
   const config = getParticleCSS(particleType);
   const count = config.count || 15;
 
+  // Stable animation name scoped to particle type to avoid keyframe collisions
+  const animName = `world-particle-${particleType || 'dust'}`;
+
   const particles = useMemo(() => {
     return Array.from({ length: count }, (_, i) => ({
       id: i,
@@ -18,46 +21,73 @@ function AtmosphereLayer({ particleType }) {
       size: 6 + Math.random() * 10,
       delay: Math.random() * 8,
       duration: parseFloat(config.speed) + Math.random() * 4,
-      opacity: 0.15 + Math.random() * 0.25,
+      opacity: 0.2 + Math.random() * 0.3,
     }));
   }, [particleType, count, config.speed]);
 
   const keyframesCSS = useMemo(() => {
     const dir = config.direction || 'none';
-    let fromTransform, toTransform;
 
+    let dirFrom, dirTo;
     if (dir === 'up') {
-      fromTransform = 'translateY(20vh)';
-      toTransform = 'translateY(-20vh)';
+      dirFrom = 'translateY(20vh)';
+      dirTo = 'translateY(-20vh)';
     } else if (dir === 'down') {
-      fromTransform = 'translateY(-20vh)';
-      toTransform = 'translateY(20vh)';
+      dirFrom = 'translateY(-20vh)';
+      dirTo = 'translateY(20vh)';
     } else if (dir === 'right') {
-      fromTransform = 'translateX(-20vw)';
-      toTransform = 'translateX(20vw)';
+      dirFrom = 'translateX(-20vw)';
+      dirTo = 'translateX(20vw)';
     } else {
-      fromTransform = 'scale(0.8)';
-      toTransform = 'scale(1.2)';
+      dirFrom = 'scale(0.8)';
+      dirTo = 'scale(1.2)';
     }
 
-    const swayMid = config.sway
-      ? `50% { transform: ${dir === 'up' || dir === 'down' ? 'translateX(30px)' : 'translateY(15px)'}; }`
-      : '';
+    // When sway is enabled, overlay a sinusoidal cross-axis oscillation
+    // at 25% and 75% keyframe stops so it combines with the main direction
+    if (config.sway) {
+      const swayAxis = (dir === 'up' || dir === 'down') ? 'translateX' : 'translateY';
+      const swayAmount = (dir === 'up' || dir === 'down') ? '25px' : '15px';
+
+      // Interpolate the directional transform at 25%, 50%, 75% marks
+      // We approximate by splitting the from/to path into segments
+      return `
+        @keyframes ${animName} {
+          0%   { transform: ${dirFrom}; opacity: 0; }
+          10%  { opacity: 1; }
+          25%  { transform: ${swayAxis}(${swayAmount}); }
+          50%  { transform: ${swayAxis}(0); }
+          75%  { transform: ${swayAxis}(-${swayAmount}); }
+          90%  { opacity: 1; }
+          100% { transform: ${dirTo}; opacity: 0; }
+        }
+      `;
+    }
 
     return `
-      @keyframes world-particle-float {
-        0% { transform: ${fromTransform}; opacity: 0; }
-        10% { opacity: 1; }
-        ${swayMid}
-        90% { opacity: 1; }
-        100% { transform: ${toTransform}; opacity: 0; }
+      @keyframes ${animName} {
+        0%   { transform: ${dirFrom}; opacity: 0; }
+        10%  { opacity: 1; }
+        90%  { opacity: 1; }
+        100% { transform: ${dirTo}; opacity: 0; }
       }
     `;
-  }, [config.direction, config.sway]);
+  }, [config.direction, config.sway, animName]);
+
+  // Clean up injected style on unmount
+  useEffect(() => {
+    const styleEl = document.createElement('style');
+    styleEl.setAttribute('data-atmosphere', particleType || 'dust');
+    styleEl.textContent = keyframesCSS;
+    document.head.appendChild(styleEl);
+
+    return () => {
+      document.head.removeChild(styleEl);
+    };
+  }, [keyframesCSS, particleType]);
 
   return (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-      <style>{keyframesCSS}</style>
       {particles.map(p => (
         <span
           key={p.id}
@@ -67,8 +97,8 @@ function AtmosphereLayer({ particleType }) {
             top: `${p.top}%`,
             fontSize: p.size,
             opacity: p.opacity,
-            color: 'var(--world-text, #f0f0f0)',
-            animation: `world-particle-float ${p.duration}s ease-in-out ${p.delay}s infinite`,
+            color: 'var(--world-accent, #4ecdc4)',
+            animation: `${animName} ${p.duration}s ease-in-out ${p.delay}s infinite`,
             pointerEvents: 'none',
             userSelect: 'none',
           }}
