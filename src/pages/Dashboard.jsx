@@ -163,7 +163,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
   // World blueprint location awareness
   const blueprint = quest.world_blueprint;
   const accentColor = blueprint?.palette?.accent;
-  const sortedStages = (quest.quest_stages || []).slice().sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const sortedStages = (quest.quest_stages || []).slice().sort((a, b) => (a.stage_number ?? 0) - (b.stage_number ?? 0));
   const currentStage = sortedStages.find(s => s.status !== 'completed');
   const currentLocation = currentStage?.location_name;
   const currentStageIndex = currentStage ? sortedStages.indexOf(currentStage) + 1 : null;

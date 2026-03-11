@@ -118,13 +118,14 @@ function JourneyWall({ quests }) {
       <div style={{
         display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8,
         scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,220,180,0.15) transparent',
+        WebkitOverflowScrolling: 'touch',
       }}>
         {quests.map(q => (
           <Link
             key={q.id}
             to={questHref(q)}
             style={{
-              flex: '0 0 160px', height: 120, borderRadius: 10,
+              flex: '0 0 auto', minWidth: 150, maxWidth: 180, height: 120, borderRadius: 10,
               background: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,220,180,0.1)',
               borderLeft: `3px solid ${accentFor(q)}`,
@@ -262,8 +263,8 @@ function CampfireSection({ completedQuests, studentId }) {
     try {
       /* fetch stages + submissions for this quest */
       const [stageRes, subRes, profileRes] = await Promise.all([
-        supabase.from('quest_stages').select('*').eq('quest_id', campfireQuest.id).order('order_index'),
-        supabase.from('quest_submissions').select('*').eq('quest_id', campfireQuest.id).eq('student_id', studentId),
+        supabase.from('quest_stages').select('*').eq('quest_id', campfireQuest.id).order('stage_number'),
+        supabase.from('stage_submissions').select('*').eq('quest_id', campfireQuest.id).eq('student_id', studentId),
         supabase.from('students').select('name, age, interests, passions, about_me').eq('id', studentId).single(),
       ]);
       const stages = stageRes.data || [];
@@ -711,9 +712,9 @@ export default function CampHub() {
               .in('id', ids),
             supabase
               .from('quest_stages')
-              .select('quest_id, location_name, status, order_index')
+              .select('quest_id, location_name, status, stage_number')
               .in('quest_id', ids)
-              .order('order_index', { ascending: true }),
+              .order('stage_number', { ascending: true }),
           ]);
 
           if (bpRes.data) {
@@ -777,7 +778,7 @@ export default function CampHub() {
   }
 
   const displayName = session?.studentName || '';
-  const rank = xpData?.rank || 'apprentice';
+  const rank = xpData?.current_rank || 'apprentice';
 
   /* ── render ──────────────────────────────────────────────────────── */
   return (
