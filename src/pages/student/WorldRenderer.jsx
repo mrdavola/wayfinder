@@ -204,7 +204,7 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
           const completed = stage.status === 'completed';
           const active = i === activeIndex;
           const locked = !completed && !active;
-          const canNavigate = completed || active;
+          const canNavigate = true; // all stages are navigable (locked = preview)
 
           return (
             <div key={stage.id} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
@@ -220,7 +220,7 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
               )}
               <button
                 onClick={() => canNavigate && onNavigate(i)}
-                disabled={locked}
+                disabled={false}
                 title={blueprintStages?.[i]?.location || stage.title}
                 style={{
                   width: active ? 28 : 12,
@@ -232,8 +232,8 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
                     : active
                       ? (accentColor || 'var(--world-accent, #4ecdc4)')
                       : 'rgba(255,255,255,0.3)',
-                  opacity: locked ? 0.3 : 1,
-                  cursor: canNavigate ? 'pointer' : 'default',
+                  opacity: locked ? 0.4 : 1,
+                  cursor: 'pointer',
                   transition: 'all 300ms ease',
                   padding: 0,
                   flexShrink: 0,
@@ -272,7 +272,7 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
 }
 
 // ===================== LOCATION VIEW =====================
-function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorName }) {
+function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorName, isLocked }) {
   const locationName = blueprintStage?.location || stage?.location_name || stage?.title || 'Unknown Location';
   const narrative = blueprintStage?.arrivalNarrative || stage?.location_narrative || '';
   const isCompleted = stage?.status === 'completed';
@@ -332,9 +332,27 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
         borderRadius: isMobile ? 12 : 16,
         padding: isMobile ? '20px 16px 18px' : '28px 28px 24px',
         backdropFilter: 'blur(8px)',
+        opacity: isLocked ? 0.6 : 1,
         WebkitBackdropFilter: 'blur(8px)',
         boxSizing: 'border-box',
       }}>
+        {/* Locked preview badge */}
+        {isLocked && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '6px 14px', marginBottom: 16,
+            borderRadius: 20,
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'var(--world-text-muted, rgba(240,240,240,0.5))',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            alignSelf: 'center', width: 'fit-content',
+          }}>
+            Preview — complete earlier stages to unlock
+          </div>
+        )}
+
         {isCompleted ? (
           <div style={{
             textAlign: 'center',
@@ -414,7 +432,8 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
               </div>
             )}
 
-            {/* Action button */}
+            {/* Action button — hidden when locked */}
+            {!isLocked && (
             <button
               onClick={onOpenChat}
               style={{
@@ -439,6 +458,7 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
               Talk to {mentorName || 'your Mentor'}
               <ChevronRight size={14} />
             </button>
+            )}
           </>
         )}
       </div>
@@ -717,6 +737,7 @@ export default function WorldRenderer() {
           accentColor={accentColor}
           mentorName={mentorName}
           onOpenChat={() => setShowChat(true)}
+          isLocked={currentStage?.status !== 'completed' && currentStage?.status !== 'active'}
         />
       </div>
 
