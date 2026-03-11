@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send } from 'lucide-react';
-import { ai, guideMessages } from '../../lib/api';
+import { X, Send, Paperclip, Mic, Award } from 'lucide-react';
+import { ai, guideMessages, submissionFeedback } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 // Strip the hidden ---ASSESSMENT--- block from AI responses before displaying
 function stripAssessment(text) {
@@ -8,6 +9,8 @@ function stripAssessment(text) {
   const idx = text.indexOf('---ASSESSMENT---');
   return idx >= 0 ? text.slice(0, idx).trim() : text.trim();
 }
+
+const CHALLENGER_COLOR = '#e74c3c';
 
 // ===================== TYPING INDICATOR =====================
 function TypingIndicator({ accentColor }) {
@@ -36,38 +39,47 @@ function TypingIndicator({ accentColor }) {
 }
 
 // ===================== MESSAGE BUBBLE =====================
-function MessageBubble({ message, mentorName, accentColor }) {
+function MessageBubble({ message, mentorName, challengerName, accentColor }) {
   const isMentor = message.role === 'mentor';
+  const isChallenger = message.role === 'challenger';
+  const isNPC = isMentor || isChallenger;
+
+  const displayName = isChallenger ? challengerName : mentorName;
+  const displayColor = isChallenger ? CHALLENGER_COLOR : (accentColor || 'var(--world-accent, #4ecdc4)');
 
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      alignItems: isMentor ? 'flex-start' : 'flex-end',
+      alignItems: isNPC ? 'flex-start' : 'flex-end',
       marginBottom: 10,
     }}>
-      {isMentor && (
+      {isNPC && (
         <span style={{
           fontFamily: 'var(--font-body)',
           fontSize: 11,
           fontWeight: 600,
-          color: accentColor || 'var(--world-accent, #4ecdc4)',
+          color: displayColor,
           marginBottom: 3,
           paddingLeft: 4,
         }}>
-          {mentorName}
+          {displayName}
         </span>
       )}
       <div style={{
         maxWidth: '85%',
         padding: '10px 14px',
-        borderRadius: isMentor ? '14px 14px 14px 4px' : '14px 14px 4px 14px',
-        background: isMentor
-          ? 'rgba(255,255,255,0.06)'
-          : 'var(--world-surface, rgba(255,255,255,0.12))',
-        border: isMentor
-          ? `1px solid ${accentColor ? accentColor + '22' : 'rgba(78,205,196,0.13)'}`
-          : '1px solid rgba(255,255,255,0.08)',
+        borderRadius: isNPC ? '14px 14px 14px 4px' : '14px 14px 4px 14px',
+        background: isChallenger
+          ? 'rgba(231,76,60,0.08)'
+          : isNPC
+            ? 'rgba(255,255,255,0.06)'
+            : 'var(--world-surface, rgba(255,255,255,0.12))',
+        border: isChallenger
+          ? '1px solid rgba(231,76,60,0.2)'
+          : isNPC
+            ? `1px solid ${accentColor ? accentColor + '22' : 'rgba(78,205,196,0.13)'}`
+            : '1px solid rgba(255,255,255,0.08)',
         fontFamily: 'var(--font-body)',
         fontSize: 14,
         lineHeight: 1.55,
@@ -77,13 +89,28 @@ function MessageBubble({ message, mentorName, accentColor }) {
       }}>
         {message.content}
       </div>
+      {/* Submission feedback badge */}
+      {message.feedbackScore != null && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          marginTop: 4, paddingLeft: 4,
+        }}>
+          <Award size={12} color={message.feedbackScore >= 35 ? '#4ecdc4' : '#f39c12'} />
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 10,
+            color: message.feedbackScore >= 35 ? '#4ecdc4' : '#f39c12',
+          }}>
+            {message.feedbackScore >= 35 ? 'Mastery achieved' : 'Keep going'}
+          </span>
+        </div>
+      )}
       <span style={{
         fontFamily: 'var(--font-mono)',
         fontSize: 10,
         color: 'var(--world-text-muted, rgba(240,240,240,0.4))',
         marginTop: 2,
-        paddingLeft: isMentor ? 4 : 0,
-        paddingRight: isMentor ? 0 : 4,
+        paddingLeft: isNPC ? 4 : 0,
+        paddingRight: isNPC ? 0 : 4,
       }}>
         {message.timestamp
           ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -102,6 +129,17 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const initRef = useRef(false);
+  const fileInputRef = useRef(null);
+
+  // Task 10: Challenger state
+  const [challengerActive, setChallengerActive] = useState(false);
+  const [challengerResponded, setChallengerResponded] = useState(false);
+  const mentorExchangeCount = useRef(0);
+
+  // Task 11: Submission state
+  const [submissionMode, setSubmissionMode] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [attachedFile, setAttachedFile] = useState(null);
 
   const mentor = blueprint?.mentor || {};
   const mentorName = mentor.name || 'Mentor';
@@ -110,6 +148,11 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   const accentColor = blueprint?.palette?.accent || 'var(--world-accent, #4ecdc4)';
   const setting = blueprint?.setting || '';
 
+  // Challenger data from blueprint
+  const challenger = blueprint?.challenger || {};
+  const challengerName = challenger.name || 'The Challenger';
+  const challengerPersonality = challenger.personality || '';
+
   // Find the matching blueprint stage for richer narrative data
   const stageIndex = quest?.quest_stages
     ? [...(quest.quest_stages || [])].sort((a, b) => (a.stage_number || 0) - (b.stage_number || 0)).findIndex(s => s.id === stage?.id)
@@ -117,6 +160,13 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   const blueprintStage = blueprint?.stages?.[stageIndex] || null;
   const locationName = blueprintStage?.location || stage?.location_name || stage?.title || 'this location';
   const arrivalNarrative = blueprintStage?.arrivalNarrative || stage?.location_narrative || '';
+
+  // Check if this stage is an "ordeal" beat
+  const heroJourneyBeat = stage?.hero_journey_beat || blueprintStage?.beat || '';
+  const isOrdealStage = heroJourneyBeat === 'the_ordeal';
+
+  // Check if stage is completed
+  const stageCompleted = stage?.status === 'completed';
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -138,11 +188,18 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         if (existing && existing.length > 0) {
           // Map DB messages to local format
           const loaded = existing.map(m => ({
-            role: m.role === 'assistant' ? 'mentor' : (m.role === 'user' ? 'student' : m.role),
+            role: m.role === 'assistant'
+              ? (m.message_type === 'world_challenger' ? 'challenger' : 'mentor')
+              : (m.role === 'user' ? 'student' : m.role),
             content: stripAssessment(m.content),
             timestamp: m.created_at,
           }));
           setMessages(loaded);
+
+          // Count existing mentor exchanges for challenger trigger
+          const mentorMsgCount = existing.filter(m => m.role === 'assistant' && m.message_type === 'world_mentor').length;
+          mentorExchangeCount.current = mentorMsgCount;
+
           setInitialized(true);
           return;
         }
@@ -165,12 +222,19 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           messageType: 'world_mentor',
         });
 
+        mentorExchangeCount.current = 1;
+
         setMessages([{
           role: 'mentor',
           content: greeting,
           timestamp: new Date().toISOString(),
         }]);
         setInitialized(true);
+
+        // If this is an ordeal stage, trigger challenger on first visit
+        if (isOrdealStage) {
+          triggerChallenger(greeting);
+        }
       } catch (err) {
         console.error('WorldChat init error:', err);
         // Fallback greeting if DB fails
@@ -206,8 +270,295 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
     return characterBlock;
   }, [mentorName, mentorRole, mentorPersonality, stage?.title, setting, locationName]);
 
-  // Send message
+  // ===================== CHALLENGER LOGIC (Task 10) =====================
+
+  // Check if challenger should trigger after a student message
+  const shouldTriggerChallenger = useCallback((studentContent) => {
+    if (challengerActive) return false; // already active
+
+    // Trigger 1: short submission content (< 100 chars)
+    if (studentContent && studentContent.length < 100 && submissionMode) return true;
+
+    // Trigger 2: ordeal stage — trigger on first student reply
+    if (isOrdealStage && !challengerResponded) return true;
+
+    // Trigger 3: every 3rd mentor exchange
+    if (mentorExchangeCount.current > 0 && mentorExchangeCount.current % 3 === 0) return true;
+
+    return false;
+  }, [challengerActive, isOrdealStage, challengerResponded, submissionMode]);
+
+  // Trigger the challenger to appear with a challenge message
+  const triggerChallenger = useCallback(async (contextText) => {
+    setChallengerActive(true);
+    setSending(true);
+
+    try {
+      const challengeResponse = await ai.devilsAdvocate({
+        stageTitle: stage?.title || '',
+        stageDescription: stage?.description || '',
+        studentWork: contextText || '(student is exploring)',
+        studentProfile: {
+          name: studentSession?.studentName,
+          interests: studentSession?.interests || [],
+          passions: studentSession?.passions || [],
+        },
+      });
+
+      // Build a character-wrapped challenger message
+      const challengerSystemNote = [
+        `You are ${challengerName}. ${challengerPersonality}`,
+        `The student is working on "${stage?.title || 'this stage'}" in the world of "${setting}".`,
+        'Challenge their thinking on their recent work. Push them to go deeper.',
+        'Stay in character. One direct, challenging question. 2-3 sentences max.',
+      ].join('\n');
+
+      // Use the devilsAdvocate response directly (it's already a challenge)
+      const cleanChallenge = stripAssessment(challengeResponse);
+
+      // Persist challenger message
+      await guideMessages.add({
+        questId: quest.id,
+        stageId: stage.id,
+        studentId: studentSession?.studentId || null,
+        studentName: studentSession?.studentName || 'Student',
+        role: 'assistant',
+        content: cleanChallenge,
+        messageType: 'world_challenger',
+      });
+
+      setMessages(prev => [...prev, {
+        role: 'challenger',
+        content: cleanChallenge,
+        timestamp: new Date().toISOString(),
+      }]);
+    } catch (err) {
+      console.error('Challenger trigger error:', err);
+      // Fallback challenge
+      const fallback = `Hold on. Are you sure about that? I think you're skating on the surface here. What evidence do you actually have?`;
+      setMessages(prev => [...prev, {
+        role: 'challenger',
+        content: fallback,
+        timestamp: new Date().toISOString(),
+      }]);
+    } finally {
+      setSending(false);
+    }
+  }, [challengerName, challengerPersonality, stage, setting, quest, studentSession]);
+
+  // ===================== FILE UPLOAD (Task 11) =====================
+
+  const handleFileSelect = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Max 50MB
+    if (file.size > 52428800) {
+      alert('File is too large. Maximum size is 50MB.');
+      return;
+    }
+
+    setAttachedFile(file);
+  }, []);
+
+  const uploadFile = useCallback(async (file) => {
+    const ext = file.name.split('.').pop() || 'bin';
+    const timestamp = Date.now();
+    const safeName = (studentSession?.studentName || 'student').replace(/[^a-zA-Z0-9]/g, '_');
+    const path = `${quest.id}/${stage.id}/${safeName}/${timestamp}.${ext}`;
+
+    const { data, error } = await supabase.storage
+      .from('student-submissions')
+      .upload(path, file, { contentType: file.type });
+
+    if (error) {
+      console.error('File upload error:', error);
+      throw error;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('student-submissions')
+      .getPublicUrl(path);
+
+    return {
+      url: urlData?.publicUrl || '',
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+    };
+  }, [quest?.id, stage?.id, studentSession?.studentName]);
+
+  // ===================== SUBMISSION FLOW (Task 11) =====================
+
+  const handlePresentWork = useCallback(() => {
+    setSubmissionMode(true);
+    // Mentor prompts for the work
+    const promptMsg = {
+      role: 'mentor',
+      content: `Show me what you've found at ${locationName}. Take your time and share your work when you're ready.`,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, promptMsg]);
+
+    // Persist the prompt
+    guideMessages.add({
+      questId: quest.id,
+      stageId: stage.id,
+      studentId: studentSession?.studentId || null,
+      studentName: studentSession?.studentName || 'Student',
+      role: 'assistant',
+      content: promptMsg.content,
+      messageType: 'world_mentor',
+    }).catch(err => console.error('Persist prompt error:', err));
+
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, [locationName, quest, stage, studentSession]);
+
+  const handleSubmitWork = useCallback(async () => {
+    const trimmed = input.trim();
+    if ((!trimmed && !attachedFile) || submitting) return;
+
+    setSubmitting(true);
+    setSending(true);
+
+    let fileInfo = null;
+    let submissionContent = trimmed;
+
+    try {
+      // Upload file if attached
+      if (attachedFile) {
+        fileInfo = await uploadFile(attachedFile);
+        submissionContent = trimmed
+          ? `${trimmed}\n\n[Attached file: ${fileInfo.fileName}](${fileInfo.url})`
+          : `[Attached file: ${fileInfo.fileName}](${fileInfo.url})`;
+      }
+
+      // Add student message to chat
+      const studentMsg = {
+        role: 'student',
+        content: submissionContent,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, studentMsg]);
+      setInput('');
+      setAttachedFile(null);
+
+      // Persist student submission message
+      await guideMessages.add({
+        questId: quest.id,
+        stageId: stage.id,
+        studentId: studentSession?.studentId || null,
+        studentName: studentSession?.studentName || 'Student',
+        role: 'user',
+        content: submissionContent,
+        messageType: 'world_submission',
+      });
+
+      // Save to stage_submissions via RPC
+      await supabase.rpc('submit_stage_work', {
+        p_quest_id: quest.id,
+        p_stage_id: stage.id,
+        p_student_name: studentSession?.studentName || 'Student',
+        p_submission_type: fileInfo ? 'file' : 'text',
+        p_content: trimmed || null,
+        p_file_url: fileInfo?.url || null,
+        p_file_name: fileInfo?.fileName || null,
+        p_file_size: fileInfo?.fileSize || null,
+        p_mime_type: fileInfo?.mimeType || null,
+      });
+
+      // Call AI to review the submission
+      const review = await ai.reviewSubmission({
+        stageTitle: stage?.title || '',
+        stageDescription: stage?.description || '',
+        deliverable: stage?.deliverable || stage?.deliverable_description || '',
+        submissionContent: submissionContent,
+        studentProfile: {
+          name: studentSession?.studentName,
+          interests: studentSession?.interests || [],
+          passions: studentSession?.passions || [],
+        },
+      });
+
+      const score = review?.score || 0;
+      const mastery = review?.mastery_passed || score >= 35;
+
+      // Save feedback to submission_feedback table
+      await submissionFeedback.add({
+        questId: quest.id,
+        stageId: stage.id,
+        studentName: studentSession?.studentName || 'Student',
+        feedbackText: review?.feedback || '',
+        skillsDemonstrated: review?.skills_demonstrated || review?.skill_ratings?.map(s => s.skill_name) || [],
+        encouragement: review?.encouragement || '',
+        nextSteps: review?.next_steps || '',
+        score: score,
+        hints: review?.hints || '',
+      }).catch(err => console.error('Save feedback error:', err));
+
+      // Build in-character mentor response based on score
+      let mentorFeedback;
+      if (mastery) {
+        mentorFeedback = `${review?.feedback || 'Impressive work.'}\n\n${review?.encouragement || 'You have truly earned your passage.'} You've proven yourself at ${locationName}.`;
+      } else {
+        mentorFeedback = `${review?.feedback || 'I see promise in this.'}\n\n${review?.hints || 'Dig deeper.'} ${review?.next_steps || 'What else might you discover here?'}`;
+      }
+
+      // Persist mentor feedback
+      await guideMessages.add({
+        questId: quest.id,
+        stageId: stage.id,
+        studentId: studentSession?.studentId || null,
+        studentName: studentSession?.studentName || 'Student',
+        role: 'assistant',
+        content: mentorFeedback,
+        messageType: 'world_mentor',
+      });
+
+      setMessages(prev => [...prev, {
+        role: 'mentor',
+        content: mentorFeedback,
+        timestamp: new Date().toISOString(),
+        feedbackScore: score,
+      }]);
+
+      mentorExchangeCount.current += 1;
+
+      if (mastery) {
+        setSubmissionMode(false);
+        // Small delay so student sees the feedback before stage completes
+        setTimeout(() => {
+          if (onStageComplete) onStageComplete();
+        }, 2000);
+      } else {
+        // Check if challenger should appear for short submission
+        if (submissionContent.length < 100) {
+          setTimeout(() => triggerChallenger(submissionContent), 1500);
+        }
+      }
+    } catch (err) {
+      console.error('Submission error:', err);
+      setMessages(prev => [...prev, {
+        role: 'mentor',
+        content: "I couldn't fully assess your work right now. Try presenting it again in a moment.",
+        timestamp: new Date().toISOString(),
+      }]);
+    } finally {
+      setSubmitting(false);
+      setSending(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [input, attachedFile, submitting, quest, stage, studentSession, locationName, uploadFile, onStageComplete, triggerChallenger]);
+
+  // ===================== SEND MESSAGE =====================
+
   const handleSend = useCallback(async () => {
+    // If in submission mode, route to submission handler
+    if (submissionMode) {
+      handleSubmitWork();
+      return;
+    }
+
     const trimmed = input.trim();
     if (!trimmed || sending) return;
 
@@ -230,12 +581,43 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         studentName: studentSession?.studentName || 'Student',
         role: 'user',
         content: trimmed,
-        messageType: 'world_mentor',
+        messageType: challengerActive ? 'world_challenger_response' : 'world_mentor',
       });
+
+      // If challenger was active and student responded, return to mentor
+      if (challengerActive) {
+        setChallengerActive(false);
+        setChallengerResponded(true);
+
+        // Mentor returns with an encouraging message
+        const returnMsg = `Well said. ${challengerName} will test you again, but for now, let's continue. Where were we?`;
+
+        await guideMessages.add({
+          questId: quest.id,
+          stageId: stage.id,
+          studentId: studentSession?.studentId || null,
+          studentName: studentSession?.studentName || 'Student',
+          role: 'assistant',
+          content: returnMsg,
+          messageType: 'world_mentor',
+        });
+
+        mentorExchangeCount.current += 1;
+
+        setMessages(prev => [...prev, {
+          role: 'mentor',
+          content: returnMsg,
+          timestamp: new Date().toISOString(),
+        }]);
+
+        setSending(false);
+        setTimeout(() => inputRef.current?.focus(), 100);
+        return;
+      }
 
       // Build conversation history for AI
       const aiMessages = messages.concat(studentMsg).map(m => ({
-        role: m.role === 'mentor' ? 'assistant' : 'user',
+        role: (m.role === 'mentor' || m.role === 'challenger') ? 'assistant' : 'user',
         content: m.content,
       }));
 
@@ -274,11 +656,18 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         messageType: 'world_mentor',
       });
 
+      mentorExchangeCount.current += 1;
+
       setMessages(prev => [...prev, {
         role: 'mentor',
         content: cleanResponse,
         timestamp: new Date().toISOString(),
       }]);
+
+      // Check if challenger should trigger after this exchange
+      if (shouldTriggerChallenger(trimmed)) {
+        setTimeout(() => triggerChallenger(trimmed), 1500);
+      }
     } catch (err) {
       console.error('WorldChat send error:', err);
       setMessages(prev => [...prev, {
@@ -291,7 +680,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
       // Re-focus input after sending
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [input, sending, messages, quest, stage, studentSession, buildSystemPrompt]);
+  }, [input, sending, messages, quest, stage, studentSession, buildSystemPrompt, challengerActive, challengerName, submissionMode, handleSubmitWork, shouldTriggerChallenger, triggerChallenger]);
 
   // Handle Enter key
   const handleKeyDown = (e) => {
@@ -304,6 +693,22 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   // Detect mobile (simple heuristic)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
+  // Header display — changes for challenger mode
+  const headerName = challengerActive ? challengerName : mentorName;
+  const headerRole = challengerActive ? 'Challenger' : mentorRole;
+  const headerColor = challengerActive ? CHALLENGER_COLOR : (accentColor || 'var(--world-accent, #4ecdc4)');
+
+  // Placeholder text
+  const placeholderText = sending
+    ? `${challengerActive ? challengerName : mentorName} is thinking...`
+    : challengerActive
+      ? `Respond to ${challengerName}...`
+      : submissionMode
+        ? 'Describe your work...'
+        : `Talk to ${mentorName}...`;
+
+  const sendDisabled = sending || submitting || (!input.trim() && !attachedFile);
+
   return (
     <>
       <style>{`
@@ -314,6 +719,10 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         @keyframes world-chat-dot {
           0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
           40% { transform: scale(1); opacity: 0.8; }
+        }
+        @keyframes world-chat-challenger-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.3); }
+          50% { box-shadow: 0 0 12px 4px rgba(231,76,60,0.15); }
         }
       `}</style>
 
@@ -332,11 +741,14 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         background: 'rgba(15,15,30,0.95)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        border: challengerActive
+          ? '1px solid rgba(231,76,60,0.25)'
+          : '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         flexDirection: 'column',
         animation: 'world-chat-slide-in 300ms ease-out',
         overflow: 'hidden',
+        ...(challengerActive ? { animation: 'world-chat-slide-in 300ms ease-out, world-chat-challenger-pulse 2s ease-in-out infinite' } : {}),
       }}>
         {/* Mobile drag handle */}
         {isMobile && (
@@ -355,29 +767,36 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 18px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: challengerActive
+            ? '1px solid rgba(231,76,60,0.2)'
+            : '1px solid rgba(255,255,255,0.08)',
           flexShrink: 0,
+          transition: 'border-color 300ms',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{
               fontFamily: 'var(--font-display)',
               fontSize: 16,
-              color: 'var(--world-text, #f0f0f0)',
+              color: challengerActive ? CHALLENGER_COLOR : 'var(--world-text, #f0f0f0)',
+              transition: 'color 300ms',
             }}>
-              {mentorName}
+              {headerName}
             </span>
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 10,
               padding: '2px 8px',
               borderRadius: 8,
-              background: accentColor ? `${accentColor}20` : 'rgba(78,205,196,0.12)',
-              color: accentColor || 'var(--world-accent, #4ecdc4)',
+              background: challengerActive
+                ? 'rgba(231,76,60,0.15)'
+                : (accentColor ? `${accentColor}20` : 'rgba(78,205,196,0.12)'),
+              color: headerColor,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               fontWeight: 600,
+              transition: 'background 300ms, color 300ms',
             }}>
-              {mentorRole}
+              {headerRole}
             </span>
           </div>
           <button
@@ -410,71 +829,207 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
               key={i}
               message={msg}
               mentorName={mentorName}
+              challengerName={challengerName}
               accentColor={accentColor}
             />
           ))}
 
-          {sending && <TypingIndicator accentColor={accentColor} />}
+          {(sending || submitting) && (
+            <TypingIndicator accentColor={challengerActive ? CHALLENGER_COLOR : accentColor} />
+          )}
 
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Present your work button — shows when stage is active + not already in submission mode */}
+        {!stageCompleted && !submissionMode && !challengerActive && (
+          <div style={{
+            padding: '0 14px 8px',
+            flexShrink: 0,
+          }}>
+            <button
+              onClick={handlePresentWork}
+              disabled={sending}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: `1px solid ${accentColor ? accentColor + '33' : 'rgba(78,205,196,0.2)'}`,
+                background: 'rgba(255,255,255,0.04)',
+                color: accentColor || 'var(--world-accent, #4ecdc4)',
+                fontFamily: 'var(--font-body)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: sending ? 'default' : 'pointer',
+                opacity: sending ? 0.5 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'background 200ms, opacity 200ms',
+              }}
+              onMouseEnter={e => { if (!sending) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+            >
+              <Award size={15} />
+              Present your work
+            </button>
+          </div>
+        )}
 
         {/* Input area */}
         <div style={{
           padding: '12px 14px',
           borderTop: '1px solid rgba(255,255,255,0.08)',
-          display: 'flex', alignItems: 'flex-end', gap: 8,
           flexShrink: 0,
         }}>
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={sending ? `${mentorName} is thinking...` : `Talk to ${mentorName}...`}
-            disabled={sending}
-            rows={1}
-            style={{
-              flex: 1,
-              padding: '10px 14px',
-              borderRadius: 12,
-              border: '1px solid rgba(255,255,255,0.1)',
+          {/* Attached file indicator */}
+          {attachedFile && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 10px',
+              marginBottom: 8,
+              borderRadius: 8,
               background: 'rgba(255,255,255,0.06)',
-              color: 'var(--world-text, #f0f0f0)',
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              lineHeight: 1.4,
-              resize: 'none',
-              outline: 'none',
-              maxHeight: 100,
-              transition: 'border-color 200ms',
-            }}
-            onFocus={e => e.target.style.borderColor = accentColor || 'var(--world-accent, #4ecdc4)'}
-            onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-          />
-          <button
-            onClick={handleSend}
-            disabled={sending || !input.trim()}
-            style={{
-              width: 40, height: 40,
-              borderRadius: 10,
-              border: 'none',
-              background: (sending || !input.trim())
-                ? 'rgba(255,255,255,0.08)'
-                : (accentColor || 'var(--world-accent, #4ecdc4)'),
-              color: (sending || !input.trim())
-                ? 'rgba(255,255,255,0.3)'
-                : '#111',
-              cursor: (sending || !input.trim()) ? 'default' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-              transition: 'background 200ms, opacity 200ms',
-            }}
-            onMouseEnter={e => { if (!sending && input.trim()) e.currentTarget.style.opacity = '0.85'; }}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-          >
-            <Send size={16} />
-          </button>
+              border: '1px solid rgba(255,255,255,0.1)',
+              fontSize: 12,
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+            }}>
+              <Paperclip size={12} />
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {attachedFile.name}
+              </span>
+              <button
+                onClick={() => setAttachedFile(null)}
+                style={{
+                  background: 'none', border: 'none',
+                  color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+                  cursor: 'pointer', padding: 0,
+                  display: 'flex', alignItems: 'center',
+                }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            {/* Attachment + mic buttons in submission mode */}
+            {submissionMode && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                  accept="image/*,application/pdf,.doc,.docx,.txt,.pptx,.xlsx"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sending || submitting}
+                  title="Attach a file"
+                  style={{
+                    width: 36, height: 36,
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.04)',
+                    color: 'var(--world-text-muted, rgba(240,240,240,0.5))',
+                    cursor: (sending || submitting) ? 'default' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'background 200ms, color 200ms',
+                  }}
+                  onMouseEnter={e => {
+                    if (!sending && !submitting) {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                      e.currentTarget.style.color = 'var(--world-text, #f0f0f0)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                    e.currentTarget.style.color = 'var(--world-text-muted, rgba(240,240,240,0.5))';
+                  }}
+                >
+                  <Paperclip size={15} />
+                </button>
+                <button
+                  disabled
+                  title="Voice recording (coming soon)"
+                  style={{
+                    width: 36, height: 36,
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    background: 'rgba(255,255,255,0.02)',
+                    color: 'var(--world-text-muted, rgba(240,240,240,0.25))',
+                    cursor: 'default',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Mic size={15} />
+                </button>
+              </>
+            )}
+
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholderText}
+              disabled={sending || submitting}
+              rows={submissionMode ? 3 : 1}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                borderRadius: 12,
+                border: challengerActive
+                  ? '1px solid rgba(231,76,60,0.25)'
+                  : '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'var(--world-text, #f0f0f0)',
+                fontFamily: 'var(--font-body)',
+                fontSize: 14,
+                lineHeight: 1.4,
+                resize: 'none',
+                outline: 'none',
+                maxHeight: submissionMode ? 160 : 100,
+                transition: 'border-color 200ms',
+              }}
+              onFocus={e => e.target.style.borderColor = challengerActive
+                ? CHALLENGER_COLOR
+                : (accentColor || 'var(--world-accent, #4ecdc4)')}
+              onBlur={e => e.target.style.borderColor = challengerActive
+                ? 'rgba(231,76,60,0.25)'
+                : 'rgba(255,255,255,0.1)'}
+            />
+            <button
+              onClick={handleSend}
+              disabled={sendDisabled}
+              style={{
+                width: 40, height: 40,
+                borderRadius: 10,
+                border: 'none',
+                background: sendDisabled
+                  ? 'rgba(255,255,255,0.08)'
+                  : challengerActive
+                    ? CHALLENGER_COLOR
+                    : (accentColor || 'var(--world-accent, #4ecdc4)'),
+                color: sendDisabled
+                  ? 'rgba(255,255,255,0.3)'
+                  : '#111',
+                cursor: sendDisabled ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+                transition: 'background 200ms, opacity 200ms',
+              }}
+              onMouseEnter={e => { if (!sendDisabled) e.currentTarget.style.opacity = '0.85'; }}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              <Send size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </>
