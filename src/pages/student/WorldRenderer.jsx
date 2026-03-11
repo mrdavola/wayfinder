@@ -1,0 +1,669 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Compass, X, MessageCircle, ChevronRight } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { blueprintToCSSVars, AMBIENT_PRESETS, getParticleCSS } from '../../lib/worldEngine';
+import { getStudentSession } from '../../lib/studentSession';
+
+// ===================== ATMOSPHERE LAYER =====================
+function AtmosphereLayer({ particleType }) {
+  const config = getParticleCSS(particleType);
+  const count = config.count || 15;
+
+  const particles = useMemo(() => {
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      size: 6 + Math.random() * 10,
+      delay: Math.random() * 8,
+      duration: parseFloat(config.speed) + Math.random() * 4,
+      opacity: 0.15 + Math.random() * 0.25,
+    }));
+  }, [particleType, count, config.speed]);
+
+  const keyframesCSS = useMemo(() => {
+    const dir = config.direction || 'none';
+    let fromTransform, toTransform;
+
+    if (dir === 'up') {
+      fromTransform = 'translateY(20vh)';
+      toTransform = 'translateY(-20vh)';
+    } else if (dir === 'down') {
+      fromTransform = 'translateY(-20vh)';
+      toTransform = 'translateY(20vh)';
+    } else if (dir === 'right') {
+      fromTransform = 'translateX(-20vw)';
+      toTransform = 'translateX(20vw)';
+    } else {
+      fromTransform = 'scale(0.8)';
+      toTransform = 'scale(1.2)';
+    }
+
+    const swayMid = config.sway
+      ? `50% { transform: ${dir === 'up' || dir === 'down' ? 'translateX(30px)' : 'translateY(15px)'}; }`
+      : '';
+
+    return `
+      @keyframes world-particle-float {
+        0% { transform: ${fromTransform}; opacity: 0; }
+        10% { opacity: 1; }
+        ${swayMid}
+        90% { opacity: 1; }
+        100% { transform: ${toTransform}; opacity: 0; }
+      }
+    `;
+  }, [config.direction, config.sway]);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+      <style>{keyframesCSS}</style>
+      {particles.map(p => (
+        <span
+          key={p.id}
+          style={{
+            position: 'absolute',
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            fontSize: p.size,
+            opacity: p.opacity,
+            color: 'var(--world-text, #f0f0f0)',
+            animation: `world-particle-float ${p.duration}s ease-in-out ${p.delay}s infinite`,
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        >
+          {config.char}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ===================== WORLD TOP BAR =====================
+function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studentSession, onNavigate }) {
+  const navigate = useNavigate();
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '12px 20px',
+      background: 'rgba(0,0,0,0.25)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderBottom: '1px solid var(--world-border, rgba(255,255,255,0.1))',
+    }}>
+      {/* Camp button */}
+      <button
+        onClick={() => navigate('/student')}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '6px 14px', borderRadius: 8,
+          background: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: 'var(--world-text, #f0f0f0)',
+          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'background 200ms',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+      >
+        <Compass size={15} />
+        Camp
+      </button>
+
+      {/* Journey dots */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+        {stages.map((stage, i) => {
+          const completed = stage.status === 'completed';
+          const active = i === activeIndex;
+          const locked = !completed && !active;
+          const canNavigate = completed || active;
+
+          return (
+            <div key={stage.id} style={{ display: 'flex', alignItems: 'center' }}>
+              {i > 0 && (
+                <div style={{
+                  width: 20, height: 2,
+                  background: completed || active
+                    ? (accentColor || 'var(--world-accent, #4ecdc4)')
+                    : 'rgba(255,255,255,0.15)',
+                  transition: 'background 400ms',
+                }} />
+              )}
+              <button
+                onClick={() => canNavigate && onNavigate(i)}
+                disabled={locked}
+                title={blueprintStages?.[i]?.location || stage.title}
+                style={{
+                  width: active ? 28 : 12,
+                  height: 12,
+                  borderRadius: active ? 6 : '50%',
+                  border: 'none',
+                  background: completed
+                    ? 'var(--field-green, #4caf50)'
+                    : active
+                      ? (accentColor || 'var(--world-accent, #4ecdc4)')
+                      : 'rgba(255,255,255,0.3)',
+                  opacity: locked ? 0.3 : 1,
+                  cursor: canNavigate ? 'pointer' : 'default',
+                  transition: 'all 300ms ease',
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Student name + XP placeholder */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        color: 'var(--world-text, #f0f0f0)',
+        fontFamily: 'var(--font-body)', fontSize: 13,
+      }}>
+        {studentSession?.avatarEmoji && (
+          <span style={{ fontSize: 18 }}>{studentSession.avatarEmoji}</span>
+        )}
+        <span style={{ fontWeight: 500 }}>{studentSession?.studentName || 'Explorer'}</span>
+        <span style={{
+          padding: '2px 8px', borderRadius: 10,
+          background: 'rgba(255,255,255,0.1)',
+          fontSize: 11, fontFamily: 'var(--font-mono)',
+          color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+        }}>
+          — XP
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ===================== LOCATION VIEW =====================
+function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorName }) {
+  const locationName = blueprintStage?.location || stage?.location_name || stage?.title || 'Unknown Location';
+  const narrative = blueprintStage?.arrivalNarrative || stage?.location_narrative || '';
+  const isCompleted = stage?.status === 'completed';
+
+  const guidingQuestions = stage?.guiding_questions || [];
+  const questionsArray = Array.isArray(guidingQuestions) ? guidingQuestions
+    : typeof guidingQuestions === 'string' ? guidingQuestions.split('\n').filter(Boolean)
+    : [];
+
+  const deliverable = stage?.deliverable || stage?.deliverable_description || '';
+
+  return (
+    <div style={{
+      position: 'relative', zIndex: 2,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      padding: '80px 24px 40px',
+      maxWidth: 680, margin: '0 auto',
+    }}>
+      {/* Location name */}
+      <h1 style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: '1.8rem',
+        color: accentColor || 'var(--world-accent, #4ecdc4)',
+        marginBottom: 8,
+        textAlign: 'center',
+        letterSpacing: '0.01em',
+      }}>
+        {locationName}
+      </h1>
+
+      {/* Arrival narrative */}
+      {narrative && (
+        <p style={{
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.95rem',
+          color: 'var(--world-text, #f0f0f0)',
+          opacity: 0.85,
+          fontStyle: 'italic',
+          textAlign: 'center',
+          maxWidth: 540,
+          lineHeight: 1.6,
+          marginBottom: 28,
+        }}>
+          {narrative}
+        </p>
+      )}
+
+      {/* Work area card */}
+      <div style={{
+        width: '100%',
+        background: 'var(--world-surface, rgba(255,255,255,0.08))',
+        border: '1px solid var(--world-border, rgba(255,255,255,0.1))',
+        borderRadius: 16,
+        padding: '28px 28px 24px',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}>
+        {isCompleted ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '20px 0',
+            color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+            fontFamily: 'var(--font-body)',
+            fontSize: 14,
+          }}>
+            Location conquered
+          </div>
+        ) : (
+          <>
+            {/* Consider section */}
+            {questionsArray.length > 0 && (
+              <div style={{ marginBottom: 22 }}>
+                <h3 style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+                  marginBottom: 10,
+                  fontWeight: 600,
+                }}>
+                  Consider
+                </h3>
+                <ul style={{
+                  listStyle: 'none', padding: 0, margin: 0,
+                  display: 'flex', flexDirection: 'column', gap: 8,
+                }}>
+                  {questionsArray.map((q, i) => (
+                    <li key={i} style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 14,
+                      color: 'var(--world-text, #f0f0f0)',
+                      lineHeight: 1.5,
+                      paddingLeft: 14,
+                      position: 'relative',
+                    }}>
+                      <span style={{
+                        position: 'absolute', left: 0, top: 2,
+                        color: accentColor || 'var(--world-accent, #4ecdc4)',
+                        fontSize: 10,
+                      }}>
+                        {'\u25C6'}
+                      </span>
+                      {q}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Your Challenge section */}
+            {deliverable && (
+              <div style={{ marginBottom: 22 }}>
+                <h3 style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+                  marginBottom: 10,
+                  fontWeight: 600,
+                }}>
+                  Your Challenge
+                </h3>
+                <p style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 14,
+                  color: 'var(--world-text, #f0f0f0)',
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}>
+                  {deliverable}
+                </p>
+              </div>
+            )}
+
+            {/* Action button */}
+            <button
+              onClick={onOpenChat}
+              style={{
+                width: '100%',
+                padding: '12px 20px',
+                borderRadius: 10,
+                border: 'none',
+                background: accentColor || 'var(--world-accent, #4ecdc4)',
+                color: '#111',
+                fontFamily: 'var(--font-body)',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                transition: 'opacity 200ms, transform 200ms',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              <MessageCircle size={16} />
+              Talk to {mentorName || 'your Mentor'}
+              <ChevronRight size={14} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===================== WORLD CHAT STUB =====================
+function WorldChat({ mentorName, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 0, right: 0,
+      width: 380, height: '70vh',
+      zIndex: 20,
+      background: 'rgba(10,10,20,0.92)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: '16px 0 0 0',
+      display: 'flex', flexDirection: 'column',
+      animation: 'world-chat-slide-in 300ms ease-out',
+    }}>
+      <style>{`
+        @keyframes world-chat-slide-in {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 18px',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+      }}>
+        <span style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 16,
+          color: 'var(--world-text, #f0f0f0)',
+        }}>
+          {mentorName || 'Mentor'}
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none', border: 'none',
+            color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+            cursor: 'pointer', padding: 4,
+          }}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Body placeholder */}
+      <div style={{
+        flex: 1,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
+        fontFamily: 'var(--font-body)',
+        fontSize: 14,
+        padding: 24,
+        textAlign: 'center',
+      }}>
+        Chat coming soon...
+      </div>
+    </div>
+  );
+}
+
+// ===================== TRANSITION OVERLAY =====================
+function TransitionOverlay({ text, visible }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 15,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.7)',
+      opacity: visible ? 1 : 0,
+      pointerEvents: visible ? 'auto' : 'none',
+      transition: 'opacity 400ms ease',
+    }}>
+      <p style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: '1.4rem',
+        color: 'var(--world-text, #f0f0f0)',
+        textAlign: 'center',
+        maxWidth: 500,
+        lineHeight: 1.6,
+        padding: '0 24px',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(12px)',
+        transition: 'opacity 400ms ease 100ms, transform 400ms ease 100ms',
+      }}>
+        {text}
+      </p>
+    </div>
+  );
+}
+
+// ===================== MAIN WORLD RENDERER =====================
+export default function WorldRenderer() {
+  const { id: questId } = useParams();
+  const navigate = useNavigate();
+
+  const [quest, setQuest] = useState(null);
+  const [stages, setStages] = useState([]);
+  const [blueprint, setBlueprint] = useState(null);
+  const [activeStageIndex, setActiveStageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [studentSession, setStudentSessionState] = useState(null);
+  const [showChat, setShowChat] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const [transitionText, setTransitionText] = useState('');
+
+  // Load student session
+  useEffect(() => {
+    const session = getStudentSession();
+    setStudentSessionState(session);
+  }, []);
+
+  // Load quest data
+  useEffect(() => {
+    if (!questId) return;
+
+    async function loadQuest() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error: fetchError } = await supabase
+          .from('quests')
+          .select('*, quest_stages(*)')
+          .eq('id', questId)
+          .single();
+
+        if (fetchError) throw fetchError;
+        if (!data) throw new Error('Project not found');
+
+        // Redirect to standard view if no world blueprint
+        if (!data.world_blueprint) {
+          navigate(`/q/${questId}`, { replace: true });
+          return;
+        }
+
+        setQuest(data);
+        setBlueprint(data.world_blueprint);
+
+        // Sort stages by stage_number
+        const sorted = (data.quest_stages || []).sort(
+          (a, b) => (a.stage_number || 0) - (b.stage_number || 0)
+        );
+        setStages(sorted);
+
+        // Active stage = first non-completed
+        const firstActive = sorted.findIndex(s => s.status !== 'completed');
+        setActiveStageIndex(firstActive >= 0 ? firstActive : sorted.length - 1);
+      } catch (err) {
+        console.error('WorldRenderer load error:', err);
+        setError(err.message || 'Failed to load project');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadQuest();
+  }, [questId, navigate]);
+
+  // Derive CSS variables from blueprint palette
+  const worldVars = useMemo(() => {
+    if (!blueprint?.palette) return {};
+    return blueprintToCSSVars(blueprint.palette);
+  }, [blueprint]);
+
+  // Background gradient from ambient preset or palette
+  const bgGradient = useMemo(() => {
+    if (blueprint?.ambientAudio && AMBIENT_PRESETS[blueprint.ambientAudio]) {
+      return AMBIENT_PRESETS[blueprint.ambientAudio].bgGradient;
+    }
+    if (blueprint?.palette?.bg && blueprint?.palette?.bgMid) {
+      return `linear-gradient(180deg, ${blueprint.palette.bg} 0%, ${blueprint.palette.bgMid} 50%, ${blueprint.palette.bg} 100%)`;
+    }
+    return 'linear-gradient(180deg, #1a1a2e 0%, #2d2d4e 50%, #1a1a2e 100%)';
+  }, [blueprint]);
+
+  // Particle type from blueprint
+  const particleType = useMemo(() => {
+    if (blueprint?.ambientAudio && AMBIENT_PRESETS[blueprint.ambientAudio]) {
+      return AMBIENT_PRESETS[blueprint.ambientAudio].particle;
+    }
+    return 'dust';
+  }, [blueprint]);
+
+  const accentColor = blueprint?.palette?.accent || 'var(--world-accent, #4ecdc4)';
+  const mentorName = blueprint?.mentor?.name || 'Mentor';
+
+  // Current blueprint stage data
+  const currentBlueprintStage = blueprint?.stages?.[activeStageIndex] || null;
+  const currentStage = stages[activeStageIndex] || null;
+
+  // Handle stage navigation with transition
+  const handleNavigate = useCallback((targetIndex) => {
+    if (targetIndex === activeStageIndex) return;
+    if (transitioning) return;
+
+    const targetBpStage = blueprint?.stages?.[targetIndex];
+    const narrativeText = targetBpStage?.transitionNarrative
+      || targetBpStage?.arrivalNarrative
+      || 'Traveling to the next location...';
+
+    setTransitionText(narrativeText);
+    setTransitioning(true);
+
+    // Fade out (400ms) → show transition (1.5s) → fade in new (400ms)
+    setTimeout(() => {
+      setActiveStageIndex(targetIndex);
+      setTimeout(() => {
+        setTransitioning(false);
+      }, 600);
+    }, 1500);
+  }, [activeStageIndex, blueprint, transitioning]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: '#1a1a2e',
+        fontFamily: 'var(--font-body)', color: '#f0f0f0',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 32, height: 32,
+            border: '3px solid rgba(255,255,255,0.2)',
+            borderTopColor: '#4ecdc4',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }} />
+          <p style={{ fontSize: 14, opacity: 0.7 }}>Entering world...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: '#1a1a2e',
+        fontFamily: 'var(--font-body)', color: '#f0f0f0',
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
+          <p style={{ fontSize: 16, marginBottom: 12 }}>{error}</p>
+          <button
+            onClick={() => navigate('/student')}
+            style={{
+              padding: '8px 20px', borderRadius: 8,
+              background: '#4ecdc4', border: 'none',
+              color: '#111', fontFamily: 'var(--font-body)',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Back to Camp
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: bgGradient,
+      overflow: 'auto',
+      ...worldVars,
+    }}>
+      {/* Layer 1: Atmosphere */}
+      <AtmosphereLayer particleType={particleType} />
+
+      {/* Top bar */}
+      <WorldTopBar
+        stages={stages}
+        blueprintStages={blueprint?.stages}
+        activeIndex={activeStageIndex}
+        accentColor={accentColor}
+        studentSession={studentSession}
+        onNavigate={handleNavigate}
+      />
+
+      {/* Layer 2: Location content */}
+      <div style={{
+        opacity: transitioning ? 0 : 1,
+        transform: transitioning ? 'translateY(8px)' : 'translateY(0)',
+        transition: 'opacity 400ms ease, transform 400ms ease',
+      }}>
+        <LocationView
+          stage={currentStage}
+          blueprintStage={currentBlueprintStage}
+          accentColor={accentColor}
+          mentorName={mentorName}
+          onOpenChat={() => setShowChat(true)}
+        />
+      </div>
+
+      {/* Transition overlay */}
+      <TransitionOverlay text={transitionText} visible={transitioning} />
+
+      {/* Layer 3: Chat panel (stub) */}
+      {showChat && (
+        <WorldChat
+          mentorName={mentorName}
+          onClose={() => setShowChat(false)}
+        />
+      )}
+    </div>
+  );
+}
