@@ -741,11 +741,14 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         return;
       }
 
-      // Build conversation history for AI (limit to last 16 messages to avoid timeouts)
-      const recentMessages = messages.slice(-16).concat(studentMsg);
+      // Build conversation history for AI (limit to last 10 messages, truncate long ones)
+      const MAX_MSG_LEN = 800;
+      const recentMessages = messages.slice(-10).concat(studentMsg);
       const aiMessages = recentMessages.map(m => ({
         role: (m.role === 'mentor' || m.role === 'challenger') ? 'assistant' : 'user',
-        content: m.content,
+        content: m.content.length > MAX_MSG_LEN
+          ? m.content.slice(0, MAX_MSG_LEN) + '...'
+          : m.content,
       }));
 
       // Guiding questions array
