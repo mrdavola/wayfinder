@@ -12,6 +12,33 @@ function stripAssessment(text) {
 
 const CHALLENGER_COLOR = '#e74c3c';
 
+// Simple inline markdown → React elements (bold, italic, bold-italic)
+function renderMarkdown(text) {
+  if (!text) return text;
+  // Split by markdown patterns: ***bold italic***, **bold**, *italic*
+  const parts = [];
+  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[2]) {
+      parts.push(<strong key={match.index}><em>{match[2]}</em></strong>);
+    } else if (match[3]) {
+      parts.push(<strong key={match.index}>{match[3]}</strong>);
+    } else if (match[4]) {
+      parts.push(<em key={match.index}>{match[4]}</em>);
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length ? parts : text;
+}
+
 // ===================== TYPING INDICATOR =====================
 function TypingIndicator({ accentColor }) {
   return (
@@ -87,7 +114,7 @@ function MessageBubble({ message, mentorName, challengerName, accentColor }) {
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
       }}>
-        {message.content}
+        {renderMarkdown(message.content)}
       </div>
       {/* Submission feedback badge */}
       {message.feedbackScore != null && (
