@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Plus, FileUp, Camera, Mic, Square, Award } from 'lucide-react';
+import { X, Send, Plus, FileUp, Camera, Mic, Square, Award, Volume2, VolumeX } from 'lucide-react';
+import useSpeech from '../../hooks/useSpeech';
 import { ai, guideMessages, submissionFeedback } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 
@@ -66,13 +67,14 @@ function TypingIndicator({ accentColor }) {
 }
 
 // ===================== MESSAGE BUBBLE =====================
-function MessageBubble({ message, mentorName, challengerName, accentColor }) {
+function MessageBubble({ message, mentorName, challengerName, accentColor, onSpeak, speakingId }) {
   const isMentor = message.role === 'mentor';
   const isChallenger = message.role === 'challenger';
   const isNPC = isMentor || isChallenger;
 
   const displayName = isChallenger ? challengerName : mentorName;
   const displayColor = isChallenger ? CHALLENGER_COLOR : (accentColor || 'var(--world-accent, #4ecdc4)');
+  const isSpeaking = speakingId === message.timestamp;
 
   return (
     <div style={{
@@ -116,6 +118,27 @@ function MessageBubble({ message, mentorName, challengerName, accentColor }) {
       }}>
         {renderMarkdown(message.content)}
       </div>
+      {/* TTS button for AI messages */}
+      {isNPC && message.content && (
+        <button
+          onClick={() => onSpeak(message.content, message.timestamp)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            marginTop: 4, paddingLeft: 4,
+            background: 'none', border: 'none',
+            color: isSpeaking
+              ? (accentColor || 'var(--world-accent, #4ecdc4)')
+              : 'var(--world-text-muted, rgba(240,240,240,0.4))',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            transition: 'color 150ms',
+          }}
+        >
+          {isSpeaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
+          {isSpeaking ? 'Stop' : 'Listen'}
+        </button>
+      )}
       {/* Submission feedback badge */}
       {message.feedbackScore != null && (
         <div style={{
@@ -174,6 +197,26 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   // Attachment menu + recording state
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [recording, setRecording] = useState(false);
+
+  // TTS for AI messages
+  const { speak, stop: stopSpeech, speaking } = useSpeech();
+  const [speakingId, setSpeakingId] = useState(null);
+
+  const handleSpeak = useCallback((text, id) => {
+    if (speakingId === id) {
+      stopSpeech();
+      setSpeakingId(null);
+    } else {
+      stopSpeech();
+      speak(text);
+      setSpeakingId(id);
+    }
+  }, [speakingId, speak, stopSpeech]);
+
+  // Clear speakingId when speech ends
+  useEffect(() => {
+    if (!speaking && speakingId) setSpeakingId(null);
+  }, [speaking, speakingId]);
 
   // Close attach menu on outside click
   useEffect(() => {
@@ -724,6 +767,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           passions: studentSession?.passions || [],
         },
         messages: aiMessages,
+        gradeBand: quest?.grade_band || blueprint?.gradeBand || null,
       });
 
       const cleanResponse = stripAssessment(response);
@@ -918,6 +962,8 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
               mentorName={mentorName}
               challengerName={challengerName}
               accentColor={accentColor}
+              onSpeak={handleSpeak}
+              speakingId={speakingId}
             />
           ))}
 

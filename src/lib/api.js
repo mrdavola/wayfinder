@@ -836,7 +836,7 @@ CRITICAL RULES:
     return callAI({ systemPrompt, messages });
   },
 
-  questHelp: async ({ stageTitle, stageDescription, guidingQuestions, deliverable, studentProfile, messages }) => {
+  questHelp: async ({ stageTitle, stageDescription, guidingQuestions, deliverable, studentProfile, messages, gradeBand }) => {
     const profileContext = studentProfile ? [
       studentProfile.name ? `Student name: ${studentProfile.name}` : '',
       studentProfile.age ? `Age: ${studentProfile.age}` : '',
@@ -858,7 +858,16 @@ CRITICAL RULES:
       else if (avgLevel >= 3) depthGuidance = '\nAdapt: student is proficient/advanced — push toward analysis, synthesis, and deeper reasoning.';
     }
 
-    const systemPrompt = `You are a Field Guide — a supportive mentor helping a student (ages 8-14) work through the project stage: "${stageTitle}". Use Socratic questioning — never give direct answers. Ask 1-2 follow-up questions to help the student think deeper. Keep replies under 3 sentences. Reference the student's interests, passions, and actual work to make connections personal. Sound like a professional mentor who takes them seriously, not a game character.
+    // Grade-band-aware brevity rules
+    const brevityRule = gradeBand === 'K-2'
+      ? 'CRITICAL: Keep replies to 1-2 short sentences MAX. Use simple everyday words. One question at a time.'
+      : gradeBand === '3-5'
+        ? 'CRITICAL: Keep replies to 2 sentences MAX. Use clear, simple language. Ask only 1 follow-up question.'
+        : gradeBand === '9-12'
+          ? 'Keep replies to 3 sentences max. Ask 1 follow-up question.'
+          : 'CRITICAL: Keep replies to 2-3 sentences MAX. Ask only 1 follow-up question.';
+
+    const systemPrompt = `You are a Field Guide — a supportive mentor helping a student work through the project stage: "${stageTitle}". Use Socratic questioning — never give direct answers. ${brevityRule} Reference the student's interests and actual work to make connections personal. Sound like a professional mentor who takes them seriously, not a game character.
 
 SAFETY RULES (strictly enforced):
 - You ONLY discuss topics related to this project stage, learning, school subjects, and the student's educational interests.
@@ -872,7 +881,7 @@ ${guidingQuestions?.length ? `Guiding questions: ${guidingQuestions.join('; ')}`
 ${deliverable ? `Deliverable: ${deliverable}` : ''}
 ${profileContext ? `\nStudent profile:\n${profileContext}` : ''}${depthGuidance}
 
-Adapt language complexity to the student's grade level (K-2: simple words, 3-5: clear language, 6-8: subject vocabulary OK, 9-12: academic language).
+${gradeBand ? `Student grade band: ${gradeBand}.` : ''} Adapt language complexity accordingly (K-2: simple words, 3-5: clear language, 6-8: subject vocabulary OK, 9-12: academic language).
 
 When making factual claims in your response, note the source. Format: "According to [Source](url), ...". If you cannot cite a source, say "Based on what I know" to signal it's AI-generated.
 
