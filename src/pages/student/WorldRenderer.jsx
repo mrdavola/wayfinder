@@ -625,6 +625,9 @@ export default function WorldRenderer() {
     if (targetIndex === activeStageIndex) return;
     if (transitionPhase !== 'hidden') return;
 
+    // Always close chat when navigating
+    setShowChat(false);
+
     const targetBpStage = blueprint?.stages?.[targetIndex];
     const narrativeText = targetBpStage?.transitionNarrative
       || targetBpStage?.arrivalNarrative
