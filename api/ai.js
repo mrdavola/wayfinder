@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
 async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens }) {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY });
   const msgs = messages || [{ role: 'user', content: userMessage }];
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
@@ -55,10 +55,11 @@ async function callGemini({ systemPrompt, userMessage, messages }) {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
+    // Gemini requires history to start with 'user' — drop leading 'model' messages
     const firstUserIdx = converted.findIndex(m => m.role === 'user');
-    const history = firstUserIdx > 0 ? converted.slice(firstUserIdx) : converted;
+    const history = firstUserIdx >= 0 ? converted.slice(firstUserIdx) : [];
     const lastMsg = messages[messages.length - 1];
-    const chat = model.startChat({ history });
+    const chat = model.startChat({ history: history.length > 0 ? history : undefined });
     const result = await chat.sendMessage(lastMsg.content);
     return result.response.text();
   } else {

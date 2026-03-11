@@ -741,8 +741,9 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         return;
       }
 
-      // Build conversation history for AI
-      const aiMessages = messages.concat(studentMsg).map(m => ({
+      // Build conversation history for AI (limit to last 16 messages to avoid timeouts)
+      const recentMessages = messages.slice(-16).concat(studentMsg);
+      const aiMessages = recentMessages.map(m => ({
         role: (m.role === 'mentor' || m.role === 'challenger') ? 'assistant' : 'user',
         content: m.content,
       }));
@@ -755,8 +756,8 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           ? guidingQuestions.split('\n').filter(Boolean)
           : [];
 
-      // Call AI with character-wrapped prompt
-      const response = await ai.questHelp({
+      // Call AI with 30s timeout so chat never hangs
+      const aiPromise = ai.questHelp({
         stageTitle: stage?.title || '',
         stageDescription: stage?.description || '',
         guidingQuestions: questionsArray,
@@ -769,6 +770,10 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         messages: aiMessages,
         gradeBand: quest?.grade_band || blueprint?.gradeBand || null,
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 30000)
+      );
+      const response = await Promise.race([aiPromise, timeoutPromise]);
 
       const cleanResponse = stripAssessment(response);
 
