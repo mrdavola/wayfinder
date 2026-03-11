@@ -160,6 +160,14 @@ function QuestCard({ quest, onArchive, onDelete }) {
   const [copied, setCopied] = useState(false);
   const menuRef = useRef(null);
 
+  // World blueprint location awareness
+  const blueprint = quest.world_blueprint;
+  const accentColor = blueprint?.palette?.accent;
+  const sortedStages = (quest.quest_stages || []).slice().sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const currentStage = sortedStages.find(s => s.status !== 'completed');
+  const currentLocation = currentStage?.location_name;
+  const currentStageIndex = currentStage ? sortedStages.indexOf(currentStage) + 1 : null;
+
   // Close menu when clicking outside
   useEffect(() => {
     if (!menuOpen) return;
@@ -197,7 +205,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
       className="specimen-card"
       onClick={() => navigate(`/quest/${quest.id}`)}
       style={{
-        '--tab-color': tabColor,
+        '--tab-color': accentColor || tabColor,
         cursor: 'pointer',
         marginBottom: 'var(--space-4)',
         position: 'relative',
@@ -316,6 +324,41 @@ function QuestCard({ quest, onArchive, onDelete }) {
         </span>
       </div>
 
+      {/* Location awareness for world-blueprint quests */}
+      {blueprint && currentLocation && (() => {
+        const firstName = students.length === 1
+          ? students[0].split(/\s+/)[0]
+          : null;
+        return (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              marginBottom: 'var(--space-2)',
+            }}
+          >
+            <MapPin size={12} color={accentColor || 'var(--graphite)'} />
+            <span
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 'var(--text-xs)',
+                color: accentColor || 'var(--graphite)',
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {firstName
+                ? `${firstName} is at ${currentLocation}`
+                : `Currently at ${currentLocation}`}
+              {currentStageIndex ? ` (Stage ${currentStageIndex})` : ''}
+            </span>
+          </div>
+        );
+      })()}
+
       {/* Progress bar */}
       <div style={{ marginBottom: 6 }}>
         <div
@@ -344,7 +387,7 @@ function QuestCard({ quest, onArchive, onDelete }) {
             style={{
               height: '100%',
               width: `${pct}%`,
-              background: 'var(--field-green)',
+              background: accentColor || 'var(--field-green)',
               borderRadius: 100,
               transition: 'width 0.4s ease',
             }}
