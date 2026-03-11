@@ -189,7 +189,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           // Map DB messages to local format
           const loaded = existing.map(m => ({
             role: m.role === 'assistant'
-              ? (m.message_type === 'world_challenger' ? 'challenger' : 'mentor')
+              ? (m.message_type === 'devil_advocate' ? 'challenger' : 'mentor')
               : (m.role === 'user' ? 'student' : m.role),
             content: stripAssessment(m.content),
             timestamp: m.created_at,
@@ -197,7 +197,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           setMessages(loaded);
 
           // Count existing mentor exchanges for challenger trigger
-          const mentorMsgCount = existing.filter(m => m.role === 'assistant' && m.message_type === 'world_mentor').length;
+          const mentorMsgCount = existing.filter(m => m.role === 'assistant' && m.message_type === 'field_guide').length;
           mentorExchangeCount.current = mentorMsgCount;
 
           setInitialized(true);
@@ -219,7 +219,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           studentName: studentSession.studentName,
           role: 'assistant',
           content: greeting,
-          messageType: 'world_mentor',
+          messageType: 'field_guide',
         });
 
         mentorExchangeCount.current = 1;
@@ -324,7 +324,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         studentName: studentSession?.studentName || 'Student',
         role: 'assistant',
         content: cleanChallenge,
-        messageType: 'world_challenger',
+        messageType: 'devil_advocate',
       });
 
       setMessages(prev => [...prev, {
@@ -408,7 +408,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
       studentName: studentSession?.studentName || 'Student',
       role: 'assistant',
       content: promptMsg.content,
-      messageType: 'world_mentor',
+      messageType: 'field_guide',
     }).catch(err => console.error('Persist prompt error:', err));
 
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -512,7 +512,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         studentName: studentSession?.studentName || 'Student',
         role: 'assistant',
         content: mentorFeedback,
-        messageType: 'world_mentor',
+        messageType: 'field_guide',
       });
 
       setMessages(prev => [...prev, {
@@ -581,7 +581,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         studentName: studentSession?.studentName || 'Student',
         role: 'user',
         content: trimmed,
-        messageType: challengerActive ? 'world_challenger_response' : 'world_mentor',
+        messageType: challengerActive ? 'devil_advocate' : 'field_guide',
       });
 
       // If challenger was active and student responded, return to mentor
@@ -599,7 +599,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           studentName: studentSession?.studentName || 'Student',
           role: 'assistant',
           content: returnMsg,
-          messageType: 'world_mentor',
+          messageType: 'field_guide',
         });
 
         mentorExchangeCount.current += 1;
@@ -653,7 +653,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         studentName: studentSession?.studentName || 'Student',
         role: 'assistant',
         content: response, // persist full response with assessment
-        messageType: 'world_mentor',
+        messageType: 'field_guide',
       });
 
       mentorExchangeCount.current += 1;
