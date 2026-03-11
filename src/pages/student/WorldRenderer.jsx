@@ -1,10 +1,25 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Compass, MessageCircle, ChevronRight } from 'lucide-react';
+import { Compass, MessageCircle, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { blueprintToCSSVars, AMBIENT_PRESETS, getParticleCSS } from '../../lib/worldEngine';
 import { getStudentSession } from '../../lib/studentSession';
+import useAmbientSound from '../../hooks/useAmbientSound';
 import WorldChat from '../../components/world/WorldChat';
+
+// Map blueprint ambientAudio presets → useAmbientSound sound types
+const PRESET_TO_SOUND = {
+  'underwater-deep': 'ocean',
+  'forest-canopy': 'birds',
+  'mountain-summit': 'wind',
+  'space-station': null,       // no matching sound
+  'desert-ruins': 'wind',
+  'urban-night': 'rain',
+  'volcanic-cave': 'campfire',
+  'arctic-ice': 'wind',
+  'jungle-river': 'river',
+  'storm-coast': 'ocean',
+};
 
 // ===================== ATMOSPHERE LAYER =====================
 function AtmosphereLayer({ particleType }) {
@@ -112,7 +127,7 @@ function AtmosphereLayer({ particleType }) {
 }
 
 // ===================== WORLD TOP BAR =====================
-function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studentSession, onNavigate }) {
+function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studentSession, onNavigate, audioEnabled, onToggleAudio }) {
   const navigate = useNavigate();
 
   return (
@@ -125,25 +140,48 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
       WebkitBackdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--world-border, rgba(255,255,255,0.1))',
     }}>
-      {/* Camp button */}
-      <button
-        onClick={() => navigate('/student')}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '6px 14px', borderRadius: 8,
-          background: 'rgba(255,255,255,0.08)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          color: 'var(--world-text, #f0f0f0)',
-          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500,
-          cursor: 'pointer',
-          transition: 'background 200ms',
-        }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-      >
-        <Compass size={15} />
-        Camp
-      </button>
+      {/* Left group: Camp + Audio toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Camp button */}
+        <button
+          onClick={() => navigate('/student')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px', borderRadius: 8,
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            color: 'var(--world-text, #f0f0f0)',
+            fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background 200ms',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+        >
+          <Compass size={15} />
+          Camp
+        </button>
+
+        {/* Ambient audio toggle */}
+        <button
+          onClick={onToggleAudio}
+          title={audioEnabled ? 'Mute ambient sound' : 'Enable ambient sound'}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 32, height: 32, borderRadius: 8,
+            background: audioEnabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: audioEnabled ? (accentColor || 'var(--world-accent, #4ecdc4)') : 'var(--world-text-muted, rgba(240,240,240,0.4))',
+            cursor: 'pointer',
+            transition: 'background 200ms, color 200ms',
+            padding: 0,
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.16)'}
+          onMouseLeave={e => e.currentTarget.style.background = audioEnabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)'}
+        >
+          {audioEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+        </button>
+      </div>
 
       {/* Journey dots */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -385,26 +423,32 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
 }
 
 // ===================== TRANSITION OVERLAY =====================
-function TransitionOverlay({ text, visible }) {
+// phase: 'hidden' | 'fade-out' | 'narrative' | 'fade-in'
+function TransitionOverlay({ text, phase }) {
+  const showOverlay = phase === 'narrative' || phase === 'fade-out';
+  const showText = phase === 'narrative';
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 15,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.7)',
-      opacity: visible ? 1 : 0,
-      pointerEvents: visible ? 'auto' : 'none',
+      background: 'rgba(0,0,0,0.8)',
+      opacity: showOverlay ? 1 : 0,
+      pointerEvents: showOverlay ? 'auto' : 'none',
       transition: 'opacity 400ms ease',
     }}>
       <p style={{
         fontFamily: 'var(--font-display)',
-        fontSize: '1.4rem',
+        fontSize: '1.5rem',
         color: 'var(--world-text, #f0f0f0)',
         textAlign: 'center',
-        maxWidth: 500,
-        lineHeight: 1.6,
-        padding: '0 24px',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(12px)',
+        maxWidth: 520,
+        lineHeight: 1.7,
+        padding: '0 28px',
+        fontStyle: 'italic',
+        letterSpacing: '0.01em',
+        opacity: showText ? 1 : 0,
+        transform: showText ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.97)',
         transition: 'opacity 400ms ease 100ms, transform 400ms ease 100ms',
       }}>
         {text}
@@ -426,8 +470,12 @@ export default function WorldRenderer() {
   const [error, setError] = useState(null);
   const [studentSession, setStudentSessionState] = useState(null);
   const [showChat, setShowChat] = useState(false);
-  const [transitioning, setTransitioning] = useState(false);
   const [transitionText, setTransitionText] = useState('');
+  // Transition phases: 'hidden' → 'fade-out' → 'narrative' → 'fade-in' → 'hidden'
+  const [transitionPhase, setTransitionPhase] = useState('hidden');
+
+  // Ambient sound
+  const { enabled: audioEnabled, toggle: toggleAudio, play: playSound, stop: stopSound } = useAmbientSound();
 
   // Load student session
   useEffect(() => {
@@ -482,6 +530,14 @@ export default function WorldRenderer() {
     loadQuest();
   }, [questId, navigate]);
 
+  // Play ambient sound when blueprint loads or audio is toggled on
+  useEffect(() => {
+    if (!blueprint?.ambientAudio || !audioEnabled) return;
+    const soundType = PRESET_TO_SOUND[blueprint.ambientAudio];
+    if (soundType) playSound(soundType);
+    return () => stopSound();
+  }, [blueprint?.ambientAudio, audioEnabled, playSound, stopSound]);
+
   // Derive CSS variables from blueprint palette
   const worldVars = useMemo(() => {
     if (!blueprint?.palette) return {};
@@ -514,10 +570,11 @@ export default function WorldRenderer() {
   const currentBlueprintStage = blueprint?.stages?.[activeStageIndex] || null;
   const currentStage = stages[activeStageIndex] || null;
 
-  // Handle stage navigation with transition
+  // Handle stage navigation with phased transition
+  // Flow: fade-out location (400ms) → show narrative text (1.5s) → fade-in new location (400ms)
   const handleNavigate = useCallback((targetIndex) => {
     if (targetIndex === activeStageIndex) return;
-    if (transitioning) return;
+    if (transitionPhase !== 'hidden') return;
 
     const targetBpStage = blueprint?.stages?.[targetIndex];
     const narrativeText = targetBpStage?.transitionNarrative
@@ -525,16 +582,26 @@ export default function WorldRenderer() {
       || 'Traveling to the next location...';
 
     setTransitionText(narrativeText);
-    setTransitioning(true);
 
-    // Fade out (400ms) → show transition (1.5s) → fade in new (400ms)
+    // Phase 1: Fade out current location (400ms)
+    setTransitionPhase('fade-out');
+
     setTimeout(() => {
+      // Phase 2: Show narrative overlay (hold 1.5s)
+      setTransitionPhase('narrative');
+      // Swap the stage content while overlay is opaque
       setActiveStageIndex(targetIndex);
+
       setTimeout(() => {
-        setTransitioning(false);
-      }, 600);
-    }, 1500);
-  }, [activeStageIndex, blueprint, transitioning]);
+        // Phase 3: Fade in new location (400ms)
+        setTransitionPhase('fade-in');
+
+        setTimeout(() => {
+          setTransitionPhase('hidden');
+        }, 400);
+      }, 1500);
+    }, 400);
+  }, [activeStageIndex, blueprint, transitionPhase]);
 
   // Loading state
   if (loading) {
@@ -604,12 +671,14 @@ export default function WorldRenderer() {
         accentColor={accentColor}
         studentSession={studentSession}
         onNavigate={handleNavigate}
+        audioEnabled={audioEnabled}
+        onToggleAudio={toggleAudio}
       />
 
       {/* Layer 2: Location content */}
       <div style={{
-        opacity: transitioning ? 0 : 1,
-        transform: transitioning ? 'translateY(8px)' : 'translateY(0)',
+        opacity: (transitionPhase === 'fade-out' || transitionPhase === 'narrative') ? 0 : 1,
+        transform: (transitionPhase === 'fade-out' || transitionPhase === 'narrative') ? 'translateY(8px)' : 'translateY(0)',
         transition: 'opacity 400ms ease, transform 400ms ease',
       }}>
         <LocationView
@@ -622,7 +691,7 @@ export default function WorldRenderer() {
       </div>
 
       {/* Transition overlay */}
-      <TransitionOverlay text={transitionText} visible={transitioning} />
+      <TransitionOverlay text={transitionText} phase={transitionPhase} />
 
       {/* Layer 3: Chat panel */}
       {showChat && (
