@@ -564,8 +564,8 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
       setInput('');
       setAttachedFile(null);
 
-      // Persist student submission message
-      await guideMessages.add({
+      // Persist student submission message (fire-and-forget)
+      guideMessages.add({
         questId: quest.id,
         stageId: stage.id,
         studentId: studentSession?.studentId || null,
@@ -573,10 +573,10 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         role: 'user',
         content: submissionContent,
         messageType: 'field_guide',
-      });
+      }).catch(() => {});
 
-      // Save to stage_submissions via RPC
-      await supabase.rpc('submit_stage_work', {
+      // Save to stage_submissions via RPC (fire-and-forget — RPC may not exist)
+      supabase.rpc('submit_stage_work', {
         p_quest_id: quest.id,
         p_stage_id: stage.id,
         p_student_name: studentSession?.studentName || 'Student',
@@ -586,26 +586,35 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         p_file_name: fileInfo?.fileName || null,
         p_file_size: fileInfo?.fileSize || null,
         p_mime_type: fileInfo?.mimeType || null,
-      });
+      }).catch(() => {});
 
-      // Call AI to review the submission
-      const review = await ai.reviewSubmission({
+      // Call AI to review the submission (with timeout)
+      // Truncate long submissions for AI review (keep full for display)
+      const reviewContent = submissionContent.length > 1500
+        ? submissionContent.slice(0, 1500) + '...'
+        : submissionContent;
+
+      const reviewPromise = ai.reviewSubmission({
         stageTitle: stage?.title || '',
         stageDescription: stage?.description || '',
         deliverable: stage?.deliverable || stage?.deliverable_description || '',
-        submissionContent: submissionContent,
+        submissionContent: reviewContent,
         studentProfile: {
           name: studentSession?.studentName,
           interests: studentSession?.interests || [],
           passions: studentSession?.passions || [],
         },
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 30000)
+      );
+      const review = await Promise.race([reviewPromise, timeoutPromise]);
 
       const score = review?.score || 0;
       const mastery = review?.mastery_passed || score >= 35;
 
-      // Save feedback to submission_feedback table
-      await submissionFeedback.add({
+      // Save feedback (fire-and-forget)
+      submissionFeedback.add({
         questId: quest.id,
         stageId: stage.id,
         studentName: studentSession?.studentName || 'Student',
@@ -615,7 +624,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         nextSteps: review?.next_steps || '',
         score: score,
         hints: review?.hints || '',
-      }).catch(err => console.error('Save feedback error:', err));
+      }).catch(() => {});
 
       // Build in-character mentor response based on score
       let mentorFeedback;
@@ -625,8 +634,8 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         mentorFeedback = `${review?.feedback || 'I see promise in this.'}\n\n${review?.hints || 'Dig deeper.'} ${review?.next_steps || 'What else might you discover here?'}`;
       }
 
-      // Persist mentor feedback
-      await guideMessages.add({
+      // Persist mentor feedback (fire-and-forget)
+      guideMessages.add({
         questId: quest.id,
         stageId: stage.id,
         studentId: studentSession?.studentId || null,
@@ -634,7 +643,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         role: 'assistant',
         content: mentorFeedback,
         messageType: 'field_guide',
-      });
+      }).catch(() => {});
 
       setMessages(prev => [...prev, {
         role: 'mentor',
