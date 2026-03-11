@@ -340,6 +340,42 @@ export const reflections = {
   },
 };
 
+// ===================== WORLD BLUEPRINTS =====================
+export const worldBlueprints = {
+  get: async (questId) => {
+    const { data, error } = await supabase
+      .from('quests')
+      .select('world_blueprint')
+      .eq('id', questId)
+      .single();
+    if (error) throw error;
+    return data?.world_blueprint;
+  },
+
+  save: async (questId, blueprint) => {
+    const { error } = await supabase
+      .from('quests')
+      .update({ world_blueprint: blueprint })
+      .eq('id', questId);
+    if (error) throw error;
+  },
+
+  saveStageLocations: async (stages, blueprintStages) => {
+    for (const bs of (blueprintStages || [])) {
+      const stage = stages[bs.stageIndex] || stages.find(s => s.id === bs.stageId);
+      if (!stage) continue;
+      await supabase
+        .from('quest_stages')
+        .update({
+          hero_journey_beat: bs.beat,
+          location_name: bs.location,
+          location_narrative: bs.arrivalNarrative,
+        })
+        .eq('id', stage.id);
+    }
+  },
+};
+
 // ===================== TEMPLATES =====================
 export const templates = {
   listPublic: async ({ pathway, gradeBand, sortBy = 'popular' } = {}) => {

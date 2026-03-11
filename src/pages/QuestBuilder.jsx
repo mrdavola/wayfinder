@@ -32,7 +32,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
 import { supabase } from '../lib/supabase';
-import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges, stageBranches, generateWorldImage, uploadWorldScene } from '../lib/api';
+import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges, stageBranches, generateWorldImage, uploadWorldScene, worldBlueprints } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
@@ -4163,6 +4163,21 @@ export default function QuestBuilder() {
           } else {
             console.warn('[saveQuest] No marble data to save. marbleData:', marbleData);
           }
+
+          // Generate world blueprint (fire and forget — non-blocking)
+          ai.generateWorldBlueprint({
+            quest: { title: quest.title || generatedQuest.quest_title, subtitle: quest.subtitle || generatedQuest.quest_subtitle, narrative_hook: quest.narrative_hook || generatedQuest.narrative_hook, career_pathway: quest.career_pathway },
+            stages: savedStages,
+            students: selectedStudents || [],
+            gradeBand: (selectedStudents || [])[0]?.grade_band || '6-8',
+          }).then(blueprint => {
+            if (blueprint) {
+              worldBlueprints.save(quest.id, blueprint);
+              if (blueprint.stages) {
+                worldBlueprints.saveStageLocations(savedStages, blueprint.stages);
+              }
+            }
+          }).catch(e => console.warn('World blueprint generation failed (non-blocking):', e));
 
           // Save branch relationships for branching quests (non-blocking)
           if (isBranching && generatedQuest?.is_branching) {
