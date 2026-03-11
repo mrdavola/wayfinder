@@ -719,6 +719,83 @@ Set "expedition_challenge" to null for stages where no challenge is included.`;
     }
   },
 
+  generateWorldBlueprint: async ({ quest, stages, students, gradeBand }) => {
+    const { GRADE_TONE } = await import('./worldEngine.js');
+    const tone = GRADE_TONE[gradeBand] || GRADE_TONE['6-8'];
+
+    const studentContext = students.map(s =>
+      `${s.name} (age ${s.age || 'unknown'}): interests=${(s.interests || []).join(', ')}, passions=${s.passions || 'not specified'}`
+    ).join('\n');
+
+    const stageList = stages.map((s, i) =>
+      `Stage ${i + 1}: "${s.title}" — ${(s.description || '').slice(0, 100)}...`
+    ).join('\n');
+
+    const prompt = `You are a world-builder for Wayfinder, an immersive learning platform. Generate a World Blueprint that transforms this educational project into an immersive Hero's Journey experience.
+
+PROJECT:
+Title: ${quest.title}
+Subtitle: ${quest.subtitle || ''}
+Narrative Hook: ${quest.narrative_hook || ''}
+Career Pathway: ${quest.career_pathway || ''}
+
+STAGES:
+${stageList}
+
+STUDENTS:
+${studentContext}
+
+GRADE BAND: ${gradeBand}
+TONE GUIDANCE: ${tone}
+
+Generate a World Blueprint as JSON with this exact structure:
+{
+  "setting": "A vivid, specific place name and description (e.g., 'The Dying Reef — a once-vibrant coral ecosystem now fading to white')",
+  "atmosphere": "2-3 word mood description (e.g., 'bioluminescent deep ocean')",
+  "palette": {
+    "bg": "#hex dark background",
+    "bgMid": "#hex mid-tone",
+    "accent": "#hex vivid accent color",
+    "text": "#hex light readable text",
+    "textMuted": "rgba for secondary text",
+    "surface": "rgba for card backgrounds",
+    "surfaceHover": "rgba for card hover",
+    "border": "rgba for borders"
+  },
+  "ambientAudio": "one of: underwater-deep, forest-canopy, mountain-summit, space-station, desert-ruins, urban-night, volcanic-cave, arctic-ice, jungle-river, storm-coast",
+  "mentor": {
+    "name": "A specific character name (not generic)",
+    "role": "Their role/title in the world",
+    "personality": "1-2 sentences describing how they speak and interact"
+  },
+  "challenger": {
+    "name": "A specific name or title for the antagonist/challenger force",
+    "personality": "1-2 sentences describing their challenge style"
+  },
+  "stages": [
+    {
+      "stageIndex": 0,
+      "location": "A vivid location name within the world",
+      "beat": "hero journey beat id",
+      "arrivalNarrative": "2-3 sentences of immersive narrative when student arrives. Second person present tense.",
+      "transitionNarrative": "1 sentence bridging from previous location"
+    }
+  ],
+  "tone": "Brief tone descriptor — must NOT be generic/cheesy/baby-ish."
+}
+
+CRITICAL RULES:
+- The setting MUST relate to the actual project topic.
+- Characters must feel REAL for the grade band. No talking animals for 6-8. No dry academics for 3-5.
+- Arrival narratives must reference the ACTUAL work of that stage.
+- The palette must be dark/immersive (full-screen experience, not white dashboard).
+- The tone must match the grade band guidance exactly.
+- Return ONLY valid JSON, no markdown fences.`;
+
+    const result = await callAI({ userMessage: prompt });
+    return parseAIJSON(result);
+  },
+
   simulationChat: async ({ systemPrompt, messages }) => {
     return callAI({ systemPrompt, messages });
   },
