@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Flame, LogOut, ChevronRight, Plus, Compass, Loader2, Check } from 'lucide-react';
+import { Flame, LogOut, ChevronRight, Plus, Compass, Loader2, Check, Copy, CheckCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { xp, ai } from '../../lib/api';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
@@ -536,6 +536,134 @@ const sectionTitle = {
   color: 'var(--compass-gold)', margin: '0 0 12px', letterSpacing: 0.3,
 };
 
+/* ── PIN overlay (first-visit) ───────────────────────────────────────── */
+
+function PinOverlay({ studentName, studentId, onDismiss }) {
+  const [pin, setPin] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('students')
+          .select('pin')
+          .eq('id', studentId)
+          .single();
+        if (data?.pin) setPin(data.pin);
+      } catch (err) {
+        console.error('Failed to fetch PIN:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [studentId]);
+
+  function handleCopy() {
+    if (!pin) return;
+    navigator.clipboard.writeText(pin).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function handleDismiss() {
+    localStorage.setItem(`wayfinder_seen_pin_${studentId}`, 'true');
+    onDismiss();
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      backdropFilter: 'blur(4px)',
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #2d2215 0%, #3a2c1a 100%)',
+        border: '1px solid rgba(232, 147, 58, 0.3)',
+        borderRadius: 16, padding: '36px 32px', maxWidth: 400, width: '90%',
+        textAlign: 'center',
+        boxShadow: '0 8px 40px rgba(0, 0, 0, 0.5), 0 0 60px rgba(232, 147, 58, 0.08)',
+      }}>
+        <h2 style={{
+          fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 400,
+          color: 'var(--compass-gold)', margin: '0 0 8px',
+        }}>
+          Welcome to Camp, {studentName}
+        </h2>
+
+        <p style={{
+          fontFamily: 'var(--font-body)', fontSize: 14,
+          color: 'rgba(255,220,180,0.55)', margin: '0 0 24px',
+        }}>
+          Your explorer key:
+        </p>
+
+        {loading ? (
+          <div style={{ padding: '20px 0' }}>
+            <Loader2
+              size={24}
+              style={{ color: 'var(--compass-gold)', animation: 'spin 1s linear infinite' }}
+            />
+          </div>
+        ) : pin ? (
+          <>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: '2.4rem', fontWeight: 700,
+              color: 'rgba(255,220,180,0.95)', letterSpacing: '0.25em',
+              margin: '0 0 16px', userSelect: 'all',
+            }}>
+              {pin}
+            </div>
+
+            <button
+              onClick={handleCopy}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px', borderRadius: 6, border: 'none',
+                background: 'rgba(255,220,180,0.08)',
+                color: copied ? 'var(--compass-gold)' : 'rgba(255,220,180,0.5)',
+                fontFamily: 'var(--font-body)', fontSize: 13,
+                cursor: 'pointer', transition: 'background 200ms, color 200ms',
+                marginBottom: 28,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,220,180,0.14)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,220,180,0.08)'; }}
+            >
+              {copied ? <><CheckCheck size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+            </button>
+          </>
+        ) : (
+          <p style={{
+            fontFamily: 'var(--font-body)', fontSize: 13,
+            color: 'rgba(255,220,180,0.4)', margin: '0 0 28px',
+          }}>
+            No PIN found. Ask your guide for help.
+          </p>
+        )}
+
+        <div>
+          <button
+            onClick={handleDismiss}
+            style={{
+              padding: '10px 32px', borderRadius: 8, border: 'none',
+              background: 'var(--compass-gold)', color: '#1a1510',
+              fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
+              cursor: 'pointer', transition: 'opacity 200ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── main component ──────────────────────────────────────────────────── */
 
 export default function CampHub() {
@@ -544,6 +672,7 @@ export default function CampHub() {
   const [xpData, setXpData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [showPinOverlay, setShowPinOverlay] = useState(false);
 
   /* load session + data */
   useEffect(() => {
@@ -553,6 +682,11 @@ export default function CampHub() {
       return;
     }
     setSession(s);
+
+    /* show PIN overlay on first visit */
+    if (!localStorage.getItem(`wayfinder_seen_pin_${s.studentId}`)) {
+      setShowPinOverlay(true);
+    }
 
     (async () => {
       setLoading(true);
@@ -653,6 +787,15 @@ export default function CampHub() {
       position: 'relative', overflow: 'hidden',
     }}>
       <EmberParticles />
+
+      {/* ── PIN overlay (first visit) ────────────────────────────── */}
+      {showPinOverlay && session && (
+        <PinOverlay
+          studentName={displayName}
+          studentId={session.studentId}
+          onDismiss={() => setShowPinOverlay(false)}
+        />
+      )}
 
       {/* ── top bar ──────────────────────────────────────────────── */}
       <header style={{
