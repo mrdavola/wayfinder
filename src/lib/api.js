@@ -2569,16 +2569,24 @@ export const xp = {
     return data;
   },
 
+  _xpTableMissing: false,
   async getStudentXP(studentId) {
-    try {
-      const { data, error } = await supabase
-        .from('student_xp')
-        .select('*')
-        .eq('student_id', studentId)
-        .single();
-      if (data) return data;
-    } catch (e) { /* table may not exist yet — migration 023 */ }
-    return { total_points: 0, current_rank: 'apprentice', current_streak: 0, longest_streak: 0 };
+    if (this._xpTableMissing) {
+      return { total_points: 0, current_rank: 'apprentice', current_streak: 0, longest_streak: 0 };
+    }
+    const { data, error } = await supabase
+      .from('student_xp')
+      .select('*')
+      .eq('student_id', studentId)
+      .single();
+    if (error) {
+      // 406 = table doesn't exist (migration 023 not run) — stop retrying
+      if (error.code === '42P01' || (error.message || '').includes('406') || error.code === 'PGRST204') {
+        this._xpTableMissing = true;
+      }
+      return { total_points: 0, current_rank: 'apprentice', current_streak: 0, longest_streak: 0 };
+    }
+    return data || { total_points: 0, current_rank: 'apprentice', current_streak: 0, longest_streak: 0 };
   },
 
   async getRecentEvents(studentId, limit = 20) {

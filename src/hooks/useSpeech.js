@@ -3,9 +3,10 @@ import { authedFetch } from '../lib/api';
 
 const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
 
-// Shared cache across all hook instances
+// Shared state across all hook instances
 const audioCache = new Map();
 const MAX_CACHE = 25;
+let elevenLabsFailed = false; // skip ElevenLabs after first failure
 
 function cacheSet(key, blob) {
   if (audioCache.size >= MAX_CACHE) {
@@ -110,7 +111,7 @@ export default function useSpeech() {
     } catch (err) {
       setLoading(false);
       if (err.name !== 'AbortError') {
-        console.warn('ElevenLabs TTS failed, falling back to Web Speech:', err.message);
+        elevenLabsFailed = true; // don't retry ElevenLabs again this session
         speakWebSpeech(text);
       }
     }
@@ -118,8 +119,14 @@ export default function useSpeech() {
 
   const speak = useCallback((text) => {
     if (!text) return;
-    speakElevenLabs(text);
-  }, [speakElevenLabs]);
+    // Skip ElevenLabs entirely if it already failed (e.g. no API key / 401)
+    if (elevenLabsFailed) {
+      stop();
+      speakWebSpeech(text);
+    } else {
+      speakElevenLabs(text);
+    }
+  }, [speakElevenLabs, speakWebSpeech, stop]);
 
   return { speak, stop, speaking, loading, supported };
 }
