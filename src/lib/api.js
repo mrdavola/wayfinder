@@ -2114,17 +2114,22 @@ export const guideMessages = {
     return { data: data || [], error };
   },
 
-  add: async ({ questId, stageId, studentId, studentName, role, content, messageType = 'field_guide', flagged = false }) => {
-    return supabase.from('guide_messages').insert({
+  add: async ({ questId, stageId, studentId, studentName, role, content, messageType = 'field_guide' }) => {
+    const row = {
       quest_id: questId,
       stage_id: stageId,
-      student_id: studentId || null,
       student_name: studentName,
       role,
       content,
       message_type: messageType,
-      flagged,
-    });
+    };
+    // Only include student_id if it looks like a valid UUID (avoids FK constraint failures)
+    if (studentId && /^[0-9a-f]{8}-/.test(studentId)) {
+      row.student_id = studentId;
+    }
+    const { data, error } = await supabase.from('guide_messages').insert(row);
+    if (error) console.warn('guide_messages insert warn:', error.message);
+    return { data, error };
   },
 
   // List all messages for a quest (for teacher moderation)

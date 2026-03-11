@@ -656,8 +656,8 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
     setSending(true);
 
     try {
-      // Persist student message
-      await guideMessages.add({
+      // Persist student message (fire-and-forget — don't block AI call)
+      guideMessages.add({
         questId: quest.id,
         stageId: stage.id,
         studentId: studentSession?.studentId || null,
@@ -665,7 +665,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         role: 'user',
         content: trimmed,
         messageType: challengerActive ? 'devil_advocate' : 'field_guide',
-      });
+      }).catch(() => {});
 
       // If challenger was active and student responded, return to mentor
       if (challengerActive) {
@@ -675,7 +675,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         // Mentor returns with an encouraging message
         const returnMsg = `Well said. ${challengerName} will test you again, but for now, let's continue. Where were we?`;
 
-        await guideMessages.add({
+        guideMessages.add({
           questId: quest.id,
           stageId: stage.id,
           studentId: studentSession?.studentId || null,
@@ -683,7 +683,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           role: 'assistant',
           content: returnMsg,
           messageType: 'field_guide',
-        });
+        }).catch(() => {});
 
         mentorExchangeCount.current += 1;
 
@@ -728,16 +728,16 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
 
       const cleanResponse = stripAssessment(response);
 
-      // Persist mentor response
-      await guideMessages.add({
+      // Persist mentor response (fire-and-forget)
+      guideMessages.add({
         questId: quest.id,
         stageId: stage.id,
         studentId: studentSession?.studentId || null,
         studentName: studentSession?.studentName || 'Student',
         role: 'assistant',
-        content: response, // persist full response with assessment
+        content: response,
         messageType: 'field_guide',
-      });
+      }).catch(() => {});
 
       mentorExchangeCount.current += 1;
 
