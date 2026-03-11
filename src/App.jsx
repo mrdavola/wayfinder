@@ -22,6 +22,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const StudentQuestPage = lazy(() => import('./pages/student/StudentQuestPage'));
 const StudentLogin = lazy(() => import('./pages/student/StudentLogin'));
 const StudentHome = lazy(() => import('./pages/student/StudentHome'));
+const CampHub = lazy(() => import('./pages/student/CampHub'));
 const StudentProjectBuilder = lazy(() => import('./pages/student/StudentProjectBuilder'));
 const LearnerIntakeForm = lazy(() => import('./pages/student/LearnerIntakeForm'));
 const ExploreSkillPage = lazy(() => import('./pages/student/ExploreSkillPage'));
@@ -67,7 +68,8 @@ export default function App() {
             <Route path="/q/:id" element={<StudentQuestPage />} />
             <Route path="/join/:code" element={<LearnerIntakeForm />} />
             <Route path="/student/login" element={<StudentLogin />} />
-            <Route path="/student" element={<StudentHome />} />
+            <Route path="/student" element={<CampHub />} />
+            <Route path="/student/legacy" element={<StudentHome />} />
             <Route path="/student/project/new" element={<StudentProjectBuilder />} />
             <Route path="/student/explore/:explorationId" element={<ExploreSkillPage />} />
             <Route path="/student/shop" element={<ShopPage />} />
