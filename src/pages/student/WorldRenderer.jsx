@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Compass, X, MessageCircle, ChevronRight } from 'lucide-react';
+import { Compass, MessageCircle, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { blueprintToCSSVars, AMBIENT_PRESETS, getParticleCSS } from '../../lib/worldEngine';
 import { getStudentSession } from '../../lib/studentSession';
+import WorldChat from '../../components/world/WorldChat';
 
 // ===================== ATMOSPHERE LAYER =====================
 function AtmosphereLayer({ particleType }) {
@@ -383,70 +384,6 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
   );
 }
 
-// ===================== WORLD CHAT STUB =====================
-function WorldChat({ mentorName, onClose }) {
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: 0, right: 0,
-      width: 380, height: '70vh',
-      zIndex: 20,
-      background: 'rgba(10,10,20,0.92)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      border: '1px solid rgba(255,255,255,0.1)',
-      borderRadius: '16px 0 0 0',
-      display: 'flex', flexDirection: 'column',
-      animation: 'world-chat-slide-in 300ms ease-out',
-    }}>
-      <style>{`
-        @keyframes world-chat-slide-in {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
-
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 18px',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-      }}>
-        <span style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 16,
-          color: 'var(--world-text, #f0f0f0)',
-        }}>
-          {mentorName || 'Mentor'}
-        </span>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none', border: 'none',
-            color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
-            cursor: 'pointer', padding: 4,
-          }}
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      {/* Body placeholder */}
-      <div style={{
-        flex: 1,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
-        fontFamily: 'var(--font-body)',
-        fontSize: 14,
-        padding: 24,
-        textAlign: 'center',
-      }}>
-        Chat coming soon...
-      </div>
-    </div>
-  );
-}
-
 // ===================== TRANSITION OVERLAY =====================
 function TransitionOverlay({ text, visible }) {
   return (
@@ -687,11 +624,18 @@ export default function WorldRenderer() {
       {/* Transition overlay */}
       <TransitionOverlay text={transitionText} visible={transitioning} />
 
-      {/* Layer 3: Chat panel (stub) */}
+      {/* Layer 3: Chat panel */}
       {showChat && (
         <WorldChat
-          mentorName={mentorName}
+          quest={quest}
+          stage={currentStage}
+          blueprint={blueprint}
+          studentSession={studentSession}
           onClose={() => setShowChat(false)}
+          onStageComplete={() => {
+            // Reload quest data after stage completion
+            setShowChat(false);
+          }}
         />
       )}
     </div>
