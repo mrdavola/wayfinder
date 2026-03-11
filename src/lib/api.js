@@ -1029,6 +1029,45 @@ ${submissionsSummary ? `Their work:\n${submissionsSummary}` : ''}`,
     return await parseAIJSON(text);
   },
 
+  generateCampfireReflection: async ({ quest, stages, submissions, studentProfile }) => {
+    const stageNames = (stages || []).map(s => s.location_name || s.title).join(' → ');
+    const submissionSummary = (submissions || []).map(s =>
+      `- Stage "${s.stage_title || 'Unknown'}": ${(s.content || '').slice(0, 200)}`
+    ).join('\n');
+
+    const prompt = `You are a campfire — a warm, reflective space where a student has just returned from a learning journey.
+
+The student just completed: "${quest?.title || 'a project'}"
+They went through these locations: ${stageNames}
+
+Their key submissions included:
+${submissionSummary || '(no submissions available)'}
+
+Student: ${studentProfile?.name || 'Explorer'}, age ${studentProfile?.age || 'unknown'}, interests: ${(studentProfile?.interests || []).join(', ')}
+
+Generate 3 metacognitive reflection questions. These should be:
+- Specific to THIS project and what THIS student actually did
+- Focused on HOW they think and solve problems (not what they learned)
+- Phrased as genuine curiosity, not teacher-voice
+- Examples of good framing: "How did you figure out where to start?", "What would you do differently?", "What surprised you most?"
+
+Return a JSON array of 3 strings: ["question1", "question2", "question3"]
+Do NOT use generic questions. Reference their actual work.
+Return ONLY valid JSON, no markdown fences.`;
+
+    const result = await callAI({ userMessage: prompt });
+    // parseAIJSON only matches {...} objects; campfire returns a [...] array
+    const cleaned = result.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (!arrMatch) throw new Error('No JSON array found in campfire AI response');
+    try {
+      return JSON.parse(arrMatch[0]);
+    } catch {
+      const { jsonrepair } = await import('jsonrepair');
+      return JSON.parse(jsonrepair(arrMatch[0]));
+    }
+  },
+
   // Generic chat: messages = [{role:'user'|'assistant', content}], systemPrompt = string
   chat: async (messages, systemPrompt) => {
     return callAI({ systemPrompt, messages });

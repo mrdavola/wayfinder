@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Flame, LogOut, ChevronRight, Plus, Compass, Loader2 } from 'lucide-react';
+import { Flame, LogOut, ChevronRight, Plus, Compass, Loader2, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { xp } from '../../lib/api';
+import { xp, ai } from '../../lib/api';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
 import ExplorerRankBadge from '../../components/xp/ExplorerRankBadge';
 
@@ -230,6 +230,217 @@ function HorizonSection({ quests, navigate }) {
       >
         <Plus size={16} /> Chart your own course
       </button>
+    </section>
+  );
+}
+
+/* ── campfire reflection ──────────────────────────────────────────────── */
+
+function CampfireSection({ completedQuests, studentId }) {
+  const [campfireQuest, setCampfireQuest] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [loadingQ, setLoadingQ] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+
+  /* find a recently-completed quest that hasn't been reflected on */
+  useEffect(() => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const eligible = (completedQuests || []).filter(q => {
+      if (!q.completed_at && !q.updated_at) return false;
+      const ts = q.completed_at || q.updated_at;
+      return ts >= sevenDaysAgo && !localStorage.getItem(`campfire_reflected_${q.id}`);
+    });
+    if (eligible.length > 0) setCampfireQuest(eligible[0]);
+  }, [completedQuests]);
+
+  /* load AI reflection questions when campfireQuest is set */
+  const loadQuestions = useCallback(async () => {
+    if (!campfireQuest) return;
+    setLoadingQ(true);
+    try {
+      /* fetch stages + submissions for this quest */
+      const [stageRes, subRes, profileRes] = await Promise.all([
+        supabase.from('quest_stages').select('*').eq('quest_id', campfireQuest.id).order('order_index'),
+        supabase.from('quest_submissions').select('*').eq('quest_id', campfireQuest.id).eq('student_id', studentId),
+        supabase.from('students').select('name, age, interests, passions, about_me').eq('id', studentId).single(),
+      ]);
+      const stages = stageRes.data || [];
+      const submissions = (subRes.data || []).map(s => ({
+        ...s,
+        stage_title: stages.find(st => st.id === s.stage_id)?.title || stages.find(st => st.id === s.stage_id)?.location_name || 'Unknown',
+      }));
+      const profile = profileRes.data || {};
+
+      const qs = await ai.generateCampfireReflection({
+        quest: campfireQuest,
+        stages,
+        submissions,
+        studentProfile: profile,
+      });
+      setQuestions(Array.isArray(qs) ? qs : []);
+    } catch (err) {
+      console.error('Campfire reflection error:', err);
+      setQuestions([
+        'What part of this project made you think the hardest?',
+        'If you could go back and change one decision, what would it be?',
+        'What would you tell someone just starting this project?',
+      ]);
+    } finally {
+      setLoadingQ(false);
+    }
+  }, [campfireQuest, studentId]);
+
+  useEffect(() => { loadQuestions(); }, [loadQuestions]);
+
+  /* save responses */
+  async function handleSubmit() {
+    if (!campfireQuest || questions.length === 0) return;
+    const unanswered = questions.filter((_, i) => !answers[i]?.trim());
+    if (unanswered.length > 0) return;
+
+    setSaving(true);
+    try {
+      const rows = questions.map((q, i) => ({
+        quest_id: campfireQuest.id,
+        student_id: studentId,
+        entry_type: 'campfire_reflection',
+        question: q,
+        content: answers[i].trim(),
+      }));
+      const { error } = await supabase.from('reflection_entries').insert(rows);
+      if (error) throw error;
+      localStorage.setItem(`campfire_reflected_${campfireQuest.id}`, 'true');
+      setDone(true);
+    } catch (err) {
+      console.error('Campfire save error:', err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!campfireQuest) return null;
+
+  const allAnswered = questions.length > 0 && questions.every((_, i) => answers[i]?.trim());
+
+  if (done) {
+    return (
+      <section style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
+        <div style={{
+          background: 'rgba(232, 147, 58, 0.08)',
+          border: '1px solid rgba(232, 147, 58, 0.25)',
+          borderRadius: 14, padding: '28px 24px', textAlign: 'center',
+          boxShadow: '0 0 30px rgba(232, 147, 58, 0.08)',
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🔥</div>
+          <p style={{
+            fontFamily: 'var(--font-display)', fontSize: 20,
+            color: 'var(--compass-gold)', margin: '0 0 6px',
+          }}>
+            Well reflected, explorer.
+          </p>
+          <p style={{
+            fontFamily: 'var(--font-body)', fontSize: 13,
+            color: 'rgba(255,220,180,0.5)', margin: 0,
+          }}>
+            Your thoughts have been added to your journey.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
+      <div style={{
+        background: 'rgba(232, 147, 58, 0.06)',
+        border: '1px solid rgba(232, 147, 58, 0.2)',
+        borderRadius: 14, padding: '24px 20px',
+        boxShadow: '0 0 40px rgba(232, 147, 58, 0.06)',
+      }}>
+        {/* header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 22 }}>🔥</span>
+          <h2 style={{
+            fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400,
+            color: 'var(--compass-gold)', margin: 0,
+          }}>
+            Campfire
+          </h2>
+        </div>
+        <p style={{
+          fontFamily: 'var(--font-body)', fontSize: 13, fontStyle: 'italic',
+          color: 'rgba(255,220,180,0.5)', margin: '0 0 18px',
+        }}>
+          The campfire crackles... sit with your thoughts from <span style={{ color: 'rgba(255,220,180,0.75)', fontStyle: 'normal', fontWeight: 500 }}>{campfireQuest.title}</span>.
+        </p>
+
+        {loadingQ ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+            <Loader2 size={16} style={{ color: 'var(--compass-gold)', animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'rgba(255,220,180,0.4)' }}>
+              The fire stirs a question...
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {questions.map((q, i) => (
+              <div key={i} style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(232, 147, 58, 0.12)',
+                borderRadius: 10, padding: '14px 16px',
+              }}>
+                <p style={{
+                  fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
+                  color: 'rgba(255,220,180,0.85)', margin: '0 0 10px',
+                }}>
+                  {q}
+                </p>
+                <textarea
+                  value={answers[i] || ''}
+                  onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
+                  placeholder="Share what's on your mind..."
+                  rows={3}
+                  style={{
+                    width: '100%', resize: 'vertical',
+                    background: 'rgba(0,0,0,0.15)',
+                    border: '1px solid rgba(232, 147, 58, 0.1)',
+                    borderRadius: 8, padding: '10px 12px',
+                    fontFamily: 'var(--font-body)', fontSize: 13,
+                    color: 'rgba(255,220,180,0.8)', lineHeight: 1.5,
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.target.style.borderColor = 'rgba(232, 147, 58, 0.3)'; }}
+                  onBlur={e => { e.target.style.borderColor = 'rgba(232, 147, 58, 0.1)'; }}
+                />
+              </div>
+            ))}
+
+            <button
+              onClick={handleSubmit}
+              disabled={!allAnswered || saving}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '10px 20px', borderRadius: 8, border: 'none',
+                background: allAnswered ? 'var(--compass-gold)' : 'rgba(255,220,180,0.1)',
+                color: allAnswered ? '#1a1510' : 'rgba(255,220,180,0.3)',
+                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                cursor: allAnswered ? 'pointer' : 'default',
+                transition: 'background 200ms, color 200ms',
+                alignSelf: 'flex-end',
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? (
+                <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</>
+              ) : (
+                <><Check size={14} /> Share your thoughts</>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -509,6 +720,7 @@ export default function CampHub() {
           position: 'relative', zIndex: 1,
         }}>
           <JourneyWall quests={completedQuests} />
+          <CampfireSection completedQuests={completedQuests} studentId={session?.studentId} />
           <HorizonSection quests={waitingQuests} navigate={navigate} />
           <ActiveWorldsSection quests={activeWithProgress} navigate={navigate} />
         </main>
