@@ -576,17 +576,19 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
       }).catch(() => {});
 
       // Save to stage_submissions via RPC (fire-and-forget — RPC may not exist)
-      supabase.rpc('submit_stage_work', {
-        p_quest_id: quest.id,
-        p_stage_id: stage.id,
-        p_student_name: studentSession?.studentName || 'Student',
-        p_submission_type: fileInfo ? 'file' : 'text',
-        p_content: trimmed || null,
-        p_file_url: fileInfo?.url || null,
-        p_file_name: fileInfo?.fileName || null,
-        p_file_size: fileInfo?.fileSize || null,
-        p_mime_type: fileInfo?.mimeType || null,
-      }).catch(() => {});
+      try {
+        supabase.rpc('submit_stage_work', {
+          p_quest_id: quest.id,
+          p_stage_id: stage.id,
+          p_student_name: studentSession?.studentName || 'Student',
+          p_submission_type: fileInfo ? 'file' : 'text',
+          p_content: trimmed || null,
+          p_file_url: fileInfo?.url || null,
+          p_file_name: fileInfo?.fileName || null,
+          p_file_size: fileInfo?.fileSize || null,
+          p_mime_type: fileInfo?.mimeType || null,
+        }).then(() => {});
+      } catch (e) { /* RPC may not exist */ }
 
       // Call AI to review the submission (with timeout)
       // Truncate long submissions for AI review (keep full for display)
