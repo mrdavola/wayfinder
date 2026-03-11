@@ -2556,13 +2556,15 @@ export const xp = {
   },
 
   async getStudentXP(studentId) {
-    const { data, error } = await supabase
-      .from('student_xp')
-      .select('*')
-      .eq('student_id', studentId)
-      .single();
-    if (error && error.code !== 'PGRST116') { console.error('Get XP error:', error); }
-    return data || { total_points: 0, current_rank: 'apprentice', current_streak: 0, longest_streak: 0 };
+    try {
+      const { data, error } = await supabase
+        .from('student_xp')
+        .select('*')
+        .eq('student_id', studentId)
+        .single();
+      if (data) return data;
+    } catch (e) { /* table may not exist yet — migration 023 */ }
+    return { total_points: 0, current_rank: 'apprentice', current_streak: 0, longest_streak: 0 };
   },
 
   async getRecentEvents(studentId, limit = 20) {

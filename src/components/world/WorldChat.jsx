@@ -478,7 +478,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         studentName: studentSession?.studentName || 'Student',
         role: 'user',
         content: submissionContent,
-        messageType: 'world_submission',
+        messageType: 'field_guide',
       });
 
       // Save to stage_submissions via RPC
