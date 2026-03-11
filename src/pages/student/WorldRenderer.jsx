@@ -743,10 +743,18 @@ export default function WorldRenderer() {
           onClose={() => setShowChat(false)}
           onStageComplete={async () => {
             setShowChat(false);
+
+            // Mark current stage as completed in DB
+            const stageId = currentStage?.id;
+            if (stageId) {
+              await supabase.from('quest_stages').update({ status: 'completed' }).eq('id', stageId);
+              // Update local state
+              setStages(prev => prev.map(s => s.id === stageId ? { ...s, status: 'completed' } : s));
+            }
+
             // Award XP for stage completion
             const studentId = studentSession?.studentId;
-            const stageId = currentStage?.id;
-            if (studentId) {
+            if (studentId && stageId) {
               const oldRank = xpData?.current_rank || 'apprentice';
               const result = await xp.award(studentId, 'stage_complete', questId, stageId);
               const updatedXP = await xp.getStudentXP(studentId);
@@ -759,6 +767,19 @@ export default function WorldRenderer() {
                 rankUp,
                 newRank: rankUp ? newRank : null,
               });
+            }
+
+            // Auto-advance to next stage after a brief pause
+            const nextIdx = activeStageIndex + 1;
+            if (nextIdx < stages.length) {
+              // Unlock next stage in DB
+              const nextStageId = stages[nextIdx]?.id;
+              if (nextStageId) {
+                await supabase.from('quest_stages').update({ status: 'active' }).eq('id', nextStageId);
+                setStages(prev => prev.map(s => s.id === nextStageId ? { ...s, status: 'active' } : s));
+              }
+              // Navigate with transition animation
+              setTimeout(() => handleNavigate(nextIdx), 1500);
             }
           }}
         />
