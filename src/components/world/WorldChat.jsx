@@ -691,7 +691,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   };
 
   // Detect mobile (simple heuristic)
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Header display — changes for challenger mode
   const headerName = challengerActive ? challengerName : mentorName;
@@ -731,7 +731,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         zIndex: 20,
         ...(isMobile ? {
           bottom: 0, left: 0, right: 0,
-          height: '70vh',
+          height: 'calc(100vh - 60px)',
           borderRadius: '16px 16px 0 0',
         } : {
           top: 0, right: 0, bottom: 0,
@@ -754,11 +754,12 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         {isMobile && (
           <div style={{
             display: 'flex', justifyContent: 'center',
-            padding: '8px 0 0',
+            padding: '10px 0 4px',
+            cursor: 'grab',
           }}>
             <div style={{
-              width: 36, height: 4, borderRadius: 2,
-              background: 'rgba(255,255,255,0.2)',
+              width: 40, height: 5, borderRadius: 3,
+              background: 'rgba(255,255,255,0.25)',
             }} />
           </div>
         )}
@@ -804,8 +805,11 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
             style={{
               background: 'none', border: 'none',
               color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
-              cursor: 'pointer', padding: 4,
-              display: 'flex', alignItems: 'center',
+              cursor: 'pointer',
+              padding: isMobile ? 10 : 4,
+              minWidth: isMobile ? 44 : 'auto',
+              minHeight: isMobile ? 44 : 'auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               borderRadius: 6,
               transition: 'color 200ms',
             }}
@@ -852,7 +856,8 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
               disabled={sending}
               style={{
                 width: '100%',
-                padding: '10px 16px',
+                padding: isMobile ? '12px 16px' : '10px 16px',
+                minHeight: isMobile ? 44 : 'auto',
                 borderRadius: 10,
                 border: `1px solid ${accentColor ? accentColor + '33' : 'rgba(78,205,196,0.2)'}`,
                 background: 'rgba(255,255,255,0.04)',
@@ -879,7 +884,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
 
         {/* Input area */}
         <div style={{
-          padding: '12px 14px',
+          padding: isMobile ? '12px 14px 16px' : '12px 14px',
           borderTop: '1px solid rgba(255,255,255,0.08)',
           flexShrink: 0,
         }}>
@@ -930,7 +935,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
                   disabled={sending || submitting}
                   title="Attach a file"
                   style={{
-                    width: 36, height: 36,
+                    width: isMobile ? 44 : 36, height: isMobile ? 44 : 36,
                     borderRadius: 8,
                     border: '1px solid rgba(255,255,255,0.1)',
                     background: 'rgba(255,255,255,0.04)',
@@ -957,7 +962,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
                   disabled
                   title="Voice recording (coming soon)"
                   style={{
-                    width: 36, height: 36,
+                    width: isMobile ? 44 : 36, height: isMobile ? 44 : 36,
                     borderRadius: 8,
                     border: '1px solid rgba(255,255,255,0.06)',
                     background: 'rgba(255,255,255,0.02)',
@@ -982,7 +987,8 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
               rows={submissionMode ? 3 : 1}
               style={{
                 flex: 1,
-                padding: '10px 14px',
+                padding: isMobile ? '12px 14px' : '10px 14px',
+                minHeight: isMobile ? 44 : 'auto',
                 borderRadius: 12,
                 border: challengerActive
                   ? '1px solid rgba(231,76,60,0.25)'
@@ -990,12 +996,13 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
                 background: 'rgba(255,255,255,0.06)',
                 color: 'var(--world-text, #f0f0f0)',
                 fontFamily: 'var(--font-body)',
-                fontSize: 14,
+                fontSize: isMobile ? 16 : 14,
                 lineHeight: 1.4,
                 resize: 'none',
                 outline: 'none',
                 maxHeight: submissionMode ? 160 : 100,
                 transition: 'border-color 200ms',
+                boxSizing: 'border-box',
               }}
               onFocus={e => e.target.style.borderColor = challengerActive
                 ? CHALLENGER_COLOR
@@ -1008,7 +1015,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
               onClick={handleSend}
               disabled={sendDisabled}
               style={{
-                width: 40, height: 40,
+                width: isMobile ? 44 : 40, height: isMobile ? 44 : 40,
                 borderRadius: 10,
                 border: 'none',
                 background: sendDisabled

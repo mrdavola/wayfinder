@@ -159,6 +159,8 @@ function JourneyWall({ quests }) {
 }
 
 function HorizonSection({ quests, navigate }) {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   return (
     <section style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
       <h2 style={sectionTitle}>The Horizon</h2>
@@ -171,11 +173,15 @@ function HorizonSection({ quests, navigate }) {
               style={{
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,220,180,0.1)',
-                borderRadius: 12, padding: '16px 20px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                borderRadius: 12, padding: isMobile ? '14px 14px' : '16px 20px',
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'stretch' : 'center',
+                justifyContent: 'space-between',
+                gap: isMobile ? 12 : 0,
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <p style={{
                   fontFamily: 'var(--font-body)', fontSize: 11, color: 'rgba(255,220,180,0.4)',
                   margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: 1,
@@ -183,8 +189,9 @@ function HorizonSection({ quests, navigate }) {
                   A new world is calling...
                 </p>
                 <p style={{
-                  fontFamily: 'var(--font-display)', fontSize: 18,
+                  fontFamily: 'var(--font-display)', fontSize: isMobile ? 16 : 18,
                   color: 'rgba(255,220,180,0.9)', margin: 0,
+                  overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {q.title}
                 </p>
@@ -192,11 +199,14 @@ function HorizonSection({ quests, navigate }) {
               <button
                 onClick={() => navigate(questHref(q))}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 16px', borderRadius: 8, border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: isMobile ? '12px 16px' : '8px 16px',
+                  minHeight: isMobile ? 44 : 'auto',
+                  borderRadius: 8, border: 'none',
                   background: 'var(--compass-gold)', color: '#1a1510',
                   fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
               >
                 Enter World <ChevronRight size={14} />
@@ -219,7 +229,9 @@ function HorizonSection({ quests, navigate }) {
         onClick={() => navigate('/student/project/new')}
         style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '10px 18px', borderRadius: 8,
+          padding: isMobile ? '12px 18px' : '10px 18px',
+          minHeight: isMobile ? 44 : 'auto',
+          borderRadius: 8,
           background: 'rgba(255,220,180,0.08)',
           border: '1px dashed rgba(255,220,180,0.2)',
           color: 'rgba(255,220,180,0.7)',
@@ -447,6 +459,7 @@ function CampfireSection({ completedQuests, studentId }) {
 }
 
 function ActiveWorldsSection({ quests, navigate }) {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   if (quests.length === 0) return null;
 
   return (
@@ -470,8 +483,9 @@ function ActiveWorldsSection({ quests, navigate }) {
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,220,180,0.1)',
                 borderLeft: `3px solid ${accent}`,
-                borderRadius: 12, padding: '16px 20px',
+                borderRadius: 12, padding: isMobile ? '14px 14px' : '16px 20px',
                 cursor: 'pointer', transition: 'transform 200ms, background 200ms',
+                minHeight: isMobile ? 44 : 'auto',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -484,15 +498,17 @@ function ActiveWorldsSection({ quests, navigate }) {
             >
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginBottom: 10,
+                marginBottom: 10, gap: 8,
               }}>
                 <span style={{
-                  fontFamily: 'var(--font-display)', fontSize: 18,
+                  fontFamily: 'var(--font-display)', fontSize: isMobile ? 16 : 18,
                   color: 'rgba(255,220,180,0.9)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  minWidth: 0,
                 }}>
                   {q.title}
                 </span>
-                <ChevronRight size={16} style={{ color: 'rgba(255,220,180,0.4)' }} />
+                <ChevronRight size={16} style={{ color: 'rgba(255,220,180,0.4)', flexShrink: 0 }} />
               </div>
 
               {/* progress bar */}
@@ -779,6 +795,7 @@ export default function CampHub() {
 
   const displayName = session?.studentName || '';
   const rank = xpData?.current_rank || 'apprentice';
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   /* ── render ──────────────────────────────────────────────────────── */
   return (
@@ -801,34 +818,40 @@ export default function CampHub() {
       {/* ── top bar ──────────────────────────────────────────────── */}
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0.75rem 1.5rem', position: 'relative', zIndex: 10,
+        padding: isMobile ? '0.6rem 1rem' : '0.75rem 1.5rem',
+        position: 'relative', zIndex: 10,
       }}>
         {/* left: camp icon + label */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Flame size={20} style={{ color: 'var(--compass-gold)' }} />
-          <span style={{
-            fontFamily: 'var(--font-display)', fontSize: 18,
-            color: 'rgba(255,220,180,0.8)',
-          }}>
-            Camp
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <Flame size={isMobile ? 18 : 20} style={{ color: 'var(--compass-gold)' }} />
+          {!isMobile && (
+            <span style={{
+              fontFamily: 'var(--font-display)', fontSize: 18,
+              color: 'rgba(255,220,180,0.8)',
+            }}>
+              Camp
+            </span>
+          )}
         </div>
 
         {/* center: student name */}
         <div style={{
-          position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-          display: 'flex', alignItems: 'center', gap: 8,
+          ...(isMobile
+            ? { display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 0', justifyContent: 'center', minWidth: 0 }
+            : { position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8 }
+          ),
         }}>
           <span style={{
-            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+            fontFamily: 'var(--font-body)', fontSize: isMobile ? 13 : 14, fontWeight: 600,
             color: 'rgba(255,220,180,0.85)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {displayName}
           </span>
         </div>
 
         {/* right: rank badge + sign out */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexShrink: 0 }}>
           <ExplorerRankBadge rank={rank} size="sm" />
           <button
             onClick={handleSignOut}
@@ -837,9 +860,13 @@ export default function CampHub() {
               background: 'none', border: 'none',
               color: 'rgba(255,220,180,0.4)', cursor: 'pointer',
               fontFamily: 'var(--font-body)', fontSize: 12,
+              padding: isMobile ? 8 : 0,
+              minHeight: isMobile ? 44 : 'auto',
+              minWidth: isMobile ? 44 : 'auto',
+              justifyContent: 'center',
             }}
           >
-            <LogOut size={14} /> Sign out
+            <LogOut size={14} /> {!isMobile && 'Sign out'}
           </button>
         </div>
       </header>
@@ -860,8 +887,10 @@ export default function CampHub() {
         </div>
       ) : (
         <main style={{
-          maxWidth: 640, margin: '0 auto', paddingTop: '1.5rem', paddingBottom: '3rem',
+          maxWidth: isMobile ? '100%' : 640, margin: '0 auto',
+          paddingTop: isMobile ? '1rem' : '1.5rem', paddingBottom: '3rem',
           position: 'relative', zIndex: 1,
+          boxSizing: 'border-box',
         }}>
           <JourneyWall quests={completedQuests} />
           <CampfireSection completedQuests={completedQuests} studentId={session?.studentId} />

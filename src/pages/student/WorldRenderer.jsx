@@ -132,25 +132,28 @@ function AtmosphereLayer({ particleType }) {
 // ===================== WORLD TOP BAR =====================
 function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studentSession, onNavigate, audioEnabled, onToggleAudio, xpData }) {
   const navigate = useNavigate();
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10,
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '12px 20px',
+      padding: isMobile ? '10px 12px' : '12px 20px',
       background: 'rgba(0,0,0,0.25)',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--world-border, rgba(255,255,255,0.1))',
+      gap: isMobile ? 8 : 0,
     }}>
       {/* Left group: Camp + Audio toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {/* Camp button */}
         <button
           onClick={() => navigate('/student')}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 14px', borderRadius: 8,
+            padding: isMobile ? '8px 10px' : '6px 14px', borderRadius: 8,
+            minHeight: isMobile ? 44 : 'auto',
             background: 'rgba(255,255,255,0.08)',
             border: '1px solid rgba(255,255,255,0.15)',
             color: 'var(--world-text, #f0f0f0)',
@@ -162,7 +165,7 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
           onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
         >
           <Compass size={15} />
-          Camp
+          {!isMobile && 'Camp'}
         </button>
 
         {/* Ambient audio toggle */}
@@ -171,13 +174,14 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
           title={audioEnabled ? 'Mute ambient sound' : 'Enable ambient sound'}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 32, height: 32, borderRadius: 8,
+            width: isMobile ? 44 : 32, height: isMobile ? 44 : 32, borderRadius: 8,
             background: audioEnabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.12)',
             color: audioEnabled ? (accentColor || 'var(--world-accent, #4ecdc4)') : 'var(--world-text-muted, rgba(240,240,240,0.4))',
             cursor: 'pointer',
             transition: 'background 200ms, color 200ms',
             padding: 0,
+            flexShrink: 0,
           }}
           onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.16)'}
           onMouseLeave={e => e.currentTarget.style.background = audioEnabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)'}
@@ -186,8 +190,16 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
         </button>
       </div>
 
-      {/* Journey dots */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+      {/* Journey dots — scrollable on mobile */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 0,
+        flex: isMobile ? '1 1 0' : 'none',
+        overflowX: isMobile ? 'auto' : 'visible',
+        justifyContent: isMobile ? 'flex-start' : 'center',
+        padding: isMobile ? '0 4px' : 0,
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      }}>
         {stages.map((stage, i) => {
           const completed = stage.status === 'completed';
           const active = i === activeIndex;
@@ -195,14 +207,15 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
           const canNavigate = completed || active;
 
           return (
-            <div key={stage.id} style={{ display: 'flex', alignItems: 'center' }}>
+            <div key={stage.id} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               {i > 0 && (
                 <div style={{
-                  width: 20, height: 2,
+                  width: isMobile ? 14 : 20, height: 2,
                   background: completed || active
                     ? (accentColor || 'var(--world-accent, #4ecdc4)')
                     : 'rgba(255,255,255,0.15)',
                   transition: 'background 400ms',
+                  flexShrink: 0,
                 }} />
               )}
               <button
@@ -233,14 +246,17 @@ function WorldTopBar({ stages, blueprintStages, activeIndex, accentColor, studen
 
       {/* Student name + rank badge */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
+        display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8,
         color: 'var(--world-text, #f0f0f0)',
         fontFamily: 'var(--font-body)', fontSize: 13,
+        flexShrink: 0,
       }}>
         {studentSession?.avatarEmoji && (
-          <span style={{ fontSize: 18 }}>{studentSession.avatarEmoji}</span>
+          <span style={{ fontSize: isMobile ? 16 : 18 }}>{studentSession.avatarEmoji}</span>
         )}
-        <span style={{ fontWeight: 500 }}>{studentSession?.studentName || 'Explorer'}</span>
+        {!isMobile && (
+          <span style={{ fontWeight: 500 }}>{studentSession?.studentName || 'Explorer'}</span>
+        )}
         <ExplorerRankBadge rank={xpData?.current_rank || 'apprentice'} size="sm" showLabel={false} />
         <span style={{
           padding: '2px 8px', borderRadius: 10,
@@ -260,6 +276,7 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
   const locationName = blueprintStage?.location || stage?.location_name || stage?.title || 'Unknown Location';
   const narrative = blueprintStage?.arrivalNarrative || stage?.location_narrative || '';
   const isCompleted = stage?.status === 'completed';
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   const guidingQuestions = stage?.guiding_questions || [];
   const questionsArray = Array.isArray(guidingQuestions) ? guidingQuestions
@@ -274,8 +291,9 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      padding: '80px 24px 40px',
-      maxWidth: 680, margin: '0 auto',
+      padding: isMobile ? '70px 16px 32px' : '80px 24px 40px',
+      maxWidth: isMobile ? '100%' : 680, margin: '0 auto',
+      boxSizing: 'border-box',
     }}>
       {/* Location name */}
       <h1 style={{
@@ -311,10 +329,11 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
         width: '100%',
         background: 'var(--world-surface, rgba(255,255,255,0.08))',
         border: '1px solid var(--world-border, rgba(255,255,255,0.1))',
-        borderRadius: 16,
-        padding: '28px 28px 24px',
+        borderRadius: isMobile ? 12 : 16,
+        padding: isMobile ? '20px 16px 18px' : '28px 28px 24px',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
+        boxSizing: 'border-box',
       }}>
         {isCompleted ? (
           <div style={{
@@ -400,13 +419,14 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
               onClick={onOpenChat}
               style={{
                 width: '100%',
-                padding: '12px 20px',
+                padding: isMobile ? '14px 20px' : '12px 20px',
+                minHeight: isMobile ? 48 : 'auto',
                 borderRadius: 10,
                 border: 'none',
                 background: accentColor || 'var(--world-accent, #4ecdc4)',
                 color: '#111',
                 fontFamily: 'var(--font-body)',
-                fontSize: 14,
+                fontSize: isMobile ? 15 : 14,
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
