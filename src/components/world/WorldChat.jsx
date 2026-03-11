@@ -358,20 +358,15 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   // ===================== CHALLENGER LOGIC (Task 10) =====================
 
   // Check if challenger should trigger after a student message
-  const shouldTriggerChallenger = useCallback((studentContent) => {
+  const shouldTriggerChallenger = useCallback(() => {
     if (challengerActive) return false; // already active
 
-    // Trigger 1: short submission content (< 100 chars)
-    if (studentContent && studentContent.length < 100 && submissionMode) return true;
-
-    // Trigger 2: ordeal stage — trigger on first student reply
+    // Only trigger on ordeal stage (first time) or every 5th mentor exchange
     if (isOrdealStage && !challengerResponded) return true;
-
-    // Trigger 3: every 3rd mentor exchange
-    if (mentorExchangeCount.current > 0 && mentorExchangeCount.current % 3 === 0) return true;
+    if (mentorExchangeCount.current > 0 && mentorExchangeCount.current % 5 === 0) return true;
 
     return false;
-  }, [challengerActive, isOrdealStage, challengerResponded, submissionMode]);
+  }, [challengerActive, isOrdealStage, challengerResponded]);
 
   // Trigger the challenger to appear with a challenge message
   const triggerChallenger = useCallback(async (contextText) => {
@@ -656,11 +651,6 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         setTimeout(() => {
           if (onStageComplete) onStageComplete();
         }, 2000);
-      } else {
-        // Check if challenger should appear for short submission
-        if (submissionContent.length < 100) {
-          setTimeout(() => triggerChallenger(submissionContent), 1500);
-        }
       }
     } catch (err) {
       console.error('Submission error:', err);
@@ -793,16 +783,17 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
 
       mentorExchangeCount.current += 1;
 
+      // If challenger should trigger, skip the mentor reply — challenger takes this turn
+      if (shouldTriggerChallenger()) {
+        triggerChallenger(trimmed);
+        return;
+      }
+
       setMessages(prev => [...prev, {
         role: 'mentor',
         content: cleanResponse,
         timestamp: new Date().toISOString(),
       }]);
-
-      // Check if challenger should trigger after this exchange
-      if (shouldTriggerChallenger(trimmed)) {
-        setTimeout(() => triggerChallenger(trimmed), 1500);
-      }
     } catch (err) {
       console.error('WorldChat send error:', err);
       setMessages(prev => [...prev, {
