@@ -575,9 +575,32 @@ export default function WorldRenderer() {
         if (fetchError) throw fetchError;
         if (!data) throw new Error('Project not found');
 
-        // Redirect to standard view if no world blueprint
+        // If no blueprint yet, poll every 3s (it may be generating in background)
         if (!data.world_blueprint) {
-          navigate(`/q/${questId}`, { replace: true });
+          setQuest(data);
+          const sorted = (data.quest_stages || []).sort(
+            (a, b) => (a.stage_number || 0) - (b.stage_number || 0)
+          );
+          setStages(sorted);
+          const firstActive = sorted.findIndex(s => s.status !== 'completed');
+          setActiveStageIndex(firstActive >= 0 ? firstActive : sorted.length - 1);
+
+          // Poll for blueprint
+          const poll = setInterval(async () => {
+            const { data: check } = await supabase
+              .from('quests')
+              .select('world_blueprint')
+              .eq('id', questId)
+              .single();
+            if (check?.world_blueprint) {
+              clearInterval(poll);
+              setBlueprint(check.world_blueprint);
+              setLoading(false);
+            }
+          }, 3000);
+          // Stop polling after 2 minutes
+          setTimeout(() => clearInterval(poll), 120000);
+          setLoading(false);
           return;
         }
 
@@ -698,6 +721,34 @@ export default function WorldRenderer() {
             margin: '0 auto 12px',
           }} />
           <p style={{ fontSize: 14, opacity: 0.7 }}>Entering world...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // Waiting for blueprint (generating in background)
+  if (quest && !blueprint) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: '#1a1a2e',
+        fontFamily: 'var(--font-body)', color: '#f0f0f0',
+        flexDirection: 'column',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 32, height: 32,
+            border: '3px solid rgba(255,255,255,0.2)',
+            borderTopColor: '#4ecdc4',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }} />
+          <p style={{ fontSize: 16, fontFamily: 'var(--font-display)', marginBottom: 4 }}>
+            Building your world...
+          </p>
+          <p style={{ fontSize: 13, opacity: 0.5 }}>This usually takes about 30 seconds</p>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </div>

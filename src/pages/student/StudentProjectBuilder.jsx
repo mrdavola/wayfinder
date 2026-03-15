@@ -1142,7 +1142,7 @@ export default function StudentProjectBuilder() {
         });
 
       // Navigate immediately — don't wait for blueprint
-      navigate(`/q/${quest.id}`);
+      navigate(`/world/${quest.id}`);
     } catch (err) {
       setError(err.message || 'Failed to generate project. Try again!');
       setStep(1);
@@ -1238,7 +1238,7 @@ export default function StudentProjectBuilder() {
           }).catch(e => console.warn('World blueprint generation (background):', e));
         });
 
-      navigate(`/q/${quest.id}`);
+      navigate(`/world/${quest.id}`);
     } catch (err) {
       console.error('Publish error:', err);
       setError(err.message || 'Failed to publish. Please try again.');
