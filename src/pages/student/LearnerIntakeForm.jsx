@@ -271,7 +271,7 @@ function LoadingGame() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: T.ink,
+      background: '#1A1A2E',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       padding: '32px 20px',
@@ -290,18 +290,18 @@ function LoadingGame() {
 
       {/* Compass logo */}
       <div style={{ marginBottom: 16, animation: 'lif-pulse-glow 2s ease-in-out infinite' }}>
-        <WayfinderLogoIcon size={36} color={T.fieldGreen} />
+        <WayfinderLogoIcon size={36} color="#2D6A4F" />
       </div>
 
       <h2 style={{
         fontFamily: 'var(--font-display)', fontSize: 24,
-        color: T.chalk, marginBottom: 4, textAlign: 'center',
+        color: '#FFFFFF', marginBottom: 4, textAlign: 'center',
       }}>
         Building your world...
       </h2>
       <p style={{
         fontFamily: 'var(--font-body)', fontSize: 13,
-        color: T.pencil, textAlign: 'center', marginBottom: 16,
+        color: 'rgba(240,240,240,0.5)', textAlign: 'center', marginBottom: 16,
       }}>
         Catch stars while you wait!
       </p>
@@ -309,7 +309,7 @@ function LoadingGame() {
       {/* Score */}
       <div style={{
         fontFamily: 'var(--font-mono)', fontSize: 13,
-        color: T.compassGold, marginBottom: 10,
+        color: '#B8860B', marginBottom: 10,
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
         ⭐ {score}
