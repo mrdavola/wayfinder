@@ -1123,29 +1123,25 @@ export default function StudentProjectBuilder() {
       // 5. Assign student
       await supabase.from('quest_students').insert({ quest_id: quest.id, student_id: session.studentId });
 
-      // 6. Generate world blueprint
-      const { data: savedStages } = await supabase
-        .from('quest_stages').select('*').eq('quest_id', quest.id).order('stage_number');
-
-      try {
-        const blueprint = await ai.generateWorldBlueprint({
-          quest: { title: quest.title, subtitle: quest.subtitle, narrative_hook: quest.narrative_hook, career_pathway: quest.career_pathway },
-          stages: savedStages || stagesData,
-          students: [{ name: session.studentName, interests: intakeInterests, age: student.age, grade_band: student.grade_band }],
-          gradeBand: student.grade_band || '6-8',
+      // 6. Generate world blueprint in background (don't block navigation)
+      supabase.from('quest_stages').select('*').eq('quest_id', quest.id).order('stage_number')
+        .then(({ data: savedStages }) => {
+          ai.generateWorldBlueprint({
+            quest: { title: quest.title, subtitle: quest.subtitle, narrative_hook: quest.narrative_hook, career_pathway: quest.career_pathway },
+            stages: savedStages || stagesData,
+            students: [{ name: session.studentName, interests: intakeInterests, age: student.age, grade_band: student.grade_band }],
+            gradeBand: student.grade_band || '6-8',
+          }).then(blueprint => {
+            if (blueprint) {
+              worldBlueprints.save(quest.id, blueprint);
+              if (blueprint.stages && savedStages) {
+                worldBlueprints.saveStageLocations(savedStages, blueprint.stages);
+              }
+            }
+          }).catch(e => console.warn('World blueprint generation (background):', e));
         });
-        if (blueprint) {
-          await worldBlueprints.save(quest.id, blueprint);
-          if (blueprint.stages && savedStages) {
-            await worldBlueprints.saveStageLocations(savedStages, blueprint.stages);
-          }
-          navigate(`/world/${quest.id}`);
-          return;
-        }
-      } catch (e) {
-        console.warn('World blueprint failed, falling back:', e);
-      }
 
+      // Navigate immediately — don't wait for blueprint
       navigate(`/q/${quest.id}`);
     } catch (err) {
       setError(err.message || 'Failed to generate project. Try again!');
@@ -1224,34 +1220,24 @@ export default function StudentProjectBuilder() {
         });
       }
 
-      // Fetch saved stages for blueprint generation
-      const { data: savedStages } = await supabase
-        .from('quest_stages')
-        .select('*')
-        .eq('quest_id', quest.id)
-        .order('stage_number');
-
-      // Generate world blueprint (blocking — we need it for the immersive view)
-      try {
-        const blueprint = await ai.generateWorldBlueprint({
-          quest: { title: quest.title, subtitle: quest.subtitle, narrative_hook: quest.narrative_hook, career_pathway: quest.career_pathway },
-          stages: savedStages || stagesData,
-          students: [{ name: session.studentName, interests, age: profile?.age, grade_band: profile?.grade_band }],
-          gradeBand: profile?.grade_band || '6-8',
+      // Generate world blueprint in background (don't block navigation)
+      supabase.from('quest_stages').select('*').eq('quest_id', quest.id).order('stage_number')
+        .then(({ data: savedStages }) => {
+          ai.generateWorldBlueprint({
+            quest: { title: quest.title, subtitle: quest.subtitle, narrative_hook: quest.narrative_hook, career_pathway: quest.career_pathway },
+            stages: savedStages || stagesData,
+            students: [{ name: session.studentName, interests, age: profile?.age, grade_band: profile?.grade_band }],
+            gradeBand: profile?.grade_band || '6-8',
+          }).then(blueprint => {
+            if (blueprint) {
+              worldBlueprints.save(quest.id, blueprint);
+              if (blueprint.stages && savedStages) {
+                worldBlueprints.saveStageLocations(savedStages, blueprint.stages);
+              }
+            }
+          }).catch(e => console.warn('World blueprint generation (background):', e));
         });
-        if (blueprint) {
-          await worldBlueprints.save(quest.id, blueprint);
-          if (blueprint.stages && savedStages) {
-            await worldBlueprints.saveStageLocations(savedStages, blueprint.stages);
-          }
-          navigate(`/world/${quest.id}`);
-          return;
-        }
-      } catch (e) {
-        console.warn('World blueprint failed, falling back to standard view:', e);
-      }
 
-      // Fallback if blueprint fails
       navigate(`/q/${quest.id}`);
     } catch (err) {
       console.error('Publish error:', err);
