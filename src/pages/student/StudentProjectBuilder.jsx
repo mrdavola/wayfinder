@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown, ChevronUp, Check, ArrowLeft, ArrowRight,
@@ -479,9 +479,21 @@ const GEN_STEPS = [
   'Polishing everything...',
 ];
 
+const STAR_EMOJIS = ['⭐', '🌟', '✨', '💫', '🔮', '🌙'];
+const GAME_W = 300;
+const GAME_H = 320;
+
 function Step4Generating() {
   const [stepIdx, setStepIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+
+  // Mini game state
+  const [stars, setStars] = useState([]);
+  const [score, setScore] = useState(0);
+  const [pops, setPops] = useState([]);
+  const nextId = useRef(0);
+  const frameRef = useRef();
+  const lastSpawn = useRef(0);
 
   useEffect(() => {
     const interval = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -498,22 +510,71 @@ function Step4Generating() {
     return () => timeouts.forEach(clearTimeout);
   }, []);
 
+  // Star catcher game loop
+  const spawnStar = useCallback((now) => {
+    const id = nextId.current++;
+    setStars(prev => [...prev, {
+      id,
+      x: 16 + Math.random() * (GAME_W - 32),
+      y: -30,
+      emoji: STAR_EMOJIS[Math.floor(Math.random() * STAR_EMOJIS.length)],
+      speed: 0.5 + Math.random() * 0.7,
+      size: 22 + Math.random() * 12,
+      born: now,
+    }]);
+  }, []);
+
+  const catchStar = useCallback((id, x, y) => {
+    setStars(prev => prev.filter(s => s.id !== id));
+    setScore(prev => prev + 1);
+    const popId = nextId.current++;
+    setPops(prev => [...prev, { id: popId, x, y }]);
+    setTimeout(() => setPops(prev => prev.filter(p => p.id !== popId)), 500);
+  }, []);
+
+  useEffect(() => {
+    let running = true;
+    const tick = (now) => {
+      if (!running) return;
+      if (now - lastSpawn.current > 1100) {
+        spawnStar(now);
+        lastSpawn.current = now;
+      }
+      setStars(prev => prev
+        .map(s => ({ ...s, y: s.y + s.speed }))
+        .filter(s => s.y < GAME_H + 20)
+      );
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    spawnStar(performance.now());
+    lastSpawn.current = performance.now();
+    return () => { running = false; cancelAnimationFrame(frameRef.current); };
+  }, [spawnStar]);
+
   const estimateLeft = Math.max(0, 15 - elapsed);
 
   return (
-    <div style={{ textAlign: 'center', padding: '40px 0' }}>
-      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
-        <Sparkles size={40} color={T.compassGold} style={{ animation: 'spb-float 2s ease-in-out infinite' }} />
-      </div>
-      <p style={{ fontSize: 16, color: T.ink, fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: 8 }}>
+    <div style={{ textAlign: 'center', padding: '24px 0', userSelect: 'none' }}>
+      <style>{`
+        @keyframes spb-pop {
+          0% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(2.2); opacity: 0; }
+        }
+      `}</style>
+
+      {/* Status */}
+      <p style={{ fontSize: 15, color: T.ink, fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: 4 }}>
         Building your project...
       </p>
-      <p style={{ fontSize: 13, color: T.graphite, marginBottom: 20 }}>
+      <p style={{ fontSize: 12, color: T.graphite, marginBottom: 12 }}>
         {GEN_STEPS[stepIdx]}
       </p>
+
+      {/* Progress bar */}
       <div style={{
-        width: '70%', maxWidth: 280, height: 5, background: T.parchment,
-        borderRadius: 3, margin: '0 auto 14px', overflow: 'hidden',
+        width: '70%', maxWidth: 260, height: 4, background: T.parchment,
+        borderRadius: 3, margin: '0 auto 6px', overflow: 'hidden',
       }}>
         <div style={{
           height: '100%', background: T.compassGold, borderRadius: 3,
@@ -521,9 +582,83 @@ function Step4Generating() {
           transition: 'width 1s ease',
         }} />
       </div>
-      <p style={{ fontSize: 11, color: T.pencil, margin: 0 }}>
-        {estimateLeft > 0 ? `About ${estimateLeft} seconds left` : 'Almost there...'}
+      <p style={{ fontSize: 10, color: T.pencil, margin: '0 0 16px' }}>
+        {estimateLeft > 0 ? `About ${estimateLeft}s left` : 'Almost there...'}
       </p>
+
+      {/* Mini game */}
+      <p style={{
+        fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)',
+        marginBottom: 8,
+      }}>
+        Catch stars while you wait! ⭐ {score}
+      </p>
+
+      <div style={{
+        position: 'relative',
+        width: GAME_W, height: GAME_H,
+        margin: '0 auto',
+        borderRadius: 14,
+        border: `1.5px solid ${T.parchment}`,
+        background: T.ink,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        touchAction: 'manipulation',
+      }}>
+        {/* Subtle star field background */}
+        {[...Array(12)].map((_, i) => (
+          <div key={`bg-${i}`} style={{
+            position: 'absolute',
+            width: 2, height: 2, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.15)',
+            left: `${8 + (i * 37) % 90}%`,
+            top: `${12 + (i * 53) % 80}%`,
+          }} />
+        ))}
+
+        {stars.map(s => (
+          <button
+            key={s.id}
+            onClick={() => catchStar(s.id, s.x, s.y)}
+            style={{
+              position: 'absolute',
+              left: s.x - s.size / 2,
+              top: s.y,
+              width: s.size + 14,
+              height: s.size + 14,
+              fontSize: s.size,
+              lineHeight: 1,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {s.emoji}
+          </button>
+        ))}
+        {pops.map(p => (
+          <div
+            key={p.id}
+            style={{
+              position: 'absolute',
+              left: p.x - 8,
+              top: p.y - 8,
+              fontSize: 14,
+              fontWeight: 700,
+              color: T.compassGold,
+              fontFamily: 'var(--font-mono)',
+              pointerEvents: 'none',
+              animation: 'spb-pop 0.4s ease-out forwards',
+            }}
+          >
+            +1
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
