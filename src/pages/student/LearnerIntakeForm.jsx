@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ChevronLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ArrowRight } from 'lucide-react';
 import { invites } from '../../lib/api';
 import { setStudentSession } from '../../lib/studentSession';
 import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
@@ -178,16 +178,14 @@ export default function LearnerIntakeForm() {
               }}
             />
           ))}
-          <Sparkles
-            size={48}
-            color={T.fieldGreen}
-            style={{
-              position: 'absolute',
-              top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
-              animation: 'lif-pulse-glow 2s ease-in-out infinite',
-            }}
-          />
+          <div style={{
+            position: 'absolute',
+            top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            animation: 'lif-pulse-glow 2s ease-in-out infinite',
+          }}>
+            <WayfinderLogoIcon size={48} color={T.fieldGreen} />
+          </div>
         </div>
 
         <h2 style={{
