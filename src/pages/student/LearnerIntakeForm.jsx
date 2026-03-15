@@ -210,81 +210,136 @@ export default function LearnerIntakeForm() {
   );
 }
 
-// ── Loading Mini-Game: Catch the Stars ───────────────────────────────────────
+// ── Loading Mini-Game: Explorer Runner ────────────────────────────────────────
 
-const STAR_EMOJIS = ['⭐', '🌟', '✨', '💫', '🔮', '🌙'];
-const GAME_W = 320;
-const GAME_H = 360;
+const RUN_W = 340;
+const RUN_H = 160;
+const GROUND_Y = 120;
+const PLAYER_SIZE = 28;
+const GRAVITY = 0.45;
+const JUMP_VEL = -9;
+const OBSTACLES = ['🪨', '🌵', '🔥', '🌊', '⚡'];
 
 function LoadingGame() {
-  const [stars, setStars] = useState([]);
+  const [playerY, setPlayerY] = useState(GROUND_Y);
   const [score, setScore] = useState(0);
-  const [pops, setPops] = useState([]);
-  const nextId = useRef(0);
+  const [gameOver, setGameOver] = useState(false);
+  const velRef = useRef(0);
+  const jumpingRef = useRef(false);
+  const obstaclesRef = useRef([]);
+  const scoreRef = useRef(0);
   const frameRef = useRef();
+  const nextId = useRef(0);
   const lastSpawn = useRef(0);
+  const gameOverRef = useRef(false);
+  const playerYRef = useRef(GROUND_Y);
 
-  const spawnStar = useCallback((now) => {
-    const id = nextId.current++;
-    setStars(prev => [...prev, {
-      id,
-      x: 20 + Math.random() * (GAME_W - 40),
-      y: -30,
-      emoji: STAR_EMOJIS[Math.floor(Math.random() * STAR_EMOJIS.length)],
-      speed: 0.6 + Math.random() * 0.8,
-      size: 22 + Math.random() * 14,
-      born: now,
-    }]);
+  const jump = useCallback(() => {
+    if (gameOverRef.current) {
+      // Restart
+      gameOverRef.current = false;
+      setGameOver(false);
+      scoreRef.current = 0;
+      setScore(0);
+      obstaclesRef.current = [];
+      playerYRef.current = GROUND_Y;
+      setPlayerY(GROUND_Y);
+      velRef.current = 0;
+      jumpingRef.current = false;
+      return;
+    }
+    if (!jumpingRef.current) {
+      velRef.current = JUMP_VEL;
+      jumpingRef.current = true;
+    }
   }, []);
 
-  const catchStar = useCallback((id, x, y) => {
-    setStars(prev => prev.filter(s => s.id !== id));
-    setScore(prev => prev + 1);
-    const popId = nextId.current++;
-    setPops(prev => [...prev, { id: popId, x, y }]);
-    setTimeout(() => setPops(prev => prev.filter(p => p.id !== popId)), 500);
-  }, []);
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        jump();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [jump]);
 
   useEffect(() => {
     let running = true;
     const tick = (now) => {
       if (!running) return;
-      // Spawn a new star every ~1.2s
-      if (now - lastSpawn.current > 1200) {
-        spawnStar(now);
+      if (gameOverRef.current) {
+        frameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      // Player physics
+      velRef.current += GRAVITY;
+      playerYRef.current = Math.min(GROUND_Y, playerYRef.current + velRef.current);
+      if (playerYRef.current >= GROUND_Y) {
+        playerYRef.current = GROUND_Y;
+        velRef.current = 0;
+        jumpingRef.current = false;
+      }
+      setPlayerY(playerYRef.current);
+
+      // Spawn obstacles
+      if (now - lastSpawn.current > 1400 + Math.random() * 800) {
+        obstaclesRef.current.push({
+          id: nextId.current++,
+          x: RUN_W + 20,
+          emoji: OBSTACLES[Math.floor(Math.random() * OBSTACLES.length)],
+        });
         lastSpawn.current = now;
       }
-      // Move stars down, remove if off screen
-      setStars(prev => prev
-        .map(s => ({ ...s, y: s.y + s.speed }))
-        .filter(s => s.y < GAME_H + 20)
-      );
+
+      // Move obstacles
+      obstaclesRef.current = obstaclesRef.current
+        .map(o => ({ ...o, x: o.x - 3 }))
+        .filter(o => o.x > -30);
+
+      // Collision detection
+      const playerX = 50;
+      for (const o of obstaclesRef.current) {
+        if (
+          o.x < playerX + 18 && o.x + 20 > playerX &&
+          playerYRef.current > GROUND_Y - 22
+        ) {
+          gameOverRef.current = true;
+          setGameOver(true);
+          break;
+        }
+      }
+
+      // Score
+      if (!gameOverRef.current) {
+        scoreRef.current += 1;
+        if (scoreRef.current % 8 === 0) setScore(Math.floor(scoreRef.current / 8));
+      }
+
       frameRef.current = requestAnimationFrame(tick);
     };
     frameRef.current = requestAnimationFrame(tick);
-    // Spawn first star immediately
-    spawnStar(performance.now());
-    lastSpawn.current = performance.now();
     return () => { running = false; cancelAnimationFrame(frameRef.current); };
-  }, [spawnStar]);
+  }, []);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#1A1A2E',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      padding: '32px 20px',
-      userSelect: 'none',
-    }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#1A1A2E',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '32px 20px',
+        userSelect: 'none',
+      }}
+      onClick={jump}
+    >
       <style>{`
         @keyframes lif-pulse-glow {
           0%, 100% { opacity: 0.4; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.1); }
-        }
-        @keyframes lif-pop {
-          0% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(2); opacity: 0; }
         }
       `}</style>
 
@@ -303,71 +358,92 @@ function LoadingGame() {
         fontFamily: 'var(--font-body)', fontSize: 13,
         color: 'rgba(240,240,240,0.5)', textAlign: 'center', marginBottom: 16,
       }}>
-        Catch stars while you wait!
+        Tap or press space to jump!
       </p>
 
       {/* Score */}
       <div style={{
         fontFamily: 'var(--font-mono)', fontSize: 13,
         color: '#B8860B', marginBottom: 10,
-        display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        ⭐ {score}
+        {score} m explored
       </div>
 
       {/* Game area */}
-      <div
-        style={{
-          position: 'relative',
-          width: GAME_W, height: GAME_H,
-          borderRadius: 16,
-          border: `1px solid rgba(255,255,255,0.08)`,
-          background: 'rgba(255,255,255,0.03)',
-          overflow: 'hidden',
-          cursor: 'pointer',
-          touchAction: 'manipulation',
-        }}
-      >
-        {stars.map(s => (
-          <button
-            key={s.id}
-            onClick={() => catchStar(s.id, s.x, s.y)}
-            style={{
-              position: 'absolute',
-              left: s.x - s.size / 2,
-              top: s.y,
-              width: s.size + 12,
-              height: s.size + 12,
-              fontSize: s.size,
-              lineHeight: 1,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'top 0.05s linear',
-            }}
-          >
-            {s.emoji}
-          </button>
+      <div style={{
+        position: 'relative',
+        width: RUN_W, height: RUN_H + 20,
+        borderRadius: 14,
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(255,255,255,0.03)',
+        overflow: 'hidden',
+        touchAction: 'manipulation',
+      }}>
+        {/* Ground line */}
+        <div style={{
+          position: 'absolute', bottom: RUN_H - GROUND_Y - 6,
+          left: 0, right: 0, height: 1,
+          background: 'rgba(255,255,255,0.1)',
+        }} />
+
+        {/* Ground dots */}
+        {[...Array(20)].map((_, i) => (
+          <div key={`g${i}`} style={{
+            position: 'absolute',
+            bottom: RUN_H - GROUND_Y - 8 - Math.random() * 4,
+            left: `${(i * 5.2) % 100}%`,
+            width: 1, height: 1, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+          }} />
         ))}
-        {pops.map(p => (
-          <div
-            key={p.id}
-            style={{
-              position: 'absolute',
-              left: p.x - 10,
-              top: p.y - 10,
-              fontSize: 20,
-              pointerEvents: 'none',
-              animation: 'lif-pop 0.4s ease-out forwards',
-            }}
-          >
-            +1
+
+        {/* Player */}
+        <div style={{
+          position: 'absolute',
+          left: 50,
+          top: playerY - PLAYER_SIZE + 8,
+          fontSize: PLAYER_SIZE,
+          lineHeight: 1,
+          transition: jumpingRef.current ? 'none' : 'top 0.05s',
+        }}>
+          🧭
+        </div>
+
+        {/* Obstacles */}
+        {obstaclesRef.current.map(o => (
+          <div key={o.id} style={{
+            position: 'absolute',
+            left: o.x,
+            top: GROUND_Y - 18,
+            fontSize: 22,
+            lineHeight: 1,
+          }}>
+            {o.emoji}
           </div>
         ))}
+
+        {/* Game over overlay */}
+        {gameOver && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(26,26,46,0.85)',
+          }}>
+            <p style={{
+              fontSize: 16, fontFamily: 'var(--font-display)',
+              color: '#FFFFFF', marginBottom: 4,
+            }}>
+              {score} meters!
+            </p>
+            <p style={{
+              fontSize: 12, color: 'rgba(240,240,240,0.5)',
+              fontFamily: 'var(--font-body)',
+            }}>
+              Tap to try again
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
