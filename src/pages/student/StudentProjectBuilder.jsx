@@ -483,7 +483,7 @@ const STAR_EMOJIS = ['⭐', '🌟', '✨', '💫', '🔮', '🌙'];
 const GAME_W = 300;
 const GAME_H = 320;
 
-function Step4Generating() {
+function Step4Generating({ dark = false }) {
   const [stepIdx, setStepIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
 
@@ -554,6 +554,12 @@ function Step4Generating() {
 
   const estimateLeft = Math.max(0, 15 - elapsed);
 
+  const textColor = dark ? T.chalk : T.ink;
+  const mutedColor = dark ? 'rgba(240,240,240,0.6)' : T.graphite;
+  const dimColor = dark ? 'rgba(240,240,240,0.4)' : T.pencil;
+  const barBg = dark ? 'rgba(255,255,255,0.1)' : T.parchment;
+  const gameBorder = dark ? 'rgba(255,255,255,0.1)' : T.parchment;
+
   return (
     <div style={{ textAlign: 'center', padding: '24px 0', userSelect: 'none' }}>
       <style>{`
@@ -564,16 +570,16 @@ function Step4Generating() {
       `}</style>
 
       {/* Status */}
-      <p style={{ fontSize: 15, color: T.ink, fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: 4 }}>
-        Building your project...
+      <p style={{ fontSize: dark ? 22 : 15, color: textColor, fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: 4 }}>
+        {dark ? 'Building your world...' : 'Building your project...'}
       </p>
-      <p style={{ fontSize: 12, color: T.graphite, marginBottom: 12 }}>
+      <p style={{ fontSize: dark ? 14 : 12, color: mutedColor, marginBottom: 12 }}>
         {GEN_STEPS[stepIdx]}
       </p>
 
       {/* Progress bar */}
       <div style={{
-        width: '70%', maxWidth: 260, height: 4, background: T.parchment,
+        width: '70%', maxWidth: 260, height: 4, background: barBg,
         borderRadius: 3, margin: '0 auto 6px', overflow: 'hidden',
       }}>
         <div style={{
@@ -582,13 +588,13 @@ function Step4Generating() {
           transition: 'width 1s ease',
         }} />
       </div>
-      <p style={{ fontSize: 10, color: T.pencil, margin: '0 0 16px' }}>
+      <p style={{ fontSize: 10, color: dimColor, margin: '0 0 16px' }}>
         {estimateLeft > 0 ? `About ${estimateLeft}s left` : 'Almost there...'}
       </p>
 
       {/* Mini game */}
       <p style={{
-        fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)',
+        fontSize: 12, color: mutedColor, fontFamily: 'var(--font-body)',
         marginBottom: 8,
       }}>
         Catch stars while you wait! ⭐ {score}
@@ -599,8 +605,8 @@ function Step4Generating() {
         width: GAME_W, height: GAME_H,
         margin: '0 auto',
         borderRadius: 14,
-        border: `1.5px solid ${T.parchment}`,
-        background: T.ink,
+        border: `1.5px solid ${gameBorder}`,
+        background: dark ? 'rgba(255,255,255,0.03)' : T.ink,
         overflow: 'hidden',
         cursor: 'pointer',
         touchAction: 'manipulation',
@@ -1054,11 +1060,12 @@ export default function StudentProjectBuilder() {
     }
   }
 
-  // Auto-generate when arriving from intake (skip wizard steps)
+  // Auto-generate AND auto-publish when arriving from intake (no review step)
   async function autoGenerateFromIntake(student, intakeInterests) {
     setStep(4);
     setError('');
     try {
+      // 1. Generate quest
       const questData = await ai.generateQuest({
         students: [{
           name: session.studentName,
@@ -1072,10 +1079,75 @@ export default function StudentProjectBuilder() {
         count: 1,
         additionalContext: `This is a student-initiated personal project based on their interests: ${intakeInterests.join(', ')}. This student just signed up and this is their first project — make it exciting, welcoming, and exploration-driven. Use friendly, encouraging language.`,
       });
-      setResult(questData);
-      setStep(5);
+
+      // 2. Find guide
+      let guideId = student.guide_id;
+      if (!guideId) {
+        const { data: qs } = await supabase
+          .from('quest_students')
+          .select('quest_id, quests(guide_id)')
+          .eq('student_id', session.studentId)
+          .limit(1)
+          .single();
+        guideId = qs?.quests?.guide_id;
+      }
+      if (!guideId) throw new Error('Could not find your guide.');
+
+      // 3. Save quest
+      const { data: quest, error: questErr } = await supabase.from('quests').insert({
+        title: questData.quest_title,
+        subtitle: questData.quest_subtitle,
+        narrative_hook: questData.narrative_hook,
+        total_duration_days: questData.total_duration || 10,
+        career_pathway: 'self_directed',
+        status: 'active',
+        guide_id: guideId,
+      }).select().single();
+      if (questErr) throw questErr;
+
+      // 4. Save stages
+      const stagesData = (questData.stages || []).map((s, i) => ({
+        quest_id: quest.id,
+        stage_number: s.stage_number || i + 1,
+        title: s.stage_title,
+        stage_type: ['research', 'build', 'experiment', 'simulate', 'reflect', 'present'].includes(s.stage_type) ? s.stage_type : 'research',
+        description: s.description,
+        deliverable: s.deliverable,
+        guiding_questions: s.guiding_questions || [],
+        duration_days: s.duration || 2,
+        status: i === 0 ? 'active' : 'locked',
+        stretch_challenge: s.stretch_challenge || null,
+      }));
+      await supabase.from('quest_stages').insert(stagesData);
+
+      // 5. Assign student
+      await supabase.from('quest_students').insert({ quest_id: quest.id, student_id: session.studentId });
+
+      // 6. Generate world blueprint
+      const { data: savedStages } = await supabase
+        .from('quest_stages').select('*').eq('quest_id', quest.id).order('stage_number');
+
+      try {
+        const blueprint = await ai.generateWorldBlueprint({
+          quest: { title: quest.title, subtitle: quest.subtitle, narrative_hook: quest.narrative_hook, career_pathway: quest.career_pathway },
+          stages: savedStages || stagesData,
+          students: [{ name: session.studentName, interests: intakeInterests, age: student.age, grade_band: student.grade_band }],
+          gradeBand: student.grade_band || '6-8',
+        });
+        if (blueprint) {
+          await worldBlueprints.save(quest.id, blueprint);
+          if (blueprint.stages && savedStages) {
+            await worldBlueprints.saveStageLocations(savedStages, blueprint.stages);
+          }
+          navigate(`/world/${quest.id}`);
+          return;
+        }
+      } catch (e) {
+        console.warn('World blueprint failed, falling back:', e);
+      }
+
+      navigate(`/q/${quest.id}`);
     } catch (err) {
-      // On failure, fall back to step 1 so they can try manually
       setError(err.message || 'Failed to generate project. Try again!');
       setStep(1);
     }
@@ -1211,6 +1283,34 @@ export default function StudentProjectBuilder() {
 
   if (!session?.studentId) return null;
 
+  // Full-screen dark loading for intake flow
+  if (fromIntake && step === 4) {
+    return (
+      <div style={{
+        minHeight: '100vh', background: T.ink,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--font-body)',
+      }}>
+        <style>{`
+          @keyframes spb-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          @keyframes spb-pop { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
+        `}</style>
+        <Step4Generating dark />
+        {error && (
+          <div style={{ color: T.specimenRed, fontSize: 13, marginTop: 16, textAlign: 'center', maxWidth: 320 }}>
+            {error}
+            <button onClick={() => navigate('/student')} style={{
+              display: 'block', margin: '12px auto 0', padding: '8px 20px', borderRadius: 8,
+              background: T.fieldGreen, color: T.chalk, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontFamily: 'var(--font-body)',
+            }}>Go to Dashboard</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: T.paper, fontFamily: 'var(--font-body)', display: 'flex', flexDirection: 'column' }}>
       <style>{`
@@ -1287,7 +1387,7 @@ export default function StudentProjectBuilder() {
           />
         )}
 
-        {step === 4 && <Step4Generating />}
+        {step === 4 && <Step4Generating dark={fromIntake} />}
 
         {step === 5 && (
           <Step5Review
