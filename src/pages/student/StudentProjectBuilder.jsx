@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown, ChevronUp, Check, ArrowLeft, ArrowRight,
-  Sparkles, Loader2, AlertCircle, X, Plus, Users, Trophy,
-  BookOpen, FlaskConical, Microscope, Presentation, NotebookPen,
-  Rocket,
+  Sparkles, Loader2, AlertCircle, X, Plus, Users, Star,
+  Search, Compass, Binoculars, Megaphone, Flame,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ai } from '../../lib/api';
@@ -22,12 +21,17 @@ const T = {
 const STEP_LABELS = ['Interests', 'Career', 'Details', 'Generating', 'Review'];
 
 const STAGE_ICONS = {
-  research: BookOpen, experiment: FlaskConical, simulate: Microscope,
-  present: Presentation, reflect: NotebookPen,
+  research: Search, experiment: Compass, simulate: Binoculars,
+  present: Megaphone, reflect: Flame, build: Compass,
+};
+
+const STAGE_LABELS = {
+  research: 'Discover', experiment: 'Explore', simulate: 'Experience',
+  present: 'Share', reflect: 'Reflect', build: 'Build',
 };
 
 function StageTypeIcon({ type, size = 14 }) {
-  const Icon = STAGE_ICONS[type] || BookOpen;
+  const Icon = STAGE_ICONS[type] || Compass;
   return <Icon size={size} />;
 }
 
@@ -499,7 +503,7 @@ function Step4Generating() {
   return (
     <div style={{ textAlign: 'center', padding: '40px 0' }}>
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>
-        <Rocket size={40} color={T.compassGold} style={{ animation: 'spb-float 2s ease-in-out infinite' }} />
+        <Sparkles size={40} color={T.compassGold} style={{ animation: 'spb-float 2s ease-in-out infinite' }} />
       </div>
       <p style={{ fontSize: 16, color: T.ink, fontWeight: 600, fontFamily: 'var(--font-display)', marginBottom: 8 }}>
         Building your project...
@@ -597,7 +601,7 @@ function Step5Review({ result, error, onPublish, publishing, buddyName }) {
                       alignItems: 'center', justifyContent: 'center',
                       boxShadow: `0 0 0 3px ${T.compassGold}30`,
                     }}>
-                      <Trophy size={14} color={T.chalk} />
+                      <Star size={14} color={T.chalk} />
                     </div>
                   ) : (
                     <div style={{
@@ -665,7 +669,7 @@ function Step5Review({ result, error, onPublish, publishing, buddyName }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                       <StageTypeIcon type={stage.stage_type} size={11} />
-                      <span style={{ fontSize: 10, color: T.graphite, textTransform: 'capitalize' }}>{stage.stage_type}</span>
+                      <span style={{ fontSize: 10, color: T.graphite }}>{STAGE_LABELS[stage.stage_type] || stage.stage_type}</span>
                     </div>
                     <span style={{ fontSize: 10, color: T.graphite, fontFamily: 'var(--font-mono)' }}>
                       ~{stage.duration} days
@@ -1203,7 +1207,7 @@ export default function StudentProjectBuilder() {
               {publishing ? (
                 <><Loader2 size={14} style={{ animation: 'spb-spin 1s linear infinite' }} /> Publishing...</>
               ) : (
-                <><Rocket size={14} /> Launch My Project</>
+                <><Sparkles size={14} /> Launch My Project</>
               )}
             </button>
           </div>

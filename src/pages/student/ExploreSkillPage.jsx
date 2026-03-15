@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Lock, Check, Play, BookOpen, Target,
+  ArrowLeft, Lock, Check, Play, Map, Target,
   Send, Loader2, Award, ChevronRight, X, Sparkles,
 } from 'lucide-react';
 import { explorations, ai, skills as skillsApi, skillSnapshots, xp, tokens, ST_VALUES, badgesApi, inventory } from '../../lib/api';
@@ -756,7 +756,7 @@ function NodeDetailPanel({
       {node.one_pager && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-            <BookOpen size={14} color={T.labBlue} />
+            <Map size={14} color={T.labBlue} />
             <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>Reading</span>
           </div>
           <div style={{

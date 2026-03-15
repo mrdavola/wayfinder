@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Zap, X, Trophy, RotateCcw } from 'lucide-react';
+import { Zap, X, Star, RotateCcw } from 'lucide-react';
 
 const ENTRANCE_DURATION = 600; // ms
 
@@ -70,7 +70,7 @@ export default function ChallengerEncounter({
             animation: !defeated ? 'challengerPulse 2s ease-in-out infinite' : 'none',
           }}>
             {defeated?.success
-              ? <Trophy size={28} color="white" />
+              ? <Star size={28} color="white" />
               : <Zap size={28} color="white" />}
           </div>
           <h2 style={{

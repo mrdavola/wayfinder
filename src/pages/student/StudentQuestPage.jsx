@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  CheckCircle, BookOpen, Search, Wrench, FlaskConical, Mic,
+  CheckCircle, Search, Wrench, Compass, Mic,
   Megaphone, X, Send, Zap, ArrowRight, Loader2, AlertCircle,
+  Map, Flame, Binoculars,
   ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
   Paperclip, Video, Download, LogOut, Sparkles, Users,
   Pause, Play, Maximize2, SwitchCamera, ArrowLeft, PenLine,
@@ -132,9 +133,9 @@ function StageIcon({ type, size = 18, color = 'currentColor' }) {
   switch (type) {
     case 'research':   return <Search {...p} />;
     case 'build':      return <Wrench {...p} />;
-    case 'experiment': return <FlaskConical {...p} />;
-    case 'simulate':   return <Mic {...p} />;
-    case 'reflect':    return <BookOpen {...p} />;
+    case 'experiment': return <Compass {...p} />;
+    case 'simulate':   return <Binoculars {...p} />;
+    case 'reflect':    return <Flame {...p} />;
     case 'present':    return <Megaphone {...p} />;
     default:           return <Zap {...p} />;
   }
@@ -2171,7 +2172,7 @@ function FieldNotesPanel({ reflections, onAdd, onClose, studentName }) {
     }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--pencil)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <BookOpen size={15} color="var(--ink)" />
+          <Map size={15} color="var(--ink)" />
           <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: 'var(--ink)' }}>Field Notes</span>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--graphite)', padding: 4, display: 'flex', borderRadius: 4 }}>
@@ -2249,7 +2250,7 @@ function QuestReflectionSection({ questions, answers, onAnswer, onSave, loading,
       borderRadius: 14, padding: '20px 22px', marginTop: 16,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <BookOpen size={16} color="var(--compass-gold)" />
+        <Flame size={16} color="var(--compass-gold)" />
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: 'var(--ink)' }}>Project Reflection</span>
       </div>
       <p style={{ fontSize: 12, color: 'var(--graphite)', lineHeight: 1.5, margin: '0 0 16px' }}>
@@ -3279,7 +3280,7 @@ export default function StudentQuestPage() {
               fontFamily: 'var(--font-body)',
             }}
           >
-            <BookOpen size={13} />
+            <Map size={13} />
             <span className="sq-topbar-badge">{/* hidden on mobile */}Notes</span>
           </button>
         </div>

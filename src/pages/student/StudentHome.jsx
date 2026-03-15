@@ -6,7 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckCircle, Clock, ChevronRight,
   LogOut, Loader2, AlertCircle, Lock, Sparkles, Plus, X, Sliders, GitBranch,
-  ShoppingBag, Trophy, Flame,
+  ShoppingBag, Star, Flame,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { explorerLog, skills as skillsApi, explorations as explorationsApi, xp, tokens, inventory, leaderboard } from '../../lib/api';
@@ -772,7 +772,7 @@ export default function StudentHome() {
             <ShoppingBag size={16} /> Explorer Shop
           </button>
           <button onClick={() => navigate('/student/collection')} className="btn btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Trophy size={16} /> My Collection
+            <Star size={16} /> My Collection
           </button>
         </div>
 
