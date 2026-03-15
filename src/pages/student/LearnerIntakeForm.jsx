@@ -99,8 +99,8 @@ export default function LearnerIntakeForm() {
       setStudentSession({ studentId: data.student_id, studentName: data.student_name });
     }
 
-    // Navigate to Camp
-    navigate('/student');
+    // Jump straight into project creation with their interests
+    navigate('/student/project/new?from=intake');
   }
 
   // ── Loading state ──────────────────────────────────────────────────────────

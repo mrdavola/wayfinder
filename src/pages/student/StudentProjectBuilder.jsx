@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown, ChevronUp, Check, ArrowLeft, ArrowRight,
   Sparkles, Loader2, AlertCircle, X, Plus, Users, Trophy,
@@ -729,6 +729,8 @@ function Step5Review({ result, error, onPublish, publishing, buddyName }) {
 // ══════════════════════════════════════════════════════════════════════════════
 export default function StudentProjectBuilder() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromIntake = searchParams.get('from') === 'intake';
   const session = getStudentSession();
 
   const [step, setStep] = useState(1);
@@ -774,6 +776,13 @@ export default function StudentProjectBuilder() {
       // Pre-populate from profile
       const profileInterests = [...(student.interests || []), ...(student.passions || [])].filter(Boolean);
       if (profileInterests.length) setInterestSuggestions(profileInterests);
+
+      // Coming from intake — auto-populate interests and jump straight to generation
+      if (fromIntake && profileInterests.length >= 2) {
+        setInterests(profileInterests);
+        autoGenerateFromIntake(student, profileInterests);
+        return;
+      }
 
       // Load classmates for buddy pairing
       if (student.guide_id) {
@@ -903,6 +912,33 @@ export default function StudentProjectBuilder() {
     } catch (err) {
       setError(err.message || 'Failed to generate project. Try again!');
       setStep(3);
+    }
+  }
+
+  // Auto-generate when arriving from intake (skip wizard steps)
+  async function autoGenerateFromIntake(student, intakeInterests) {
+    setStep(4);
+    setError('');
+    try {
+      const questData = await ai.generateQuest({
+        students: [{
+          name: session.studentName,
+          interests: intakeInterests,
+          age: student.age || '10',
+          grade_band: student.grade_band || 'K-12',
+        }],
+        standards: 'teacher discretion',
+        pathway: 'none',
+        type: 'individual',
+        count: 1,
+        additionalContext: `This is a student-initiated personal project based on their interests: ${intakeInterests.join(', ')}. This student just signed up and this is their first project — make it exciting, welcoming, and exploration-driven. Use friendly, encouraging language.`,
+      });
+      setResult(questData);
+      setStep(5);
+    } catch (err) {
+      // On failure, fall back to step 1 so they can try manually
+      setError(err.message || 'Failed to generate project. Try again!');
+      setStep(1);
     }
   }
 
