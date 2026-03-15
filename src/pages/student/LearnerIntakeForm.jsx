@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ChevronLeft, ArrowRight } from 'lucide-react';
 import { invites } from '../../lib/api';
@@ -142,66 +142,7 @@ export default function LearnerIntakeForm() {
   // ── Submitting state (atmospheric loading) ─────────────────────────────────
 
   if (submitting) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: T.ink,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: '32px 20px',
-      }}>
-        <style>{`
-          @keyframes lif-pulse-glow {
-            0%, 100% { opacity: 0.4; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.1); }
-          }
-          @keyframes lif-drift {
-            0% { transform: translateY(0) rotate(0deg); opacity: 0; }
-            20% { opacity: 1; }
-            80% { opacity: 1; }
-            100% { transform: translateY(-120px) rotate(180deg); opacity: 0; }
-          }
-        `}</style>
-
-        {/* Floating particles */}
-        <div style={{ position: 'relative', width: 120, height: 120, marginBottom: 32 }}>
-          {[0, 1, 2, 3, 4].map(i => (
-            <div
-              key={i}
-              style={{
-                position: 'absolute',
-                width: 6, height: 6, borderRadius: '50%',
-                background: T.fieldGreen,
-                left: `${20 + i * 18}%`,
-                bottom: 0,
-                animation: `lif-drift ${2.5 + i * 0.4}s ease-in-out ${i * 0.5}s infinite`,
-              }}
-            />
-          ))}
-          <div style={{
-            position: 'absolute',
-            top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            animation: 'lif-pulse-glow 2s ease-in-out infinite',
-          }}>
-            <WayfinderLogoIcon size={48} color={T.fieldGreen} />
-          </div>
-        </div>
-
-        <h2 style={{
-          fontFamily: 'var(--font-display)', fontSize: 26,
-          color: T.chalk, marginBottom: 8, textAlign: 'center',
-        }}>
-          Building your world...
-        </h2>
-        <p style={{
-          fontFamily: 'var(--font-body)', fontSize: 14,
-          color: T.pencil, textAlign: 'center',
-        }}>
-          This will only take a moment
-        </p>
-      </div>
-    );
+    return <LoadingGame />;
   }
 
   // ── Main form ──────────────────────────────────────────────────────────────
@@ -265,6 +206,169 @@ export default function LearnerIntakeForm() {
         />
       )}
     </PageShell>
+  );
+}
+
+// ── Loading Mini-Game: Catch the Stars ───────────────────────────────────────
+
+const STAR_EMOJIS = ['⭐', '🌟', '✨', '💫', '🔮', '🌙'];
+const GAME_W = 320;
+const GAME_H = 360;
+
+function LoadingGame() {
+  const [stars, setStars] = useState([]);
+  const [score, setScore] = useState(0);
+  const [pops, setPops] = useState([]);
+  const nextId = useRef(0);
+  const frameRef = useRef();
+  const lastSpawn = useRef(0);
+
+  const spawnStar = useCallback((now) => {
+    const id = nextId.current++;
+    setStars(prev => [...prev, {
+      id,
+      x: 20 + Math.random() * (GAME_W - 40),
+      y: -30,
+      emoji: STAR_EMOJIS[Math.floor(Math.random() * STAR_EMOJIS.length)],
+      speed: 0.6 + Math.random() * 0.8,
+      size: 22 + Math.random() * 14,
+      born: now,
+    }]);
+  }, []);
+
+  const catchStar = useCallback((id, x, y) => {
+    setStars(prev => prev.filter(s => s.id !== id));
+    setScore(prev => prev + 1);
+    const popId = nextId.current++;
+    setPops(prev => [...prev, { id: popId, x, y }]);
+    setTimeout(() => setPops(prev => prev.filter(p => p.id !== popId)), 500);
+  }, []);
+
+  useEffect(() => {
+    let running = true;
+    const tick = (now) => {
+      if (!running) return;
+      // Spawn a new star every ~1.2s
+      if (now - lastSpawn.current > 1200) {
+        spawnStar(now);
+        lastSpawn.current = now;
+      }
+      // Move stars down, remove if off screen
+      setStars(prev => prev
+        .map(s => ({ ...s, y: s.y + s.speed }))
+        .filter(s => s.y < GAME_H + 20)
+      );
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    // Spawn first star immediately
+    spawnStar(performance.now());
+    lastSpawn.current = performance.now();
+    return () => { running = false; cancelAnimationFrame(frameRef.current); };
+  }, [spawnStar]);
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: T.ink,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '32px 20px',
+      userSelect: 'none',
+    }}>
+      <style>{`
+        @keyframes lif-pulse-glow {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.1); }
+        }
+        @keyframes lif-pop {
+          0% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(2); opacity: 0; }
+        }
+      `}</style>
+
+      {/* Compass logo */}
+      <div style={{ marginBottom: 16, animation: 'lif-pulse-glow 2s ease-in-out infinite' }}>
+        <WayfinderLogoIcon size={36} color={T.fieldGreen} />
+      </div>
+
+      <h2 style={{
+        fontFamily: 'var(--font-display)', fontSize: 24,
+        color: T.chalk, marginBottom: 4, textAlign: 'center',
+      }}>
+        Building your world...
+      </h2>
+      <p style={{
+        fontFamily: 'var(--font-body)', fontSize: 13,
+        color: T.pencil, textAlign: 'center', marginBottom: 16,
+      }}>
+        Catch stars while you wait!
+      </p>
+
+      {/* Score */}
+      <div style={{
+        fontFamily: 'var(--font-mono)', fontSize: 13,
+        color: T.compassGold, marginBottom: 10,
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}>
+        ⭐ {score}
+      </div>
+
+      {/* Game area */}
+      <div
+        style={{
+          position: 'relative',
+          width: GAME_W, height: GAME_H,
+          borderRadius: 16,
+          border: `1px solid rgba(255,255,255,0.08)`,
+          background: 'rgba(255,255,255,0.03)',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          touchAction: 'manipulation',
+        }}
+      >
+        {stars.map(s => (
+          <button
+            key={s.id}
+            onClick={() => catchStar(s.id, s.x, s.y)}
+            style={{
+              position: 'absolute',
+              left: s.x - s.size / 2,
+              top: s.y,
+              width: s.size + 12,
+              height: s.size + 12,
+              fontSize: s.size,
+              lineHeight: 1,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'top 0.05s linear',
+            }}
+          >
+            {s.emoji}
+          </button>
+        ))}
+        {pops.map(p => (
+          <div
+            key={p.id}
+            style={{
+              position: 'absolute',
+              left: p.x - 10,
+              top: p.y - 10,
+              fontSize: 20,
+              pointerEvents: 'none',
+              animation: 'lif-pop 0.4s ease-out forwards',
+            }}
+          >
+            +1
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
