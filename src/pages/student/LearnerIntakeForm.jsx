@@ -19,10 +19,11 @@ const INTEREST_BUBBLES = [
 ];
 
 const T = {
-  ink: '#1A1A2E', paper: '#FAF8F5', parchment: '#F0EDE6',
-  graphite: '#6B7280', pencil: '#9CA3AF', chalk: '#FFFFFF',
+  ink: '#F0F0F0', paper: '#1A1A2E', parchment: 'rgba(255,255,255,0.08)',
+  graphite: 'rgba(240,240,240,0.6)', pencil: 'rgba(240,240,240,0.3)', chalk: 'rgba(255,255,255,0.06)',
   fieldGreen: '#2D6A4F', labBlue: '#1B4965', compassGold: '#B8860B',
   specimenRed: '#C0392B',
+  cardBg: 'rgba(255,255,255,0.05)', cardBorder: 'rgba(255,255,255,0.1)',
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -169,7 +170,7 @@ export default function LearnerIntakeForm() {
       {error && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
-          background: `${T.specimenRed}10`, border: `1px solid ${T.specimenRed}30`,
+          background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.2)',
           borderRadius: 8, marginBottom: 16, fontSize: 13, color: T.specimenRed,
           fontFamily: 'var(--font-body)',
         }}>
@@ -384,7 +385,7 @@ function PageShell({ children }) {
       <style>{`
         @keyframes lif-fade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes lif-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
-        .lif-input:focus { border-color: var(--field-green) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.12) !important; }
+        .lif-input:focus { border-color: ${T.fieldGreen} !important; outline: none !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.2) !important; }
       `}</style>
 
       {/* Logo */}
@@ -397,9 +398,9 @@ function PageShell({ children }) {
 
       <div style={{
         width: '100%', maxWidth: 520,
-        background: T.chalk, borderRadius: 16,
-        border: `1px solid ${T.parchment}`,
-        boxShadow: '0 4px 24px rgba(26,26,46,0.06)',
+        background: T.cardBg, borderRadius: 16,
+        border: `1px solid ${T.cardBorder}`,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
         padding: '32px 28px',
         animation: 'lif-fade 300ms ease',
       }}>
@@ -463,8 +464,8 @@ function WhoAreYouScreen({ name, setName, avatarEmoji, setAvatarEmoji, inviteDat
               onClick={() => setAvatarEmoji(emoji)}
               style={{
                 width: '100%', aspectRatio: '1', borderRadius: 12,
-                border: `2px solid ${avatarEmoji === emoji ? T.fieldGreen : T.parchment}`,
-                background: avatarEmoji === emoji ? `${T.fieldGreen}14` : T.chalk,
+                border: `2px solid ${avatarEmoji === emoji ? T.fieldGreen : T.cardBorder}`,
+                background: avatarEmoji === emoji ? `${T.fieldGreen}30` : T.cardBg,
                 fontSize: 22, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 150ms',
@@ -529,9 +530,9 @@ function WhatLightsYouUpScreen({ selectedInterests, toggleInterest, passions, se
               style={{
                 padding: '10px 20px',
                 borderRadius: 24,
-                border: `2px solid ${selected ? T.fieldGreen : T.parchment}`,
-                background: selected ? T.fieldGreen : T.chalk,
-                color: selected ? T.chalk : T.ink,
+                border: `2px solid ${selected ? T.fieldGreen : T.cardBorder}`,
+                background: selected ? T.fieldGreen : T.cardBg,
+                color: selected ? '#FFFFFF' : T.ink,
                 fontSize: 15,
                 fontWeight: selected ? 600 : 400,
                 fontFamily: 'var(--font-body)',
@@ -608,15 +609,15 @@ const labelStyle = {
 
 const inputStyle = {
   width: '100%', boxSizing: 'border-box', padding: '12px 16px',
-  borderRadius: 10, border: `1.5px solid ${T.pencil}`,
+  borderRadius: 10, border: `1.5px solid ${T.cardBorder}`,
   fontSize: 15, fontFamily: 'var(--font-body)', color: T.ink,
-  background: T.chalk, outline: 'none', transition: 'border-color 150ms',
+  background: T.cardBg, outline: 'none', transition: 'border-color 150ms',
 };
 
 const btnPrimary = {
   display: 'inline-flex', alignItems: 'center', gap: 8,
   padding: '14px 28px', borderRadius: 12,
-  background: T.fieldGreen, color: T.chalk,
+  background: T.fieldGreen, color: '#FFFFFF',
   fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-body)',
   border: 'none', cursor: 'pointer', transition: 'opacity 150ms',
 };
