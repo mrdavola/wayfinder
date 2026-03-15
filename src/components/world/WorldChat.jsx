@@ -289,6 +289,12 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           return;
         }
 
+        // Stage already completed with no messages — just mark initialized
+        if (stageCompleted) {
+          setInitialized(true);
+          return;
+        }
+
         // No existing messages — generate mentor greeting
         const greetingSnippet = arrivalNarrative
           ? arrivalNarrative.split('.').slice(0, 2).join('.') + '.'
@@ -596,7 +602,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         ? submissionContent.slice(0, 1500) + '...'
         : submissionContent;
 
-      const reviewPromise = ai.reviewSubmission({
+      const callReview = () => ai.reviewSubmission({
         stageTitle: stage?.title || '',
         stageDescription: stage?.description || '',
         deliverable: stage?.deliverable || stage?.deliverable_description || '',
@@ -607,10 +613,22 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           passions: studentSession?.passions || [],
         },
       });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 30000)
-      );
-      const review = await Promise.race([reviewPromise, timeoutPromise]);
+      const withTimeout = (promise, ms) => Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+      ]);
+
+      let review;
+      try {
+        review = await withTimeout(callReview(), 60000);
+      } catch (firstErr) {
+        // One retry on timeout
+        if (firstErr.message === 'timeout') {
+          review = await withTimeout(callReview(), 60000);
+        } else {
+          throw firstErr;
+        }
+      }
 
       const score = review?.score || 0;
       const mastery = review?.mastery_passed || score >= 35;
@@ -1021,8 +1039,24 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           </div>
         )}
 
+        {/* Read-only banner for completed stages */}
+        {stageCompleted && (
+          <div style={{
+            padding: '10px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            textAlign: 'center',
+            color: 'var(--world-text-muted, rgba(240,240,240,0.5))',
+            fontSize: 12,
+            fontFamily: 'var(--font-body)',
+            fontStyle: 'italic',
+            flexShrink: 0,
+          }}>
+            Stage completed — viewing conversation history
+          </div>
+        )}
+
         {/* Input area */}
-        <div style={{
+        {!stageCompleted && <div style={{
           padding: isMobile ? '12px 14px 16px' : '12px 14px',
           borderTop: '1px solid rgba(255,255,255,0.08)',
           flexShrink: 0,
@@ -1241,7 +1275,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
               <Send size={16} />
             </button>
           </div>
-        </div>
+        </div>}
       </div>
     </>
   );

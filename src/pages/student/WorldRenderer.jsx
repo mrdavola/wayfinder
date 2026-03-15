@@ -354,14 +354,39 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
         )}
 
         {isCompleted ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '20px 0',
-            color: 'var(--world-text-muted, rgba(240,240,240,0.6))',
-            fontFamily: 'var(--font-body)',
-            fontSize: 14,
-          }}>
-            Location conquered
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '5px 14px', marginBottom: 14,
+              borderRadius: 20,
+              background: 'rgba(76,175,80,0.1)',
+              border: '1px solid rgba(76,175,80,0.25)',
+              color: 'var(--field-green, #4caf50)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+            }}>
+              Completed
+            </div>
+            <button
+              onClick={onOpenChat}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                width: '100%',
+                padding: '12px 20px',
+                borderRadius: 10,
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.04)',
+                color: 'var(--world-text, #f0f0f0)',
+                fontFamily: 'var(--font-body)',
+                fontSize: 14,
+                cursor: 'pointer',
+                transition: 'background 200ms',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+            >
+              View your conversation & feedback
+            </button>
           </div>
         ) : (
           <>
