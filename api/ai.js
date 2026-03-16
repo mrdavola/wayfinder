@@ -1,6 +1,10 @@
 // api/ai.js — Vercel Serverless Function
 // Proxies AI calls to Anthropic or Gemini, keeping API keys server-side
 
+export const config = {
+  maxDuration: 60, // Allow up to 60s for AI generation
+};
+
 import { verifyAuth } from './_auth.js';
 
 export default async function handler(req, res) {
