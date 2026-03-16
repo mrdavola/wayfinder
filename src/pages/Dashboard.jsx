@@ -1587,7 +1587,7 @@ export default function Dashboard() {
           />
 
           {/* Right: stacked cards */}
-          <div id="tour-new-quest" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          <div id="tour-new-quest" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', minWidth: 0 }}>
             {/* QuickQuestCard removed — New Project button in header is sufficient */}
             <div id="tour-students">
               <StudentsCard user={user} />
@@ -1676,7 +1676,7 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
   }, [user?.id]);
 
   return (
-    <div>
+    <div style={{ minWidth: 0 }}>
       {/* Active quests header */}
       <div
         style={{
