@@ -3726,5 +3726,76 @@ export const explorations = {
   },
 };
 
+// ===================== EMBEDDINGS =====================
+export const embeddings = {
+  // Generate an embedding for content via the serverless proxy
+  async generate({ content, contentType = 'text', taskType = 'SEMANTIC_SIMILARITY' }) {
+    const resp = await authedFetch('/api/embeddings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'embed', content, contentType, taskType, dimensions: 768 }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+    return data.embedding; // float array
+  },
+
+  // Store an embedding in the database
+  async store({ submissionId, questId, stageId, studentName, studentId, embedding, contentType, contentSummary }) {
+    const { data, error } = await supabase
+      .from('submission_embeddings')
+      .upsert({
+        submission_id: submissionId,
+        quest_id: questId,
+        stage_id: stageId,
+        student_name: studentName,
+        student_id: studentId,
+        embedding,
+        content_type: contentType,
+        content_summary: contentSummary,
+      }, { onConflict: 'submission_id' })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Find similar submissions via the SQL RPC
+  async findSimilar({ embedding, limit = 5, excludeSubmissionId = null, questId = null }) {
+    const { data, error } = await supabase.rpc('find_similar_submissions', {
+      p_embedding: embedding,
+      p_limit: limit,
+      p_exclude_submission_id: excludeSubmissionId,
+      p_quest_id: questId,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  // Get the stored embedding for a submission
+  async getForSubmission(submissionId) {
+    const { data, error } = await supabase
+      .from('submission_embeddings')
+      .select('*')
+      .eq('submission_id', submissionId)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  // Compute similarity between two vectors client-side (no server call needed)
+  cosineSimilarity(a, b) {
+    if (!a || !b || a.length !== b.length) return 0;
+    let dot = 0, magA = 0, magB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      magA += a[i] * a[i];
+      magB += b[i] * b[i];
+    }
+    if (magA === 0 || magB === 0) return 0;
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+  },
+};
+
 // Named exports for world scene utilities
 export { generateWorldImage, uploadWorldScene };
