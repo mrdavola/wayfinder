@@ -9,6 +9,7 @@ import {
   Pause, Play, Maximize2, SwitchCamera, ArrowLeft, PenLine,
   Volume2, VolumeX, Lightbulb, Camera, Link2, FileUp, Clock,
   LayoutGrid, Paintbrush, Presentation,
+  ListOrdered, ClipboardList, CheckSquare, Columns,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -33,7 +34,7 @@ import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths } from '../../lib/api';
 import EnterWorldButton from '../../components/immersive/EnterWorldButton';
 import VideoEmbed from '../../components/ui/VideoEmbed';
-import { CanvasBoard, SketchPad, SlideBuilder } from '../../components/creation';
+import { CanvasBoard, SketchPad, SlideBuilder, EvidenceBoardCreator, RankingSorter, SurveyBuilder, ChecklistBuilder, ComparisonTable } from '../../components/creation';
 const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
 // MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
 
@@ -821,7 +822,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
     }).catch(() => {});
   }, [type, selectedCamera]);
 
-  const isCreationTool = type === 'canvas' || type === 'sketch' || type === 'slides';
+  const isCreationTool = type === 'canvas' || type === 'sketch' || type === 'slides' || type === 'evidence_board' || type === 'ranking' || type === 'survey' || type === 'checklist' || type === 'comparison';
   const canSubmit =
     (type === 'text' && textContent.trim()) ||
     (type === 'link' && textContent.trim()) ||
@@ -1495,6 +1496,11 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
       {type === 'canvas' && <CanvasBoard onSave={(data) => setCreationData(data)} />}
       {type === 'sketch' && <SketchPad onSave={(data) => setCreationData(data)} />}
       {type === 'slides' && <SlideBuilder onSave={(data) => setCreationData(data)} />}
+      {type === 'evidence_board' && <EvidenceBoardCreator onSave={(data) => setCreationData(data)} />}
+      {type === 'ranking' && <RankingSorter onSave={(data) => setCreationData(data)} />}
+      {type === 'survey' && <SurveyBuilder onSave={(data) => setCreationData(data)} />}
+      {type === 'checklist' && <ChecklistBuilder onSave={(data) => setCreationData(data)} />}
+      {type === 'comparison' && <ComparisonTable onSave={(data) => setCreationData(data)} />}
 
       {error && (
         <div style={{ fontSize: 11, color: 'var(--specimen-red)', marginBottom: 8, padding: '6px 10px', background: 'rgba(192,57,43,0.06)', borderRadius: 5, lineHeight: 1.4 }}>
@@ -2093,6 +2099,11 @@ const CREATION_MODES = [
   { key: 'canvas', label: 'Canvas', Icon: LayoutGrid },
   { key: 'sketch', label: 'Sketch', Icon: Paintbrush },
   { key: 'slides', label: 'Slides', Icon: Presentation },
+  { key: 'evidence_board', label: 'Evidence', Icon: Search },
+  { key: 'ranking', label: 'Ranking', Icon: ListOrdered },
+  { key: 'survey', label: 'Survey', Icon: ClipboardList },
+  { key: 'checklist', label: 'Checklist', Icon: CheckSquare },
+  { key: 'comparison', label: 'Compare', Icon: Columns },
 ];
 
 function CreationModePicker({ selected, onSelect, suggestedMode, disabled }) {
