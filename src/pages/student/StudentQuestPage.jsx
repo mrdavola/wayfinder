@@ -116,6 +116,39 @@ function renderMarkdown(text) {
     .replace(/\n/g, '<br/>');
 }
 
+// ===================== CREATION DATA SERIALIZATION FOR AI REVIEW =====================
+function serializeCreationDataForAI(type, data) {
+  try {
+    const cd = typeof data === 'string' ? JSON.parse(data) : data;
+    if (type === 'canvas') {
+      const cards = (cd.cards || []).map(c => c.text || '(empty card)');
+      const connections = (cd.connections || []).map(conn => {
+        const fromCard = (cd.cards || []).find(c => c.id === conn.from);
+        const toCard = (cd.cards || []).find(c => c.id === conn.to);
+        return `"${fromCard?.text || '?'}" → "${toCard?.text || '?'}"`;
+      });
+      let summary = `[Canvas Board]\nCards:\n${cards.map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
+      if (connections.length) summary += `\nConnections:\n${connections.join('\n')}`;
+      return summary;
+    }
+    if (type === 'sketch') {
+      return 'Student created a visual sketch/drawing.';
+    }
+    if (type === 'slides') {
+      const slides = (cd.slides || []).map((s, i) => {
+        let text = `Slide ${i + 1}`;
+        if (s.title) text += `: ${s.title}`;
+        if (s.body) text += `\n${s.body}`;
+        return text;
+      });
+      return `[Slide Presentation — ${(cd.slides || []).length} slides]\n${slides.join('\n\n')}`;
+    }
+  } catch (e) {
+    console.error('Failed to serialize creation data:', e);
+  }
+  return `[${type} submission]`;
+}
+
 // ===================== STYLES =====================
 const injectStyles = () => {
   if (document.getElementById('student-quest-styles')) return;
@@ -899,7 +932,16 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
       if (rpcError) throw new Error(rpcError.message || 'Sharing failed');
       if (result?.success === false) throw new Error(result.error || 'Sharing failed');
 
-      onSubmitComplete(stageId, isTextLike ? textContent : `[${type} submission: ${fileName || 'recording'}]`);
+      // Serialize creation tool data into readable text for AI review
+      let contentForAI;
+      if (isTextLike) {
+        contentForAI = textContent;
+      } else if (isCreation && creationData) {
+        contentForAI = serializeCreationDataForAI(type, creationData);
+      } else {
+        contentForAI = `[${type} submission: ${fileName || 'recording'}]`;
+      }
+      onSubmitComplete(stageId, contentForAI);
     } catch (err) {
       console.error('Submission error:', err);
       setError(err.message || 'Sharing failed. Please try again.');
@@ -1381,6 +1423,71 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
   );
 }
 
+// ===================== SUBMISSION SLIDE VIEWER =====================
+function SubmissionSlideViewer({ creationData }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const cd = typeof creationData === 'string' ? JSON.parse(creationData) : creationData;
+  const slides = cd?.slides || [];
+  if (!slides.length) return null;
+  const slide = slides[currentIndex];
+  const bgColor = slide.theme?.backgroundColor || '#ffffff';
+  const textColor = slide.theme?.textColor || 'var(--ink)';
+  return (
+    <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--pencil)' }}>
+      <div style={{
+        position: 'relative', background: bgColor, color: textColor,
+        padding: '28px 24px', minHeight: 180,
+        backgroundImage: slide.image ? `url(${slide.image})` : undefined,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }}>
+        {slide.image && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {slide.title && (
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: 8, color: slide.image ? '#fff' : textColor }}>
+              {slide.title}
+            </div>
+          )}
+          {slide.body && (
+            <div style={{ fontSize: 12, lineHeight: 1.6, fontFamily: 'var(--font-body)', color: slide.image ? 'rgba(255,255,255,0.9)' : textColor, whiteSpace: 'pre-wrap' }}>
+              {slide.body}
+            </div>
+          )}
+        </div>
+      </div>
+      {slides.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '8px 12px', background: 'var(--parchment)' }}>
+          <button
+            onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+            disabled={currentIndex === 0}
+            style={{ background: 'none', border: 'none', cursor: currentIndex === 0 ? 'default' : 'pointer', opacity: currentIndex === 0 ? 0.3 : 1, padding: 4, display: 'flex', alignItems: 'center' }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            {slides.map((_, i) => (
+              <span key={i} style={{
+                width: i === currentIndex ? 8 : 5, height: i === currentIndex ? 8 : 5,
+                borderRadius: '50%', background: i === currentIndex ? 'var(--lab-blue)' : 'var(--pencil)',
+                transition: 'all 150ms',
+              }} />
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentIndex(i => Math.min(slides.length - 1, i + 1))}
+            disabled={currentIndex === slides.length - 1}
+            style={{ background: 'none', border: 'none', cursor: currentIndex === slides.length - 1 ? 'default' : 'pointer', opacity: currentIndex === slides.length - 1 ? 0.3 : 1, padding: 4, display: 'flex', alignItems: 'center' }}
+          >
+            <ChevronRight size={16} />
+          </button>
+          <span style={{ fontSize: 10, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>
+            {currentIndex + 1}/{slides.length}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== SUBMISSION VIEW (read-only) =====================
 function SubmissionView({ submission }) {
   if (!submission) return null;
@@ -1391,7 +1498,15 @@ function SubmissionView({ submission }) {
     audio: 'var(--field-green)',
     video: 'var(--compass-gold)',
     file: 'var(--graphite)',
+    canvas: 'var(--compass-gold)',
+    sketch: 'var(--specimen-red)',
+    slides: 'var(--lab-blue)',
   }[submission.submission_type] || 'var(--graphite)';
+  const typeBadgeLabel = {
+    canvas: 'Canvas Board',
+    sketch: 'Sketch',
+    slides: 'Slides',
+  }[submission.submission_type] || submission.submission_type;
 
   const renderSubmissionContent = (sub) => {
     const st = sub.submission_type;
@@ -1407,6 +1522,55 @@ function SubmissionView({ submission }) {
         <Download size={13} /> {sub.file_name || 'Download file'}
       </a>
     );
+    if (st === 'canvas' && sub.creation_data) {
+      const cd = typeof sub.creation_data === 'string' ? JSON.parse(sub.creation_data) : sub.creation_data;
+      const cards = cd.cards || [];
+      const connections = cd.connections || [];
+      // Compute bounding box for scaling
+      const allX = cards.map(c => (c.x || 0) + (c.width || 160));
+      const allY = cards.map(c => (c.y || 0) + (c.height || 80));
+      const maxW = Math.max(600, ...allX, ...(cards.map(c => c.x || 0)));
+      const maxH = Math.max(300, ...allY, ...(cards.map(c => c.y || 0)));
+      const cardMap = {};
+      cards.forEach(c => { cardMap[c.id] = c; });
+      return (
+        <div style={{ position: 'relative', width: '100%', maxWidth: 600, height: Math.min(maxH + 40, 400), background: 'var(--parchment)', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--pencil)' }}>
+          <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+            {connections.map((conn, i) => {
+              const from = cardMap[conn.from];
+              const to = cardMap[conn.to];
+              if (!from || !to) return null;
+              const x1 = (from.x || 0) + (from.width || 160) / 2;
+              const y1 = (from.y || 0) + (from.height || 80) / 2;
+              const x2 = (to.x || 0) + (to.width || 160) / 2;
+              const y2 = (to.y || 0) + (to.height || 80) / 2;
+              return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--graphite)" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.5} />;
+            })}
+          </svg>
+          {cards.map(card => (
+            <div key={card.id} style={{
+              position: 'absolute', left: card.x || 0, top: card.y || 0,
+              width: card.width || 160, minHeight: 40,
+              background: card.color || '#fff', borderRadius: 6,
+              padding: '8px 10px', fontSize: 11, color: 'var(--ink)',
+              border: '1px solid var(--pencil)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              fontFamily: 'var(--font-body)', lineHeight: 1.4, overflow: 'hidden',
+            }}>
+              {card.text || ''}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (st === 'sketch' && sub.creation_data) {
+      const cd = typeof sub.creation_data === 'string' ? JSON.parse(sub.creation_data) : sub.creation_data;
+      if (cd.imageData) return (
+        <img src={cd.imageData} alt="Student sketch" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--pencil)' }} />
+      );
+    }
+    if (st === 'slides' && sub.creation_data) {
+      return <SubmissionSlideViewer creationData={sub.creation_data} />;
+    }
     return null;
   };
 
@@ -1417,7 +1581,7 @@ function SubmissionView({ submission }) {
           Your Submission
         </div>
         <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: typeBadgeColor, background: `${typeBadgeColor}18`, padding: '2px 6px', borderRadius: 4 }}>
-          {submission.submission_type}
+          {typeBadgeLabel}
         </span>
         {history.length > 0 && (
           <span style={{ fontSize: 9, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>

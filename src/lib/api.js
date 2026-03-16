@@ -662,7 +662,7 @@ Generate a quest as JSON:
       "duration": 2,
       "challenge": "1-2 sentence action prompt starting with a verb: Build a..., Record a..., Design a..., Investigate...",
       "description": "MUST be identical to the challenge field (for backward compatibility)",
-      "suggested_creation_mode": "video|audio|photo|link|file|text",
+      "suggested_creation_mode": "video|audio|photo|link|file|text|canvas|sketch|slides",
       "academic_skills_embedded": ["standard_id"],
       "skill_integration_note": "how skill appears naturally",
       "deliverable": "what student creates (short, concrete)",
@@ -718,7 +718,16 @@ Pick the best creation mode for each stage based on what the student will actual
 - "link" — sharing a website, online tool, or external resource they created/found
 - "file" — uploading documents, spreadsheets, code files, designs
 - "text" — writing responses, reflections, short essays, lists
-Choose based on: stage type, student age (younger = more photo/video, less text), and what's most natural for the activity.
+- "canvas" — concept maps, mood boards, brainstorms, visual organization, timelines, relationship mapping. Best for stages where students need to organize multiple ideas visually.
+- "sketch" — diagrams, illustrations, freeform drawing, labeling, annotating. Best for younger students or visual/artistic stages.
+- "slides" — presentations, pitches, storytelling sequences, show-and-tell. Best for "present" or "share" stage types.
+
+Choose based on stage type, student age (younger = more photo/video/sketch, less text), and what's most natural for the activity:
+- Research stages → text, link, or canvas
+- Build/create stages → canvas, sketch, slides, or video
+- Experiment stages → sketch, photo, or video
+- Present/share stages → slides or video
+- Reflect stages → text or audio
 
 GUIDING QUESTIONS (hidden from students):
 - Generate 3-4 thoughtful guiding questions per stage.
@@ -975,6 +984,8 @@ Adapt language complexity to the student's grade level (K-2: simple words, 3-5: 
 FEEDBACK STYLE: warm-cool-warm (start positive, note growth area, end encouraging).
 NEVER use: "grade," "score," "test," "assessment," "rubric," "correct/incorrect"
 DO use: "Your work shows...", "One area to explore further...", "You demonstrated..."
+
+If the submission content is structured JSON (from a canvas board, sketch pad, or slide builder), evaluate the ideas, connections, and organization shown — not the format.
 
 SKILL ASSESSMENT (invisible to student — this data is for the guide):
 Rate each academic skill demonstrated on a 1-4 scale:
