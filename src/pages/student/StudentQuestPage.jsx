@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
-import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments, buddyPairs, buddyMessages, tokens, ST_VALUES, inventory } from '../../lib/api';
+import { ai, guideMessages as guideMessagesApi, submissionFeedback as feedbackApi, skills as skillsApi, skillSnapshots as snapshotsApi, xp, badgesApi, landmarksApi, interactiveStages, explorerLog, expeditionChallenges, challengeResponses, skillAssessments, buddyPairs, buddyMessages, tokens, ST_VALUES, inventory, embeddings } from '../../lib/api';
 import ExpeditionChallenge from '../../components/gamified/ExpeditionChallenge';
 import ChallengerEncounter from '../../components/gamified/ChallengerEncounter';
 import { getStudentSession, setStudentSession, clearStudentSession } from '../../lib/studentSession';
@@ -36,6 +36,91 @@ import VideoEmbed from '../../components/ui/VideoEmbed';
 import { CanvasBoard, SketchPad, SlideBuilder } from '../../components/creation';
 const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
 // MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
+
+// ===================== EMBEDDING HELPERS =====================
+function prepareEmbeddingContent(submission, stage) {
+  const challengeContext = stage?.challenge || stage?.description || '';
+
+  switch (submission.submission_type) {
+    case 'text':
+      return {
+        content: submission.content || '',
+        contentType: 'text',
+        summary: (submission.content || '').slice(0, 200),
+      };
+
+    case 'canvas': {
+      const data = submission.creation_data || {};
+      const cardTexts = (data.cards || []).map(c => c.text).filter(Boolean);
+      const connTexts = (data.connections || []).map(conn => {
+        const from = (data.cards || []).find(c => c.id === conn.from);
+        const to = (data.cards || []).find(c => c.id === conn.to);
+        return `${from?.text || '?'} → ${to?.text || '?'}`;
+      });
+      const text = `Challenge: ${challengeContext}\nCards: ${cardTexts.join(', ')}\nConnections: ${connTexts.join('; ')}`;
+      return { content: text, contentType: 'text', summary: `Canvas: ${cardTexts.slice(0, 3).join(', ')}` };
+    }
+
+    case 'sketch': {
+      const data = submission.creation_data || {};
+      if (data.imageData) {
+        const base64 = data.imageData.replace(/^data:image\/\w+;base64,/, '');
+        return {
+          content: { data: base64, mimeType: 'image/png' },
+          contentType: 'image',
+          summary: `Sketch for: ${challengeContext.slice(0, 100)}`,
+        };
+      }
+      return { content: `Sketch drawing for: ${challengeContext}`, contentType: 'text', summary: 'Sketch drawing' };
+    }
+
+    case 'slides': {
+      const data = submission.creation_data || {};
+      const slideTexts = (data.slides || []).map((s, i) => `Slide ${i + 1}: ${s.title || ''} - ${s.body || ''}`);
+      const text = `Challenge: ${challengeContext}\n${slideTexts.join('\n')}`;
+      return { content: text, contentType: 'text', summary: `Slides: ${(data.slides || []).map(s => s.title).filter(Boolean).join(', ')}` };
+    }
+
+    case 'audio':
+    case 'video':
+      return {
+        content: submission.content || `${submission.submission_type} submission for: ${challengeContext}`,
+        contentType: 'text',
+        summary: `${submission.submission_type} for: ${challengeContext.slice(0, 100)}`,
+      };
+
+    case 'file':
+      return {
+        content: `File "${submission.file_name || 'uploaded'}" for challenge: ${challengeContext}`,
+        contentType: 'text',
+        summary: `File: ${submission.file_name || 'uploaded'}`,
+      };
+
+    default:
+      return {
+        content: submission.content || challengeContext,
+        contentType: 'text',
+        summary: (submission.content || challengeContext).slice(0, 200),
+      };
+  }
+}
+
+async function embedSubmission(submission, stage) {
+  const { content, contentType, summary } = prepareEmbeddingContent(submission, stage);
+  if (!content) return;
+
+  const embedding = await embeddings.generate({ content, contentType });
+  await embeddings.store({
+    submissionId: submission.id,
+    questId: submission.quest_id,
+    stageId: submission.stage_id,
+    studentName: submission.student_name,
+    studentId: submission.student_id || null,
+    embedding,
+    contentType: submission.submission_type,
+    contentSummary: summary,
+  });
+}
 
 // ===================== TIER UTILITIES =====================
 function hasTierData(stages) {
@@ -941,7 +1026,21 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
       } else {
         contentForAI = `[${type} submission: ${fileName || 'recording'}]`;
       }
-      onSubmitComplete(stageId, contentForAI);
+
+      // Build submission metadata for embedding generation
+      const submissionMeta = {
+        id: result?.id || null,
+        quest_id: questId,
+        stage_id: stageId,
+        student_name: studentName,
+        submission_type: dbType,
+        content: isTextLike ? textContent : null,
+        creation_data: isCreation ? creationData : null,
+        file_name: fileName,
+        file_url: fileUrl,
+      };
+
+      onSubmitComplete(stageId, contentForAI, submissionMeta);
     } catch (err) {
       console.error('Submission error:', err);
       setError(err.message || 'Sharing failed. Please try again.');
@@ -2177,8 +2276,15 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
             studentName={studentName}
             externalType={creationMode}
             hideChrome
-            onSubmitComplete={async (stageId, submissionContent) => {
+            onSubmitComplete={async (stageId, submissionContent, submissionMeta) => {
               const currentAttempt = attemptNumber;
+
+              // Non-blocking: generate embedding in background
+              if (submissionMeta?.id) {
+                embedSubmission(submissionMeta, stage).catch(err =>
+                  console.warn('Embedding generation failed (non-critical):', err)
+                );
+              }
 
               // AI review chain — determines if mastery is passed before advancing
               setFeedbackLoading(true);
@@ -2368,11 +2474,17 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
             questId={questId}
             studentName={studentName}
             initialText={existingSubmission?.submission_type === 'text' ? existingSubmission.content : ''}
-            onSubmitComplete={(stageId, content) => {
+            onSubmitComplete={(stageId, content, submissionMeta) => {
               const revisedAttempt = attemptNumber;
               setRevising(false);
               setFeedback(null);
               setFeedbackLoading(true);
+              // Non-blocking: generate embedding in background
+              if (submissionMeta?.id) {
+                embedSubmission(submissionMeta, stage).catch(err =>
+                  console.warn('Embedding generation failed (non-critical):', err)
+                );
+              }
               // Reload submissions to get updated history
               if (onReloadSubmissions) onReloadSubmissions();
               ai.reviewSubmission({
@@ -4485,7 +4597,7 @@ export default function StudentQuestPage() {
               }}
               onSubmit={async (stageId, textContent) => {
                 // Submit via RPC (same as SubmissionPanel)
-                const { error: rpcError } = await supabase.rpc('submit_stage_work', {
+                const { data: rpcResult, error: rpcError } = await supabase.rpc('submit_stage_work', {
                   p_quest_id: quest.id,
                   p_stage_id: stageId,
                   p_student_name: studentName,
@@ -4497,6 +4609,19 @@ export default function StudentQuestPage() {
                   p_mime_type: null,
                 });
                 if (rpcError) throw new Error(rpcError.message);
+                // Non-blocking: generate embedding in background
+                if (rpcResult?.id) {
+                  embedSubmission({
+                    id: rpcResult.id,
+                    quest_id: quest.id,
+                    stage_id: stageId,
+                    student_name: studentName,
+                    submission_type: 'text',
+                    content: textContent,
+                  }, stages.find(s => s.id === stageId)).catch(err =>
+                    console.warn('Embedding generation failed (non-critical):', err)
+                  );
+                }
                 // Update local submissions state
                 setSubmissions(prev => ({
                   ...prev,
