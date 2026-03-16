@@ -3795,6 +3795,89 @@ export const embeddings = {
     if (magA === 0 || magB === 0) return 0;
     return dot / (Math.sqrt(magA) * Math.sqrt(magB));
   },
+
+  // ── Skill embeddings ─────────────────────────────────────
+
+  // Embed a skill description and store it
+  async embedSkill(skillId, skillName, description) {
+    const content = `Skill: ${skillName}. ${description || ''}. Evidence of this skill includes demonstrations, explanations, applications, and analysis related to ${skillName.toLowerCase()}.`;
+    const embedding = await this.generate({ content, contentType: 'text', taskType: 'SEMANTIC_SIMILARITY' });
+
+    const { data, error } = await supabase
+      .from('skill_embeddings')
+      .upsert({
+        skill_id: skillId,
+        skill_name: skillName,
+        description,
+        embedding,
+      }, { onConflict: 'skill_id' })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Get all skill embeddings (cached after first load)
+  _skillEmbeddingsCache: null,
+  async getSkillEmbeddings() {
+    if (this._skillEmbeddingsCache) return this._skillEmbeddingsCache;
+    const { data, error } = await supabase
+      .from('skill_embeddings')
+      .select('*');
+    if (error) throw error;
+    this._skillEmbeddingsCache = data || [];
+    return this._skillEmbeddingsCache;
+  },
+
+  // Compare a submission embedding to all skill embeddings
+  // Returns skills sorted by similarity
+  async matchSubmissionToSkills(submissionEmbedding) {
+    const skills = await this.getSkillEmbeddings();
+    if (!skills.length) return [];
+
+    return skills
+      .map(skill => ({
+        skillId: skill.skill_id,
+        skillName: skill.skill_name,
+        similarity: this.cosineSimilarity(submissionEmbedding, skill.embedding),
+      }))
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 5); // Top 5 matching skills
+  },
+
+  // Seed all skill embeddings if not already done (runs once)
+  _ensurePromise: null,
+  async ensureSkillsEmbedded() {
+    // Deduplicate concurrent calls
+    if (this._ensurePromise) return this._ensurePromise;
+    this._ensurePromise = (async () => {
+      try {
+        const existing = await this.getSkillEmbeddings();
+        if (existing.length > 0) return existing;
+
+        // Fetch all skills from the skills table
+        const { data: skills } = await supabase.from('skills').select('*');
+        if (!skills || skills.length === 0) return [];
+
+        // Embed each skill sequentially to avoid rate limits
+        const results = [];
+        for (const skill of skills) {
+          try {
+            const result = await this.embedSkill(skill.id, skill.name, skill.description);
+            results.push(result);
+          } catch (err) {
+            console.warn(`Failed to embed skill ${skill.name}:`, err);
+          }
+        }
+        // Update cache
+        this._skillEmbeddingsCache = results;
+        return results;
+      } finally {
+        this._ensurePromise = null;
+      }
+    })();
+    return this._ensurePromise;
+  },
 };
 
 // Named exports for world scene utilities

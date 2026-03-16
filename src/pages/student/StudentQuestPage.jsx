@@ -120,6 +120,11 @@ async function embedSubmission(submission, stage) {
     contentType: submission.submission_type,
     contentSummary: summary,
   });
+
+  // Lazily seed skill embeddings so skill alignment works (runs once, no-ops after)
+  embeddings.ensureSkillsEmbedded().catch(err =>
+    console.warn('Skill embedding seeding failed:', err)
+  );
 }
 
 // ===================== TIER UTILITIES =====================
@@ -1857,10 +1862,66 @@ function SubmissionView({ submission }) {
         </div>
       )}
 
+      {/* Skill alignment badges */}
+      {submission.id && (
+        <SkillAlignment submission={submission} />
+      )}
+
       {/* Discover similar creations */}
       {submission.id && (
         <SimilarCreations submission={submission} />
       )}
+    </div>
+  );
+}
+
+// ===================== SKILL ALIGNMENT BADGES =====================
+function SkillAlignment({ submission }) {
+  const [skills, setSkills] = useState(null);
+
+  useEffect(() => {
+    if (!submission?.id) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const embData = await embeddings.getForSubmission(submission.id);
+        if (!embData || cancelled) return;
+
+        const matched = await embeddings.matchSubmissionToSkills(embData.embedding);
+        if (cancelled) return;
+        // Only show skills with > 0.5 similarity (meaningful alignment)
+        setSkills(matched.filter(s => s.similarity > 0.5));
+      } catch (err) {
+        console.warn('Skill alignment failed:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [submission?.id]);
+
+  if (!skills || skills.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 12, color: 'var(--graphite)', marginBottom: 6, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+        Skills shown in your creation
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {skills.map(skill => (
+          <span key={skill.skillId} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '3px 10px', borderRadius: 12,
+            background: 'var(--parchment)', border: '1px solid var(--pencil)',
+            fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-body)',
+          }}>
+            {skill.skillName}
+            <span style={{ color: 'var(--compass-gold)', fontSize: 11, fontWeight: 600 }}>
+              {Math.round(skill.similarity * 100)}%
+            </span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
