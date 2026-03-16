@@ -474,8 +474,8 @@ function Step3Details({ additionalContext, setAdditionalContext, buddyEnabled, s
 const GEN_STEPS = [
   'Understanding your interests...',
   'Finding real-world career connections...',
-  'Designing your project stages...',
-  'Adding guiding questions...',
+  'Designing your project challenges...',
+  'Adding finishing touches...',
   'Polishing everything...',
 ];
 

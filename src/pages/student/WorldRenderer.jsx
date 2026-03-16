@@ -349,7 +349,7 @@ function LocationView({ stage, blueprintStage, accentColor, onOpenChat, mentorNa
             fontSize: 11,
             alignSelf: 'center', width: 'fit-content',
           }}>
-            Preview — complete earlier stages to unlock
+            Preview — complete earlier challenges to unlock
           </div>
         )}
 

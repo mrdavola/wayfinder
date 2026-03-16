@@ -438,7 +438,7 @@ function QuestCard({ quest, onDelete }) {
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
               <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--graphite)' }}>
-                {done}/{total} stages
+                {done}/{total} challenges
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--graphite)' }}>
                 {pct}%

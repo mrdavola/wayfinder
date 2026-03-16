@@ -901,7 +901,7 @@ function NodeDetailPanel({
       {/* Completed node: show previous submission read-only */}
       {isCompleted && node.submission_text && (
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Your Submission</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Your Creation</div>
           <div style={{
             padding: 12,
             background: T.parchment,
@@ -948,7 +948,7 @@ function NodeDetailPanel({
           ) : (
             <>
               <Sparkles size={16} />
-              Mark Complete
+              Done!
             </>
           )}
         </button>
@@ -979,7 +979,7 @@ function NodeDetailPanel({
           {completing ? (
             <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Completing...</>
           ) : (
-            <><Check size={16} /> Mark Complete</>
+            <><Check size={16} /> Done!</>
           )}
         </button>
       )}

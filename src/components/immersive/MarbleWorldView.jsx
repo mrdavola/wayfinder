@@ -333,7 +333,7 @@ export default function MarbleWorldView({
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       }}
                     >
-                      <Send size={14} /> Submit
+                      <Send size={14} /> Share what you made
                     </button>
                   </div>
                 )}

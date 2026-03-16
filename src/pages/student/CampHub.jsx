@@ -529,7 +529,7 @@ function ActiveWorldsSection({ quests, navigate }) {
                   fontFamily: 'var(--font-mono)', fontSize: 11,
                   color: 'rgba(255,220,180,0.4)',
                 }}>
-                  {done} / {total} stages
+                  {done} / {total} challenges
                 </span>
                 <span style={{
                   fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 500,

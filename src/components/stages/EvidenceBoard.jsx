@@ -69,12 +69,12 @@ export default function EvidenceBoard({ config, onComplete }) {
               placeholder="Using the evidence you've gathered, write your argument..."
               style={{ width: '100%', minHeight: 80, padding: 12, borderRadius: 8, background: '#1A1A1A', border: '1px solid #555', color: '#E8E8E8', fontFamily: 'var(--font-body)', fontSize: 13, resize: 'vertical' }} />
             <div style={{ textAlign: 'right', marginTop: 8 }}>
-              <button onClick={handleSubmit} disabled={!argument.trim()} className="btn btn-primary" style={{ fontSize: 13 }}>Submit Evidence <Send size={13} /></button>
+              <button onClick={handleSubmit} disabled={!argument.trim()} className="btn btn-primary" style={{ fontSize: 13 }}>Share Evidence <Send size={13} /></button>
             </div>
           </div>
         )}
         {submitted && (
-          <div style={{ textAlign: 'center', marginTop: 16, color: '#F5E6C8', fontFamily: 'var(--font-display)', fontSize: 16 }}>Case submitted. The evidence speaks for itself.</div>
+          <div style={{ textAlign: 'center', marginTop: 16, color: '#F5E6C8', fontFamily: 'var(--font-display)', fontSize: 16 }}>Case shared. The evidence speaks for itself.</div>
         )}
       </div>
     </div>

@@ -889,13 +889,13 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         p_file_size: fileSize,
         p_mime_type: mimeType,
       });
-      if (rpcError) throw new Error(rpcError.message || 'Submission failed');
-      if (result?.success === false) throw new Error(result.error || 'Submission failed');
+      if (rpcError) throw new Error(rpcError.message || 'Sharing failed');
+      if (result?.success === false) throw new Error(result.error || 'Sharing failed');
 
       onSubmitComplete(stageId, isTextLike ? textContent : `[${type} submission: ${fileName || 'recording'}]`);
     } catch (err) {
       console.error('Submission error:', err);
-      setError(err.message || 'Submission failed. Please try again.');
+      setError(err.message || 'Sharing failed. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -1362,7 +1362,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
           ? <><Loader2 size={14} className="sq-spin" /> Sharing…</>
           : hideChrome
             ? <><Send size={14} /> Share what you made</>
-            : <><CheckCircle size={14} /> Submit &amp; Complete Stage</>
+            : <><CheckCircle size={14} /> Share what you made</>
         }
       </button>
     </div>
@@ -1456,7 +1456,7 @@ function FeedbackCard({ feedback }) {
       borderRadius: 10, padding: '14px 16px', marginTop: 12,
     }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--field-green)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-        <Star size={11} fill="var(--field-green)" color="var(--field-green)" /> Field Guide Feedback
+        <Star size={11} fill="var(--field-green)" color="var(--field-green)" /> Field Guide Reactions
       </div>
       <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 10px' }}
         dangerouslySetInnerHTML={{ __html: renderMarkdown(feedback.feedback_text || feedback.feedback) }}
@@ -1758,7 +1758,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
               <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Stage {stage.stage_number}
+                Challenge {stage.stage_number}
               </span>
               {isDone && (
                 <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: 'var(--field-green)' }}>
@@ -1880,7 +1880,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               borderRadius: 10, padding: '14px 16px',
             }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                Suggest a change to this stage
+                Suggest a change to this challenge
               </div>
               {!suggestResult ? (
                 <>
@@ -1909,7 +1909,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                         display: 'flex', alignItems: 'center', gap: 5,
                       }}
                     >
-                      {suggestLoading ? <><Loader2 size={11} className="sq-spin" /> Thinking...</> : <><Sparkles size={11} /> Submit suggestion</>}
+                      {suggestLoading ? <><Loader2 size={11} className="sq-spin" /> Thinking...</> : <><Sparkles size={11} /> Share suggestion</>}
                     </button>
                     <button onClick={() => { setSuggestOpen(false); setSuggestText(''); }} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--graphite)', fontSize: 11, cursor: 'pointer' }}>
                       Cancel
@@ -1935,7 +1935,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                   )}
                   {suggestResult.modified_deliverable && (
                     <div style={{ marginBottom: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>NEW DELIVERABLE: </span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>WHAT YOU'LL CREATE:</span>
                       <span style={{ fontSize: 12, color: 'var(--ink)' }}>{suggestResult.modified_deliverable}</span>
                     </div>
                   )}
@@ -2142,7 +2142,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       {/* AI Feedback */}
       {feedbackLoading && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0', fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic' }}>
-          <Loader2 size={12} className="sq-spin" /> Getting feedback from your Field Guide...
+          <Loader2 size={12} className="sq-spin" /> Getting reactions from your Field Guide...
         </div>
       )}
       {feedback && (
@@ -3371,7 +3371,7 @@ export default function StudentQuestPage() {
     const completedStage = stages.find(s => s.id === stageId);
     if (completedStage) {
       await supabase.from('reflection_entries').insert({
-        quest_id: id, content: `${studentName || 'Student'} completed Stage ${completedStage.stage_number}: ${completedStage.title}`,
+        quest_id: id, content: `${studentName || 'Student'} completed Challenge ${completedStage.stage_number}: ${completedStage.title}`,
         entry_type: 'auto', stage_id: stageId,
       });
     }
@@ -3401,7 +3401,7 @@ export default function StudentQuestPage() {
         setXpData(prev => ({ ...prev, total_points: result.total_points, current_rank: result.new_rank, current_streak: result.current_streak }));
         setXpToast({ points: xp.EP_VALUES.stage_complete, rankUp: result.rank_changed, newRank: result.new_rank });
         // Award Star Tokens for stage completion
-        tokens.award(studentProfile.id, ST_VALUES.stage_complete, 'earn_stage', 'Completed stage').catch(console.error);
+        tokens.award(studentProfile.id, ST_VALUES.stage_complete, 'earn_stage', 'Completed challenge').catch(console.error);
         if (result.rank_changed) {
           explorerLog.add(studentProfile.id, 'rank_up',
             `${studentName} reached the rank of ${result.new_rank.replace('_', ' ')}!`
@@ -3409,7 +3409,7 @@ export default function StudentQuestPage() {
           tokens.award(studentProfile.id, ST_VALUES.rank_up, 'earn_rankup', `Ranked up to ${result.new_rank}`).catch(console.error);
         }
         explorerLog.add(studentProfile.id, 'stage_complete',
-          `${studentName} completed a stage in "${quest.title}"`
+          `${studentName} completed a challenge in "${quest.title}"`
         );
         const newBadges = await badgesApi.checkAndAward(studentProfile.id);
         if (newBadges.length > 0) {
@@ -3764,7 +3764,7 @@ export default function StudentQuestPage() {
             Messages with {buddy.name}
           </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-            {['Hey, your expedition misses you!', 'Want to work on our projects together?', 'I just finished a stage — you got this!'].map(tmpl => (
+            {['Hey, your expedition misses you!', 'Want to work on our projects together?', 'I just finished a challenge — you got this!'].map(tmpl => (
               <button key={tmpl} onClick={() => handleSendNudge(tmpl)} style={{
                 padding: '4px 10px', borderRadius: 14, border: '1px solid var(--pencil)',
                 background: 'var(--paper)', color: 'var(--graphite)', fontSize: 10,
@@ -3937,7 +3937,7 @@ export default function StudentQuestPage() {
                     <span style={{ fontFamily: 'var(--font-display)', fontSize: 18 }}>Project Complete!</span>
                   </div>
                   <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55, margin: 0 }}>
-                    Amazing work, {studentName}! You've completed every stage. Your guide can see your progress.
+                    Amazing work, {studentName}! You've completed every challenge. Your guide can see your progress.
                   </p>
                 </div>
               )}
