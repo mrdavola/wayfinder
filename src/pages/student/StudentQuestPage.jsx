@@ -1587,6 +1587,144 @@ function SubmissionSlideViewer({ creationData }) {
   );
 }
 
+// ===================== SIMILAR CREATIONS (discovery) =====================
+function SimilarCard({ item }) {
+  const typeIcons = {
+    text: '\u{1F4DD}', canvas: '\u{1F3A8}', sketch: '\u270F\uFE0F', slides: '\u{1F4CA}',
+    video: '\u{1F3A5}', audio: '\u{1F3A4}', file: '\u{1F4CE}', image: '\u{1F5BC}\uFE0F',
+  };
+  const typeBg = {
+    text: 'rgba(30,80,162,0.06)', canvas: 'rgba(184,134,11,0.06)',
+    sketch: 'rgba(192,57,43,0.06)', slides: 'rgba(30,80,162,0.06)',
+    video: 'rgba(184,134,11,0.06)', audio: 'rgba(45,106,79,0.06)',
+    file: 'rgba(0,0,0,0.03)', image: 'rgba(184,134,11,0.06)',
+  };
+  const similarity = Math.round((item.similarity || 0) * 100);
+  const firstName = (item.student_name || 'Someone').split(' ')[0];
+
+  return (
+    <div style={{
+      padding: 12, borderRadius: 8,
+      border: '1px solid var(--pencil)',
+      background: typeBg[item.content_type] || 'var(--paper)',
+      transition: 'box-shadow 150ms',
+    }}>
+      <div style={{ fontSize: 22, lineHeight: 1 }}>{typeIcons[item.content_type] || '\u{1F4C4}'}</div>
+      <div style={{ fontWeight: 600, fontSize: 13, marginTop: 6, color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>{firstName}</div>
+      <div style={{ fontSize: 11, color: 'var(--graphite)', marginTop: 3, lineHeight: 1.4, fontFamily: 'var(--font-body)', minHeight: 30 }}>
+        {(item.content_summary || '').slice(0, 60)}{(item.content_summary || '').length > 60 ? '...' : ''}
+      </div>
+      <div style={{
+        fontSize: 10, color: 'var(--compass-gold)', marginTop: 8, fontWeight: 700,
+        fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em',
+      }}>
+        {similarity}% similar
+      </div>
+    </div>
+  );
+}
+
+function SimilarCreations({ submission }) {
+  const [similar, setSimilar] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [hasEmbedding, setHasEmbedding] = useState(null); // null = unknown, true/false after check
+
+  // On mount, check if this submission has an embedding (lightweight check)
+  useEffect(() => {
+    if (!submission?.id) return;
+    let cancelled = false;
+    embeddings.getForSubmission(submission.id)
+      .then(data => { if (!cancelled) setHasEmbedding(!!data); })
+      .catch(() => { if (!cancelled) setHasEmbedding(false); });
+    return () => { cancelled = true; };
+  }, [submission?.id]);
+
+  const loadSimilar = async () => {
+    setLoading(true);
+    try {
+      const embData = await embeddings.getForSubmission(submission.id);
+      if (!embData) { setSimilar([]); return; }
+      const results = await embeddings.findSimilar({
+        embedding: embData.embedding,
+        limit: 6,
+        excludeSubmissionId: submission.id,
+        // No questId filter — cross-quest discovery
+      });
+      setSimilar(results || []);
+    } catch (err) {
+      console.warn('Failed to load similar:', err);
+      setSimilar([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Don't render anything if no embedding exists
+  if (hasEmbedding === false || hasEmbedding === null) return null;
+
+  if (!expanded) {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <button
+          onClick={() => { setExpanded(true); loadSimilar(); }}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)',
+            display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'color 150ms',
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--lab-blue)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--graphite)'}
+        >
+          <Search size={13} />
+          Explore similar creations
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
+      }}>
+        <Search size={12} color="var(--graphite)" />
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: 'var(--graphite)',
+          fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em',
+        }}>
+          Similar creations from other explorers
+        </span>
+      </div>
+
+      {loading && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0', fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic' }}>
+          <Loader2 size={12} className="sq-spin" /> Finding connections...
+        </div>
+      )}
+
+      {similar && similar.length === 0 && !loading && (
+        <p style={{ fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic', margin: 0 }}>
+          No similar creations found yet. You're blazing a new trail!
+        </p>
+      )}
+
+      {similar && similar.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: 10,
+        }}>
+          {similar.map(item => (
+            <SimilarCard key={item.submission_id} item={item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== SUBMISSION VIEW (read-only) =====================
 function SubmissionView({ submission }) {
   if (!submission) return null;
@@ -1717,6 +1855,11 @@ function SubmissionView({ submission }) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Discover similar creations */}
+      {submission.id && (
+        <SimilarCreations submission={submission} />
       )}
     </div>
   );
