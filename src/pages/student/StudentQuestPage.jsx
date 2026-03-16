@@ -8,6 +8,7 @@ import {
   Paperclip, Video, Download, LogOut, Sparkles, Users,
   Pause, Play, Maximize2, SwitchCamera, ArrowLeft, PenLine,
   Volume2, VolumeX, Lightbulb, Camera, Link2, FileUp, Clock,
+  LayoutGrid, Paintbrush, Presentation,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -32,6 +33,7 @@ import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths } from '../../lib/api';
 import EnterWorldButton from '../../components/immersive/EnterWorldButton';
 import VideoEmbed from '../../components/ui/VideoEmbed';
+import { CanvasBoard, SketchPad, SlideBuilder } from '../../components/creation';
 const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
 // MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
 
@@ -661,6 +663,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [creationData, setCreationData] = useState(null);
   const [countdown, setCountdown] = useState(0); // 3,2,1 countdown
   const [videoExpanded, setVideoExpanded] = useState(false);
   const [cameras, setCameras] = useState([]);
@@ -695,12 +698,14 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
     }).catch(() => {});
   }, [type, selectedCamera]);
 
+  const isCreationTool = type === 'canvas' || type === 'sketch' || type === 'slides';
   const canSubmit =
     (type === 'text' && textContent.trim()) ||
     (type === 'link' && textContent.trim()) ||
     ((type === 'audio' || type === 'video') && (mediaBlob || file)) ||
     (type === 'file' && file) ||
-    (type === 'photo' && file);
+    (type === 'photo' && file) ||
+    (isCreationTool && creationData);
 
   const fmtSecs = (s) => {
     const m = Math.floor(s / 60).toString().padStart(2, '0');
@@ -851,9 +856,10 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
     try {
       let fileUrl = null, fileName = null, fileSize = null, mimeType = null;
 
-      // Map creation modes to DB submission types: photo→file, link→text
+      // Map creation modes to DB submission types: photo→file, link→text; canvas/sketch/slides pass through
       const dbType = type === 'photo' ? 'file' : type === 'link' ? 'text' : type;
       const isTextLike = type === 'text' || type === 'link';
+      const isCreation = type === 'canvas' || type === 'sketch' || type === 'slides';
 
       const uploadSource = mediaBlob || (!isTextLike ? file : null);
       if (uploadSource) {
@@ -888,6 +894,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         p_file_name: fileName,
         p_file_size: fileSize,
         p_mime_type: mimeType,
+        p_creation_data: isCreation ? creationData : null,
       });
       if (rpcError) throw new Error(rpcError.message || 'Sharing failed');
       if (result?.success === false) throw new Error(result.error || 'Sharing failed');
@@ -1338,6 +1345,11 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         </div>
       )}
 
+      {/* Creation tools */}
+      {type === 'canvas' && <CanvasBoard onSave={(data) => setCreationData(data)} />}
+      {type === 'sketch' && <SketchPad onSave={(data) => setCreationData(data)} />}
+      {type === 'slides' && <SlideBuilder onSave={(data) => setCreationData(data)} />}
+
       {error && (
         <div style={{ fontSize: 11, color: 'var(--specimen-red)', marginBottom: 8, padding: '6px 10px', background: 'rgba(192,57,43,0.06)', borderRadius: 5, lineHeight: 1.4 }}>
           {error}
@@ -1611,6 +1623,9 @@ const CREATION_MODES = [
   { key: 'text', label: 'Write', Icon: PenLine },
   { key: 'link', label: 'Link', Icon: Link2 },
   { key: 'file', label: 'File', Icon: FileUp },
+  { key: 'canvas', label: 'Canvas', Icon: LayoutGrid },
+  { key: 'sketch', label: 'Sketch', Icon: Paintbrush },
+  { key: 'slides', label: 'Slides', Icon: Presentation },
 ];
 
 function CreationModePicker({ selected, onSelect, suggestedMode, disabled }) {
