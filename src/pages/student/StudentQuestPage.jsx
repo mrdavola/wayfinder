@@ -7,7 +7,7 @@ import {
   ChevronRight, ChevronLeft, Star, Lock, MessageCircle,
   Paperclip, Video, Download, LogOut, Sparkles, Users,
   Pause, Play, Maximize2, SwitchCamera, ArrowLeft, PenLine,
-  Volume2, VolumeX, Lightbulb,
+  Volume2, VolumeX, Lightbulb, Camera, Link2, FileUp, Clock,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -509,8 +509,9 @@ function MobileStageNav({ stages, activeCard, onNodeClick }) {
 }
 
 // ===================== SUBMISSION PANEL =====================
-function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, initialText = '' }) {
-  const [type, setType] = useState('text');
+function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, initialText = '', externalType, hideChrome }) {
+  const [internalType, setInternalType] = useState('text');
+  const type = externalType || internalType;
   const [textContent, setTextContent] = useState(initialText);
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -556,8 +557,10 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
 
   const canSubmit =
     (type === 'text' && textContent.trim()) ||
+    (type === 'link' && textContent.trim()) ||
     ((type === 'audio' || type === 'video') && (mediaBlob || file)) ||
-    (type === 'file' && file);
+    (type === 'file' && file) ||
+    (type === 'photo' && file);
 
   const fmtSecs = (s) => {
     const m = Math.floor(s / 60).toString().padStart(2, '0');
@@ -708,7 +711,11 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
     try {
       let fileUrl = null, fileName = null, fileSize = null, mimeType = null;
 
-      const uploadSource = mediaBlob || (type !== 'text' ? file : null);
+      // Map creation modes to DB submission types: photo→file, link→text
+      const dbType = type === 'photo' ? 'file' : type === 'link' ? 'text' : type;
+      const isTextLike = type === 'text' || type === 'link';
+
+      const uploadSource = mediaBlob || (!isTextLike ? file : null);
       if (uploadSource) {
         const isRecorded = !!mediaBlob;
         const ext = isRecorded
@@ -735,8 +742,8 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         p_quest_id: questId,
         p_stage_id: stageId,
         p_student_name: studentName,
-        p_submission_type: type,
-        p_content: type === 'text' ? textContent : null,
+        p_submission_type: dbType,
+        p_content: isTextLike ? textContent : null,
         p_file_url: fileUrl,
         p_file_name: fileName,
         p_file_size: fileSize,
@@ -745,7 +752,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
       if (rpcError) throw new Error(rpcError.message || 'Submission failed');
       if (result?.success === false) throw new Error(result.error || 'Submission failed');
 
-      onSubmitComplete(stageId, type === 'text' ? textContent : `[${type} submission: ${fileName || 'recording'}]`);
+      onSubmitComplete(stageId, isTextLike ? textContent : `[${type} submission: ${fileName || 'recording'}]`);
     } catch (err) {
       console.error('Submission error:', err);
       setError(err.message || 'Submission failed. Please try again.');
@@ -770,7 +777,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
     if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
     clearInterval(timerRef.current);
     clearInterval(countdownRef.current);
-    setType(k);
+    setInternalType(k);
     setMediaBlob(null);
     setFile(null);
     setRecording(false);
@@ -782,33 +789,39 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
   };
 
   return (
-    <div style={{ borderTop: '1px solid var(--pencil)', paddingTop: 16 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-        Submit Your Work
-      </div>
+    <div style={{ borderTop: hideChrome ? 'none' : '1px solid var(--pencil)', paddingTop: hideChrome ? 0 : 16 }}>
+      {!hideChrome && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Submit Your Work
+          </div>
 
-      {/* Type tabs */}
-      <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
-        {tabs.map(({ key, label, Icon }) => (
-          <button
-            key={key}
-            onClick={() => switchTab(key)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '5px 10px', borderRadius: 6,
-              border: `1px solid ${type === key ? 'var(--compass-gold)' : 'var(--pencil)'}`,
-              background: type === key ? 'rgba(184,134,11,0.08)' : 'transparent',
-              color: type === key ? 'var(--compass-gold)' : 'var(--graphite)',
-              fontSize: 11, fontWeight: type === key ? 700 : 400,
-              fontFamily: 'var(--font-body)', cursor: 'pointer',
-              transition: 'all 150ms',
-            }}
-          >
-            <Icon size={11} />
-            {label}
-          </button>
-        ))}
-      </div>
+          {/* Type tabs — hidden when externalType is set */}
+          {!externalType && (
+            <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
+              {tabs.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => switchTab(key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 6,
+                    border: `1px solid ${type === key ? 'var(--compass-gold)' : 'var(--pencil)'}`,
+                    background: type === key ? 'rgba(184,134,11,0.08)' : 'transparent',
+                    color: type === key ? 'var(--compass-gold)' : 'var(--graphite)',
+                    fontSize: 11, fontWeight: type === key ? 700 : 400,
+                    fontFamily: 'var(--font-body)', cursor: 'pointer',
+                    transition: 'all 150ms',
+                  }}
+                >
+                  <Icon size={11} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Text */}
       {type === 'text' && (
@@ -825,6 +838,66 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
             resize: 'vertical', lineHeight: 1.6, marginBottom: 8, outline: 'none',
           }}
         />
+      )}
+
+      {/* Link */}
+      {type === 'link' && (
+        <div style={{ marginBottom: 8 }}>
+          <input
+            type="url"
+            value={textContent}
+            onChange={(e) => setTextContent(e.target.value)}
+            placeholder="Paste a link to what you made"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '11px 14px', borderRadius: 8,
+              border: '1.5px solid var(--ink)', background: 'var(--chalk)',
+              fontSize: 13, fontFamily: 'var(--font-body)', color: 'var(--ink)',
+              outline: 'none',
+            }}
+          />
+          <div style={{ fontSize: 10, color: 'var(--graphite)', marginTop: 4, fontFamily: 'var(--font-body)' }}>
+            Google Doc, Slides, YouTube, Canva, or any URL
+          </div>
+        </div>
+      )}
+
+      {/* Photo */}
+      {type === 'photo' && (
+        <div style={{ marginBottom: 8 }}>
+          {file ? (
+            <div style={{ position: 'relative' }}>
+              <img
+                src={URL.createObjectURL(file)}
+                alt="Preview"
+                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 8, marginBottom: 6 }}
+              />
+              <button
+                onClick={() => setFile(null)}
+                style={{
+                  position: 'absolute', top: 6, right: 6,
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.6)', border: 'none',
+                  color: 'var(--chalk)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <label style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '28px 20px', borderRadius: 10, border: '2px dashed var(--pencil)',
+              color: 'var(--graphite)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer',
+              background: 'var(--parchment)', transition: 'border-color 150ms',
+            }}>
+              <Camera size={22} />
+              Take a photo or choose from your library
+              <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => setFile(e.target.files[0])} />
+            </label>
+          )}
+        </div>
       )}
 
       {/* Audio */}
@@ -1146,8 +1219,10 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         }}
       >
         {uploading
-          ? <><Loader2 size={14} className="sq-spin" /> Submitting…</>
-          : <><CheckCircle size={14} /> Submit &amp; Complete Stage</>
+          ? <><Loader2 size={14} className="sq-spin" /> Sharing…</>
+          : hideChrome
+            ? <><Send size={14} /> Share what you made</>
+            : <><CheckCircle size={14} /> Submit &amp; Complete Stage</>
         }
       </button>
     </div>
@@ -1388,6 +1463,64 @@ function ChallengerCard({ challenge, questId, stageId, studentName, studentId, o
 }
 
 // ===================== STAGE CARD =====================
+// ===================== CREATION MODE PICKER =====================
+const CREATION_MODES = [
+  { key: 'video', label: 'Video', Icon: Video },
+  { key: 'audio', label: 'Audio', Icon: Mic },
+  { key: 'photo', label: 'Photo', Icon: Camera },
+  { key: 'text', label: 'Write', Icon: PenLine },
+  { key: 'link', label: 'Link', Icon: Link2 },
+  { key: 'file', label: 'File', Icon: FileUp },
+];
+
+function CreationModePicker({ selected, onSelect, suggestedMode, disabled }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 8,
+        justifyContent: 'center',
+        opacity: disabled ? 0.4 : 1,
+        pointerEvents: disabled ? 'none' : 'auto',
+      }}>
+        {CREATION_MODES.map(({ key, label, Icon }) => {
+          const isSelected = selected === key;
+          return (
+            <button
+              key={key}
+              onClick={() => onSelect(key)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: 4, width: 68, height: 64,
+                borderRadius: 10,
+                border: isSelected ? '2px solid var(--compass-gold)' : '1.5px solid var(--pencil)',
+                background: isSelected ? 'rgba(184,134,11,0.08)' : 'var(--chalk)',
+                color: isSelected ? 'var(--compass-gold)' : 'var(--graphite)',
+                cursor: 'pointer',
+                transition: 'all 150ms',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <Icon size={20} strokeWidth={isSelected ? 2.2 : 1.8} />
+              <span style={{ fontSize: 10, fontWeight: isSelected ? 700 : 500 }}>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* AI suggested badge */}
+      {suggestedMode && (
+        <div style={{
+          textAlign: 'center', marginTop: 8, opacity: 0.55,
+          fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--graphite)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+        }}>
+          <Sparkles size={10} />
+          AI suggested: {CREATION_MODES.find(m => m.key === suggestedMode)?.label || suggestedMode}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData, expeditionChallenge, expeditionResponse, onChallengeEvaluate, isNextLocked }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
@@ -1401,6 +1534,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
   const [suggestText, setSuggestText] = useState('');
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestResult, setSuggestResult] = useState(null);
+  const [creationMode, setCreationMode] = useState(stage.suggested_creation_mode || 'text');
 
   // Load existing feedback for completed stages
   useEffect(() => {
@@ -1457,11 +1591,9 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
     if (onSuggestEdit) onSuggestEdit();
   };
 
-  const readText = [
-    stage.title,
-    stage.description || '',
-    ...(stage.guiding_questions?.slice(0, 2) || []),
-  ].filter(Boolean).join('. ');
+  // Challenge text: use stage.challenge (new field) or fall back to description
+  const challengeText = stage.challenge || stage.description || '';
+  const readText = [stage.title, challengeText].filter(Boolean).join('. ');
 
   return (
     <div className={`sq-card${isActive ? ' sq-stage-active' : ''}${isDone ? ' sq-stage-completed' : ''}${isNextLocked ? ' sq-stage-next-locked' : ''}`} style={{
@@ -1469,8 +1601,8 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       borderRadius: 14, padding: '24px 28px',
       boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+      {/* Header — icon + title */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 0 }}>
           <div style={{
             width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
@@ -1488,13 +1620,16 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Stage {stage.stage_number}
               </span>
-              <span style={{
-                fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-                letterSpacing: '0.04em', fontWeight: 600,
-                color: isDone ? 'var(--field-green)' : isActive ? 'var(--compass-gold)' : 'var(--pencil)',
-              }}>
-                {stage.status}
-              </span>
+              {isDone && (
+                <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: 'var(--field-green)' }}>
+                  Done
+                </span>
+              )}
+              {isActive && (
+                <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: 'var(--compass-gold)' }}>
+                  Active
+                </span>
+              )}
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>
               {stage.title}
@@ -1504,19 +1639,20 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         <SpeakButton text={readText} />
       </div>
 
+      {/* "Coming up" badge for locked stages */}
       {isLocked && (
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          padding: '3px 10px', borderRadius: 20,
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '4px 12px', borderRadius: 20,
           background: 'var(--parchment)', border: '1px solid var(--pencil)',
           fontSize: 11, fontWeight: 600, color: 'var(--graphite)',
-          fontFamily: 'var(--font-body)', marginBottom: 8,
+          fontFamily: 'var(--font-body)', marginBottom: 12,
         }}>
-          <Lock size={11} /> Locked
+          <Clock size={11} /> Coming up
         </div>
       )}
 
-      {/* Full stage content — visible for all stages, submission disabled when locked */}
+      {/* Full stage content */}
       <>
       {/* Narrative hook from landmark */}
       {landmark?.narrative_hook && (
@@ -1544,10 +1680,14 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         />
       )}
 
-      {/* Description */}
-      {stage.description && (
-        <p style={{ fontSize: 14, color: 'var(--graphite)', lineHeight: 1.7, margin: '0 0 20px' }}>
-          {stage.description}
+      {/* Challenge text — concise 1-2 sentence prompt (replaces long description + deliverable) */}
+      {challengeText && (
+        <p style={{
+          fontSize: 15, color: 'var(--ink)', lineHeight: 1.65, margin: '0 0 20px',
+          fontFamily: 'var(--font-display)', fontStyle: 'italic',
+          opacity: isLocked ? 0.55 : 1,
+        }}>
+          &ldquo;{challengeText}&rdquo;
         </p>
       )}
 
@@ -1576,41 +1716,6 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
               <VideoEmbed key={vi} url={v.url} title={v.title} />
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Divider */}
-      {stage.description && stage.guiding_questions?.length > 0 && (
-        <hr style={{ border: 'none', borderTop: '1px solid var(--pencil)', margin: '0 0 20px', opacity: 0.4 }} />
-      )}
-
-      {/* Guiding questions */}
-      {stage.guiding_questions?.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-            Questions to explore
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {stage.guiding_questions.map((q, i) => (
-              <li key={i} style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{q}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Deliverable */}
-      {stage.deliverable && (
-        <div style={{
-          background: 'var(--parchment)', borderRadius: 10,
-          padding: '14px 18px', marginBottom: 20,
-          borderLeft: '3px solid var(--compass-gold)',
-        }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
-            What to make
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6, margin: 0 }}>
-            {stage.deliverable}
-          </p>
         </div>
       )}
 
@@ -1725,17 +1830,152 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
         </div>
       )}
 
-      {/* Locked stage hint — complete previous stages first */}
-      {isLocked && (
-        <div style={{
-          padding: '12px 16px', borderRadius: 8, marginTop: 8,
-          background: 'rgba(184,134,11,0.06)', border: '1px dashed rgba(184,134,11,0.3)',
-          fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)',
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
-          <Lock size={14} color="var(--compass-gold)" />
-          Complete earlier stages to unlock this one and submit your work.
-        </div>
+      {/* Creation Mode Picker — visible for active + locked (dimmed) stages */}
+      {(isActive || isLocked) && !existingSubmission && !revising && (
+        <CreationModePicker
+          selected={creationMode}
+          onSelect={setCreationMode}
+          suggestedMode={stage.suggested_creation_mode}
+          disabled={isLocked}
+        />
+      )}
+
+      {/* Creation area — active stages only */}
+      {!isLocked && (isActive || (isDone && !existingSubmission && !revising)) && (
+        <>
+          {isDone && !existingSubmission && !revising && (
+            <div style={{
+              fontSize: 11, color: 'var(--lab-blue)', fontWeight: 600,
+              fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+              letterSpacing: '0.06em', marginBottom: 6, marginTop: 8,
+            }}>
+              You haven't shared work yet — add yours below!
+            </div>
+          )}
+          <SubmissionPanel
+            stageId={stage.id}
+            questId={questId}
+            studentName={studentName}
+            externalType={creationMode}
+            hideChrome
+            onSubmitComplete={async (stageId, submissionContent) => {
+              const currentAttempt = attemptNumber;
+
+              // AI review chain — determines if mastery is passed before advancing
+              setFeedbackLoading(true);
+              try {
+                const result = await ai.reviewSubmission({
+                  stageTitle: stage.title,
+                  stageDescription: stage.description || '',
+                  deliverable: stage.deliverable || challengeText || '',
+                  submissionContent: submissionContent || '',
+                  studentProfile: studentProfile || { name: studentName },
+                });
+                // Merge attempt number into feedback for ScoreCard display
+                const enrichedResult = { ...result, attempt_number: currentAttempt };
+                setFeedback(enrichedResult);
+
+                // Gate stage advancement on mastery threshold
+                const passed = (result.score ?? 50) >= MASTERY_THRESHOLD;
+                if (passed) {
+                  if (!isDone) onComplete(stageId);
+                  else if (onReloadSubmissions) onReloadSubmissions();
+                } else {
+                  // Submission saved but stage not advanced — student must resubmit
+                  if (onReloadSubmissions) onReloadSubmissions();
+                }
+
+                // Persist feedback with score + hints + attempt
+                try {
+                  feedbackApi.add({
+                    questId, stageId: stage.id, studentName,
+                    feedbackText: result.feedback,
+                    skillsDemonstrated: result.skills_demonstrated,
+                    encouragement: result.encouragement,
+                    nextSteps: result.next_steps,
+                    score: result.score,
+                    hints: result.hints,
+                    attemptNumber: currentAttempt,
+                  });
+                } catch (e) { console.error('Failed to persist feedback:', e); }
+                // Silently log skill assessments from submission review
+                if (result?.skill_ratings?.length > 0 && studentProfile?.id) {
+                  try {
+                    const assessments = result.skill_ratings.map(sr => ({
+                      student_id: studentProfile.id,
+                      skill_name: sr.skill_name,
+                      quest_id: questId,
+                      stage_id: stage.id,
+                      assessment_type: 'submission_review',
+                      rating: sr.rating,
+                      evidence: sr.evidence,
+                    }));
+                    skillAssessments.bulkLog(assessments);
+                  } catch (e) { console.error('Failed to log skill assessments:', e); }
+                }
+                // Chain mastery assessment (non-blocking)
+                if (result.skills_demonstrated?.length && studentProfile?.id) {
+                  try {
+                    const studentSkillsData = await skillsApi.getStudentSkills(studentProfile.id);
+                    const mastery = await ai.assessMastery({
+                      stageTitle: stage.title,
+                      submissionContent: submissionContent || '',
+                      skillsDemonstrated: result.skills_demonstrated,
+                      studentSkills: studentSkillsData?.data || [],
+                      score: result.score,
+                    });
+                    if (mastery.updates?.length) {
+                      for (const update of mastery.updates) {
+                        const allSkills = studentSkillsData?.data || [];
+                        const match = allSkills.find(s => s.skill_name?.toLowerCase() === update.skill_name?.toLowerCase());
+                        if (match) {
+                          await skillsApi.upsertStudentSkill({
+                            studentId: studentProfile.id,
+                            skillId: match.skill_id,
+                            proficiency: update.new_proficiency,
+                            source: 'ai',
+                          });
+                          await snapshotsApi.add({
+                            studentId: studentProfile.id,
+                            skillId: match.skill_id,
+                            proficiency: update.new_proficiency,
+                            source: 'ai',
+                            questId,
+                          });
+                        }
+                      }
+                    }
+                  } catch (e) { console.error('Mastery assessment failed (best-effort):', e); }
+                }
+                // Trigger Devil's Advocate at checkpoints
+                const isShortResponse = (submissionContent || '').length < 100;
+                const isCheckpoint = stage.stage_number % 2 === 0;
+                if (isShortResponse || isCheckpoint) {
+                  try {
+                    const challenge = await ai.devilsAdvocate({
+                      stageTitle: stage.title,
+                      stageDescription: stage.description || '',
+                      studentWork: submissionContent || '',
+                      studentProfile: studentProfile || { name: studentName },
+                      gradeBand: quest?.grade_band,
+                    });
+                    if (onChallengerTriggered) onChallengerTriggered(challenge);
+                    guideMessagesApi.add({
+                      questId, stageId: stage.id,
+                      studentId: studentProfile?.id || null, studentName,
+                      role: 'challenger', content: challenge,
+                      messageType: 'devil_advocate',
+                    });
+                  } catch (e) { console.error('Challenger failed (optional):', e); }
+                }
+              } catch (e) {
+                console.error('AI review failed — submission was saved successfully:', e);
+              } finally {
+                setFeedbackLoading(false);
+              }
+            }}
+          />
+        </>
       )}
 
       {/* Stretch challenge */}
@@ -1752,140 +1992,6 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       )}
       {!isLocked && stage.stage_type === 'evidence_board' && interactiveData?.config && (
         <EvidenceBoard config={interactiveData.config} onComplete={() => onComplete?.(stage.id)} />
-      )}
-
-      {/* Work submission — show for active stage OR completed stage if this student hasn't submitted */}
-      {!isLocked && isDone && !existingSubmission && !revising && (
-        <div style={{
-          fontSize: 11, color: 'var(--lab-blue)', fontWeight: 600,
-          fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-          letterSpacing: '0.06em', marginBottom: 6, marginTop: 8,
-        }}>
-          You haven't submitted work yet — add yours below!
-        </div>
-      )}
-      {!isLocked && (isActive || (isDone && !existingSubmission && !revising)) && (
-        <SubmissionPanel
-          stageId={stage.id}
-          questId={questId}
-          studentName={studentName}
-          onSubmitComplete={async (stageId, submissionContent) => {
-            const currentAttempt = attemptNumber;
-
-            // AI review chain — determines if mastery is passed before advancing
-            setFeedbackLoading(true);
-            try {
-              const result = await ai.reviewSubmission({
-                stageTitle: stage.title,
-                stageDescription: stage.description || '',
-                deliverable: stage.deliverable || '',
-                submissionContent: submissionContent || '',
-                studentProfile: studentProfile || { name: studentName },
-              });
-              // Merge attempt number into feedback for ScoreCard display
-              const enrichedResult = { ...result, attempt_number: currentAttempt };
-              setFeedback(enrichedResult);
-
-              // Gate stage advancement on mastery threshold
-              const passed = (result.score ?? 50) >= MASTERY_THRESHOLD;
-              if (passed) {
-                if (!isDone) onComplete(stageId);
-                else if (onReloadSubmissions) onReloadSubmissions();
-              } else {
-                // Submission saved but stage not advanced — student must resubmit
-                if (onReloadSubmissions) onReloadSubmissions();
-              }
-
-              // Persist feedback with score + hints + attempt
-              try {
-                feedbackApi.add({
-                  questId, stageId: stage.id, studentName,
-                  feedbackText: result.feedback,
-                  skillsDemonstrated: result.skills_demonstrated,
-                  encouragement: result.encouragement,
-                  nextSteps: result.next_steps,
-                  score: result.score,
-                  hints: result.hints,
-                  attemptNumber: currentAttempt,
-                });
-              } catch (e) { console.error('Failed to persist feedback:', e); }
-              // Silently log skill assessments from submission review
-              if (result?.skill_ratings?.length > 0 && studentProfile?.id) {
-                try {
-                  const assessments = result.skill_ratings.map(sr => ({
-                    student_id: studentProfile.id,
-                    skill_name: sr.skill_name,
-                    quest_id: questId,
-                    stage_id: stage.id,
-                    assessment_type: 'submission_review',
-                    rating: sr.rating,
-                    evidence: sr.evidence,
-                  }));
-                  skillAssessments.bulkLog(assessments);
-                } catch (e) { console.error('Failed to log skill assessments:', e); }
-              }
-              // Chain mastery assessment (non-blocking)
-              if (result.skills_demonstrated?.length && studentProfile?.id) {
-                try {
-                  const studentSkillsData = await skillsApi.getStudentSkills(studentProfile.id);
-                  const mastery = await ai.assessMastery({
-                    stageTitle: stage.title,
-                    submissionContent: submissionContent || '',
-                    skillsDemonstrated: result.skills_demonstrated,
-                    studentSkills: studentSkillsData?.data || [],
-                    score: result.score,
-                  });
-                  if (mastery.updates?.length) {
-                    for (const update of mastery.updates) {
-                      const allSkills = studentSkillsData?.data || [];
-                      const match = allSkills.find(s => s.skill_name?.toLowerCase() === update.skill_name?.toLowerCase());
-                      if (match) {
-                        await skillsApi.upsertStudentSkill({
-                          studentId: studentProfile.id,
-                          skillId: match.skill_id,
-                          proficiency: update.new_proficiency,
-                          source: 'ai',
-                        });
-                        await snapshotsApi.add({
-                          studentId: studentProfile.id,
-                          skillId: match.skill_id,
-                          proficiency: update.new_proficiency,
-                          source: 'ai',
-                          questId,
-                        });
-                      }
-                    }
-                  }
-                } catch (e) { console.error('Mastery assessment failed (best-effort):', e); }
-              }
-              // Trigger Devil's Advocate at checkpoints
-              const isShortResponse = (submissionContent || '').length < 100;
-              const isCheckpoint = stage.stage_number % 2 === 0;
-              if (isShortResponse || isCheckpoint) {
-                try {
-                  const challenge = await ai.devilsAdvocate({
-                    stageTitle: stage.title,
-                    stageDescription: stage.description || '',
-                    studentWork: submissionContent || '',
-                    studentProfile: studentProfile || { name: studentName },
-                    gradeBand: quest?.grade_band,
-                  });
-                  if (onChallengerTriggered) onChallengerTriggered(challenge);
-                  guideMessagesApi.add({
-                    questId, stageId: stage.id,
-                    studentId: studentProfile?.id || null, studentName,
-                    role: 'challenger', content: challenge,
-                    messageType: 'devil_advocate',
-                  });
-                } catch (e) { console.error('Challenger failed (optional):', e); }
-              }
-            } catch (e) {
-              console.error('AI review failed — submission was saved successfully:', e);
-            } finally {
-              setFeedbackLoading(false);
-            }
-          }}
-        />
       )}
 
       {/* Read-only submission for completed stages */}
