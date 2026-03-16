@@ -721,13 +721,20 @@ Pick the best creation mode for each stage based on what the student will actual
 - "canvas" — concept maps, mood boards, brainstorms, visual organization, timelines, relationship mapping. Best for stages where students need to organize multiple ideas visually.
 - "sketch" — diagrams, illustrations, freeform drawing, labeling, annotating. Best for younger students or visual/artistic stages.
 - "slides" — presentations, pitches, storytelling sequences, show-and-tell. Best for "present" or "share" stage types.
+- "evidence_board" — investigation, building arguments from evidence, evaluating claims. Best for research and analysis stages where students gather and organize evidence to support a conclusion.
+- "ranking" — prioritizing, evaluating, comparing importance. Best for decision-making stages where students must weigh options and justify their ordering.
+- "survey" — data collection, gathering perspectives, community research. Best for experiment/research stages where students design questions to collect information from others.
+- "checklist" — project planning, process design, step-by-step preparation. Best for build stages where students need to create an actionable plan before executing.
+- "comparison" — analyzing pros/cons, comparing options, evaluating alternatives. Best for research and reflect stages where students need to systematically compare two or more things.
 
 Choose based on stage type, student age (younger = more photo/video/sketch, less text), and what's most natural for the activity:
-- Research stages → text, link, or canvas
-- Build/create stages → canvas, sketch, slides, or video
-- Experiment stages → sketch, photo, or video
+- Research stages → text, link, canvas, evidence_board, or comparison
+- Build/create stages → canvas, sketch, slides, checklist, or video
+- Experiment stages → sketch, photo, video, or survey
+- Decision/analysis stages → ranking, comparison, or evidence_board
 - Present/share stages → slides or video
-- Reflect stages → text or audio
+- Reflect stages → text, audio, or ranking
+- Planning stages → checklist or canvas
 
 GUIDING QUESTIONS (hidden from students):
 - Generate 3-4 thoughtful guiding questions per stage.

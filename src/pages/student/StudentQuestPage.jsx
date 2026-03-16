@@ -82,6 +82,37 @@ function prepareEmbeddingContent(submission, stage) {
       return { content: text, contentType: 'text', summary: `Slides: ${(data.slides || []).map(s => s.title).filter(Boolean).join(', ')}` };
     }
 
+    case 'evidence_board': {
+      const data = submission.creation_data || {};
+      const evidenceTexts = (data.evidence || []).map(e => `${e.type}: ${e.text}`).join('. ');
+      const text = `Challenge: ${challengeContext}\nEvidence: ${evidenceTexts}\nArgument: ${data.argument || ''}`;
+      return { content: text, contentType: 'text', summary: `Evidence board: ${data.argument?.slice(0, 80) || 'investigation'}` };
+    }
+
+    case 'ranking': {
+      const data = submission.creation_data || {};
+      const items = (data.items || []).map(i => i.text).join(', ');
+      return { content: `Challenge: ${challengeContext}\nRanked items: ${items}\nReasoning: ${data.reasoning || ''}`, contentType: 'text', summary: `Ranking: ${items.slice(0, 80)}` };
+    }
+
+    case 'survey': {
+      const data = submission.creation_data || {};
+      const qs = (data.questions || []).map(q => q.text).join('; ');
+      return { content: `Challenge: ${challengeContext}\nSurvey "${data.title}": ${qs}`, contentType: 'text', summary: `Survey: ${data.title || 'untitled'}` };
+    }
+
+    case 'checklist': {
+      const data = submission.creation_data || {};
+      const steps = (data.steps || []).map(s => s.text).join(', ');
+      return { content: `Challenge: ${challengeContext}\nPlan "${data.title}": ${steps}\nNotes: ${data.notes || ''}`, contentType: 'text', summary: `Plan: ${data.title || 'untitled'}` };
+    }
+
+    case 'comparison': {
+      const data = submission.creation_data || {};
+      const cols = (data.columns || []).join(' vs ');
+      return { content: `Challenge: ${challengeContext}\nComparing ${cols}. Conclusion: ${data.conclusion || ''}`, contentType: 'text', summary: `Comparison: ${cols}` };
+    }
+
     case 'audio':
     case 'video':
       return {
@@ -233,6 +264,33 @@ function serializeCreationDataForAI(type, data) {
         return text;
       });
       return `[Slide Presentation — ${(cd.slides || []).length} slides]\n${slides.join('\n\n')}`;
+    }
+    if (type === 'evidence_board') {
+      const zones = (cd.zones || []).map(z => z.name).join(', ');
+      const evidence = (cd.evidence || []).map(e => `[${e.type}] ${e.text}${e.zoneId ? '' : ' (unsorted)'}`).join('; ');
+      return `Evidence Board - Zones: ${zones}. Evidence: ${evidence}. Argument: ${cd.argument || '(none)'}`;
+    }
+    if (type === 'ranking') {
+      if (cd.mode === 'tier') {
+        const tiers = Object.entries(cd.tiers || {}).map(([k, v]) => `${v.label}: ${v.items?.join(', ') || 'empty'}`).join('. ');
+        return `Ranking (tiers) - ${tiers}. Reasoning: ${cd.reasoning || '(none)'}`;
+      }
+      const items = (cd.items || []).map((item, i) => `${i+1}. ${item.text}`).join(', ');
+      return `Ranking - ${items}. Reasoning: ${cd.reasoning || '(none)'}`;
+    }
+    if (type === 'survey') {
+      const qs = (cd.questions || []).map((q, i) => `Q${i+1} (${q.type}): ${q.text}`).join('; ');
+      return `Survey: "${cd.title || ''}". Questions: ${qs}`;
+    }
+    if (type === 'checklist') {
+      const steps = (cd.steps || []).map(s => `${s.done ? '\u2713' : '\u25CB'} ${s.text}`).join('; ');
+      const done = (cd.steps || []).filter(s => s.done).length;
+      return `Checklist: "${cd.title || ''}". ${done}/${(cd.steps||[]).length} complete. Steps: ${steps}. Notes: ${cd.notes || '(none)'}`;
+    }
+    if (type === 'comparison') {
+      const cols = (cd.columns || []).join(' vs ');
+      const rows = (cd.rows || []).join(', ');
+      return `Comparison Table: ${cols}. Criteria: ${rows}. Conclusion: ${cd.conclusion || '(none)'}`;
     }
   } catch (e) {
     console.error('Failed to serialize creation data:', e);
@@ -775,7 +833,7 @@ function MobileStageNav({ stages, activeCard, onNodeClick }) {
 }
 
 // ===================== SUBMISSION PANEL =====================
-function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, initialText = '', externalType, hideChrome }) {
+function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, initialText = '', externalType, hideChrome, ageGroup }) {
   const [internalType, setInternalType] = useState('text');
   const type = externalType || internalType;
   const [textContent, setTextContent] = useState(initialText);
@@ -983,7 +1041,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
       // Map creation modes to DB submission types: photo→file, link→text; canvas/sketch/slides pass through
       const dbType = type === 'photo' ? 'file' : type === 'link' ? 'text' : type;
       const isTextLike = type === 'text' || type === 'link';
-      const isCreation = type === 'canvas' || type === 'sketch' || type === 'slides';
+      const isCreation = type === 'canvas' || type === 'sketch' || type === 'slides' || type === 'evidence_board' || type === 'ranking' || type === 'survey' || type === 'checklist' || type === 'comparison';
 
       const uploadSource = mediaBlob || (!isTextLike ? file : null);
       if (uploadSource) {
@@ -1493,14 +1551,14 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
       )}
 
       {/* Creation tools */}
-      {type === 'canvas' && <CanvasBoard onSave={(data) => setCreationData(data)} />}
-      {type === 'sketch' && <SketchPad onSave={(data) => setCreationData(data)} />}
-      {type === 'slides' && <SlideBuilder onSave={(data) => setCreationData(data)} />}
-      {type === 'evidence_board' && <EvidenceBoardCreator onSave={(data) => setCreationData(data)} />}
-      {type === 'ranking' && <RankingSorter onSave={(data) => setCreationData(data)} />}
-      {type === 'survey' && <SurveyBuilder onSave={(data) => setCreationData(data)} />}
-      {type === 'checklist' && <ChecklistBuilder onSave={(data) => setCreationData(data)} />}
-      {type === 'comparison' && <ComparisonTable onSave={(data) => setCreationData(data)} />}
+      {type === 'canvas' && <CanvasBoard onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {type === 'sketch' && <SketchPad onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {type === 'slides' && <SlideBuilder onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {type === 'evidence_board' && <EvidenceBoardCreator onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {type === 'ranking' && <RankingSorter onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {type === 'survey' && <SurveyBuilder onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {type === 'checklist' && <ChecklistBuilder onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {type === 'comparison' && <ComparisonTable onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
 
       {error && (
         <div style={{ fontSize: 11, color: 'var(--specimen-red)', marginBottom: 8, padding: '6px 10px', background: 'rgba(192,57,43,0.06)', borderRadius: 5, lineHeight: 1.4 }}>
@@ -1749,11 +1807,21 @@ function SubmissionView({ submission }) {
     canvas: 'var(--compass-gold)',
     sketch: 'var(--specimen-red)',
     slides: 'var(--lab-blue)',
+    evidence_board: 'var(--field-green)',
+    ranking: 'var(--compass-gold)',
+    survey: 'var(--lab-blue)',
+    checklist: 'var(--field-green)',
+    comparison: 'var(--graphite)',
   }[submission.submission_type] || 'var(--graphite)';
   const typeBadgeLabel = {
     canvas: 'Canvas Board',
     sketch: 'Sketch',
     slides: 'Slides',
+    evidence_board: 'Evidence Board',
+    ranking: 'Ranking',
+    survey: 'Survey',
+    checklist: 'Checklist',
+    comparison: 'Comparison',
   }[submission.submission_type] || submission.submission_type;
 
   const renderSubmissionContent = (sub) => {
@@ -1818,6 +1886,176 @@ function SubmissionView({ submission }) {
     }
     if (st === 'slides' && sub.creation_data) {
       return <SubmissionSlideViewer creationData={sub.creation_data} />;
+    }
+    if (st === 'evidence_board' && sub.creation_data) {
+      const cd = typeof sub.creation_data === 'string' ? JSON.parse(sub.creation_data) : sub.creation_data;
+      const zones = cd.zones || [];
+      const evidence = cd.evidence || [];
+      const zoneColors = ['#e8f5e9', '#fff3e0', '#e3f2fd', '#fce4ec', '#f3e5f5'];
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {zones.map((zone, zi) => {
+              const zoneEvidence = evidence.filter(e => e.zoneId === zone.id);
+              return (
+                <div key={zone.id} style={{ flex: '1 1 180px', minWidth: 160, background: zoneColors[zi % zoneColors.length], borderRadius: 8, padding: '10px 12px', border: '1px solid var(--pencil)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, fontFamily: 'var(--font-body)' }}>{zone.name}</div>
+                  {zoneEvidence.map((ev, ei) => (
+                    <div key={ei} style={{ fontSize: 10, padding: '4px 6px', background: 'rgba(255,255,255,0.7)', borderRadius: 4, marginBottom: 4, lineHeight: 1.4 }}>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--graphite)', textTransform: 'uppercase', marginRight: 4 }}>{ev.type}</span>
+                      {ev.text}
+                    </div>
+                  ))}
+                  {zoneEvidence.length === 0 && <div style={{ fontSize: 10, color: 'var(--graphite)', fontStyle: 'italic' }}>No evidence</div>}
+                </div>
+              );
+            })}
+          </div>
+          {evidence.filter(e => !e.zoneId).length > 0 && (
+            <div style={{ fontSize: 10, color: 'var(--graphite)', fontStyle: 'italic' }}>
+              + {evidence.filter(e => !e.zoneId).length} unsorted evidence item(s)
+            </div>
+          )}
+          {cd.argument && (
+            <div style={{ fontSize: 12, color: 'var(--ink)', background: 'var(--parchment)', padding: '10px 12px', borderRadius: 6, borderLeft: '3px solid var(--field-green)', lineHeight: 1.5 }}>
+              <strong style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--graphite)', letterSpacing: '0.05em' }}>Argument:</strong><br />
+              {cd.argument}
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (st === 'ranking' && sub.creation_data) {
+      const cd = typeof sub.creation_data === 'string' ? JSON.parse(sub.creation_data) : sub.creation_data;
+      if (cd.mode === 'tier') {
+        const tiers = cd.tiers || {};
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {Object.entries(tiers).map(([key, tier]) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', background: 'var(--parchment)', borderRadius: 6, border: '1px solid var(--pencil)' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', minWidth: 60 }}>{tier.label}</span>
+                <span style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.5 }}>{(tier.items || []).join(', ') || '(empty)'}</span>
+              </div>
+            ))}
+            {cd.reasoning && (
+              <div style={{ fontSize: 11, color: 'var(--ink)', padding: '8px 10px', background: 'var(--parchment)', borderRadius: 6, borderLeft: '3px solid var(--compass-gold)', lineHeight: 1.5, marginTop: 4 }}>
+                <strong style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--graphite)' }}>Reasoning:</strong> {cd.reasoning}
+              </div>
+            )}
+          </div>
+        );
+      }
+      const items = cd.items || [];
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--parchment)', borderRadius: 6, border: '1px solid var(--pencil)' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--compass-gold)', fontFamily: 'var(--font-mono)', minWidth: 24 }}>#{i + 1}</span>
+              <span style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.4 }}>{item.text}</span>
+            </div>
+          ))}
+          {cd.reasoning && (
+            <div style={{ fontSize: 11, color: 'var(--ink)', padding: '8px 10px', background: 'var(--parchment)', borderRadius: 6, borderLeft: '3px solid var(--compass-gold)', lineHeight: 1.5, marginTop: 4 }}>
+              <strong style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--graphite)' }}>Reasoning:</strong> {cd.reasoning}
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (st === 'survey' && sub.creation_data) {
+      const cd = typeof sub.creation_data === 'string' ? JSON.parse(sub.creation_data) : sub.creation_data;
+      const questions = cd.questions || [];
+      const typeColors = { multiple_choice: 'var(--lab-blue)', open_ended: 'var(--field-green)', scale: 'var(--compass-gold)', yes_no: 'var(--graphite)' };
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {cd.title && <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>{cd.title}</div>}
+          {questions.map((q, i) => (
+            <div key={i} style={{ padding: '8px 10px', background: 'var(--parchment)', borderRadius: 6, border: '1px solid var(--pencil)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: typeColors[q.type] || 'var(--graphite)', background: `${typeColors[q.type] || 'var(--graphite)'}18`, padding: '1px 5px', borderRadius: 3 }}>
+                  {(q.type || '').replace('_', ' ')}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--ink)', lineHeight: 1.4 }}>Q{i + 1}. {q.text}</div>
+              {q.options && q.options.length > 0 && (
+                <div style={{ marginTop: 4, paddingLeft: 12 }}>
+                  {q.options.map((opt, oi) => (
+                    <div key={oi} style={{ fontSize: 10, color: 'var(--graphite)', lineHeight: 1.6 }}>{String.fromCharCode(65 + oi)}. {opt}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (st === 'checklist' && sub.creation_data) {
+      const cd = typeof sub.creation_data === 'string' ? JSON.parse(sub.creation_data) : sub.creation_data;
+      const steps = cd.steps || [];
+      const doneCount = steps.filter(s => s.done).length;
+      const pct = steps.length > 0 ? Math.round((doneCount / steps.length) * 100) : 0;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {cd.title && <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>{cd.title}</div>}
+          <div style={{ height: 6, background: 'var(--pencil)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: 'var(--field-green)', borderRadius: 3, transition: 'width 300ms ease' }} />
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--graphite)', fontFamily: 'var(--font-mono)' }}>{doneCount}/{steps.length} complete</div>
+          {steps.map((step, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 0' }}>
+              <span style={{ fontSize: 14, lineHeight: 1, marginTop: 1, color: step.done ? 'var(--field-green)' : 'var(--pencil)' }}>
+                {step.done ? '\u2713' : '\u25CB'}
+              </span>
+              <span style={{ fontSize: 11, color: step.done ? 'var(--ink)' : 'var(--graphite)', lineHeight: 1.4, textDecoration: step.done ? 'none' : 'none' }}>{step.text}</span>
+            </div>
+          ))}
+          {cd.notes && (
+            <div style={{ fontSize: 11, color: 'var(--ink)', padding: '8px 10px', background: 'var(--parchment)', borderRadius: 6, borderLeft: '3px solid var(--field-green)', lineHeight: 1.5, marginTop: 4 }}>
+              <strong style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--graphite)' }}>Notes:</strong> {cd.notes}
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (st === 'comparison' && sub.creation_data) {
+      const cd = typeof sub.creation_data === 'string' ? JSON.parse(sub.creation_data) : sub.creation_data;
+      const columns = cd.columns || [];
+      const rows = cd.rows || [];
+      const cells = cd.cells || {};
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, fontFamily: 'var(--font-body)' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--pencil)', fontSize: 10, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Criteria</th>
+                  {columns.map((col, ci) => (
+                    <th key={ci} style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--pencil)', fontSize: 10, fontWeight: 700, color: 'var(--ink)' }}>{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, ri) => (
+                  <tr key={ri}>
+                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--pencil)', fontWeight: 600, color: 'var(--graphite)', fontSize: 10 }}>{row}</td>
+                    {columns.map((col, ci) => (
+                      <td key={ci} style={{ padding: '6px 10px', borderBottom: '1px solid var(--pencil)', color: 'var(--ink)', lineHeight: 1.4 }}>
+                        {cells[`${ri}-${ci}`] || cells[`${row}-${col}`] || ''}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {cd.conclusion && (
+            <div style={{ fontSize: 12, color: 'var(--ink)', background: 'var(--parchment)', padding: '10px 12px', borderRadius: 6, borderLeft: '3px solid var(--graphite)', lineHeight: 1.5 }}>
+              <strong style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--graphite)', letterSpacing: '0.05em' }}>Conclusion:</strong><br />
+              {cd.conclusion}
+            </div>
+          )}
+        </div>
+      );
     }
     return null;
   };
@@ -2154,7 +2392,7 @@ function CreationModePicker({ selected, onSelect, suggestedMode, disabled }) {
   );
 }
 
-function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData, expeditionChallenge, expeditionResponse, onChallengeEvaluate, isNextLocked }) {
+function StageCard({ stage, onComplete, questId, studentName, existingSubmission, studentProfile, groupRole, onReloadSubmissions, onChallengerTriggered, onSuggestEdit, landmark, interactiveData, expeditionChallenge, expeditionResponse, onChallengeEvaluate, isNextLocked, ageGroup }) {
   const isDone = stage.status === 'completed';
   const isActive = stage.status === 'active';
   const isLocked = stage.status === 'locked';
@@ -2491,6 +2729,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
             studentName={studentName}
             externalType={creationMode}
             hideChrome
+            ageGroup={ageGroup}
             onSubmitComplete={async (stageId, submissionContent, submissionMeta) => {
               const currentAttempt = attemptNumber;
 
@@ -2689,6 +2928,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
             questId={questId}
             studentName={studentName}
             initialText={existingSubmission?.submission_type === 'text' ? existingSubmission.content : ''}
+            ageGroup={ageGroup}
             onSubmitComplete={(stageId, content, submissionMeta) => {
               const revisedAttempt = attemptNumber;
               setRevising(false);
@@ -3285,6 +3525,10 @@ export default function StudentQuestPage() {
   const [mapLandmarks, setMapLandmarks] = useState([]);
   const [interactiveData, setInteractiveData] = useState(null);
   const { enabled: soundEnabled, toggle: toggleSound, play: playSound, stop: stopSound } = useAmbientSound();
+
+  // Age-adaptive group derived from quest grade band
+  const ageGroup = quest?.grade_band === 'K-2' || quest?.grade_band === '3-5' ? 'young'
+    : quest?.grade_band === '9-12' ? 'older' : 'middle';
 
   // Expedition challenge state
   const [stageChallenges, setStageChallenges] = useState({});
@@ -4519,6 +4763,7 @@ export default function StudentQuestPage() {
                   expeditionResponse={stageChallenges[activeStage.id] ? challengeResponseMap[stageChallenges[activeStage.id]?.id] : null}
                   onChallengeEvaluate={handleChallengeEvaluate}
                   isNextLocked={activeStage.id === nextLockedId}
+                  ageGroup={ageGroup}
                 />
                 {activeStage.stage_type === 'choice_fork' && isBranchingQuest && activeStage.status === 'active' && (
                   <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
