@@ -4049,7 +4049,7 @@ export default function QuestBuilder() {
             stretch_challenge: s.stretch_challenge || null,
             sources: Array.isArray(s.sources) ? s.sources : [],
             video_urls: Array.isArray(s.video_urls) ? s.video_urls : [],
-            status: (!s.depends_on || s.depends_on.length === 0) ? 'active' : 'locked',
+            status: s.tier ? (s.tier === 1 ? 'active' : 'locked') : ((!s.depends_on || s.depends_on.length === 0) ? 'active' : 'locked'),
           }))
         ).select();
         if (stagesError) throw stagesError;

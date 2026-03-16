@@ -35,6 +35,70 @@ import VideoEmbed from '../../components/ui/VideoEmbed';
 const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
 // MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
 
+// ===================== TIER UTILITIES =====================
+function hasTierData(stages) {
+  return stages.some(s => s.tier != null && s.tier > 0);
+}
+
+function computeTierStatuses(stages) {
+  // Group stages by tier
+  const tiers = {};
+  for (const s of stages) {
+    const t = s.tier || 1;
+    if (!tiers[t]) tiers[t] = [];
+    tiers[t].push(s);
+  }
+  const tierNumbers = Object.keys(tiers).map(Number).sort((a, b) => a - b);
+
+  // Determine which tiers are unlocked
+  const tierUnlocked = {};
+  for (let i = 0; i < tierNumbers.length; i++) {
+    const tn = tierNumbers[i];
+    if (i === 0) {
+      tierUnlocked[tn] = true; // Tier 1 always unlocked
+    } else {
+      const prevTier = tierNumbers[i - 1];
+      const prevStages = tiers[prevTier];
+      const prevCompleted = prevStages.filter(s => s.status === 'completed').length;
+      const requiredToAdvance = prevStages[0]?.required_to_advance || prevStages.length;
+      tierUnlocked[tn] = prevCompleted >= requiredToAdvance;
+    }
+  }
+
+  // Set status for each stage based on tier unlock state
+  return stages.map(s => {
+    if (s.status === 'completed') return s; // Keep completed
+    const t = s.tier || 1;
+    if (tierUnlocked[t]) {
+      return { ...s, status: 'active' };
+    } else {
+      return { ...s, status: 'locked' };
+    }
+  });
+}
+
+function getTierInfo(stages) {
+  if (!hasTierData(stages)) return null;
+  const tiers = {};
+  for (const s of stages) {
+    const t = s.tier || 1;
+    if (!tiers[t]) tiers[t] = { number: t, stages: [], label: null, requiredToAdvance: null };
+    tiers[t].stages.push(s);
+    if (s.tier_label) tiers[t].label = s.tier_label;
+    if (s.required_to_advance) tiers[t].requiredToAdvance = s.required_to_advance;
+  }
+  const tierList = Object.values(tiers).sort((a, b) => a.number - b.number);
+  // Fill in defaults
+  const defaultLabels = ['Explore', 'Create', 'Share', 'Reflect'];
+  tierList.forEach((tier, i) => {
+    if (!tier.label) tier.label = defaultLabels[i] || `Tier ${tier.number}`;
+    if (!tier.requiredToAdvance) tier.requiredToAdvance = tier.stages.length;
+    tier.completed = tier.stages.filter(s => s.status === 'completed').length;
+    tier.unlocked = tier.stages.some(s => s.status !== 'locked');
+  });
+  return tierList;
+}
+
 // ===================== MARKDOWN HELPER =====================
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -461,6 +525,82 @@ function JourneyMap({ stages, activeCard, onNodeClick }) {
 
 // ===================== MOBILE STAGE NAV =====================
 function MobileStageNav({ stages, activeCard, onNodeClick }) {
+  const tierInfo = getTierInfo(stages);
+
+  // Tier-based mobile nav
+  if (tierInfo) {
+    return (
+      <div style={{
+        padding: '10px 14px', background: 'var(--chalk)',
+        borderBottom: '1px solid var(--pencil)',
+        overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 'max-content' }}>
+          {tierInfo.map((tier, ti) => (
+            <div key={tier.number} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              {/* Tier cluster */}
+              <div style={{
+                background: tier.unlocked ? 'rgba(184,134,11,0.06)' : 'rgba(0,0,0,0.03)',
+                borderRadius: 12, padding: '6px 10px',
+                border: tier.unlocked ? '1px solid rgba(184,134,11,0.2)' : '1px solid var(--pencil)',
+                opacity: tier.unlocked ? 1 : 0.55,
+              }}>
+                <div style={{
+                  fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--graphite)',
+                  textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4,
+                  textAlign: 'center',
+                }}>
+                  {tier.label}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {tier.stages.map((stage) => {
+                    const isDone = stage.status === 'completed';
+                    const isActive = stage.status === 'active';
+                    const isLocked = stage.status === 'locked';
+                    const isSelected = activeCard === stage.id;
+                    return (
+                      <button
+                        key={stage.id}
+                        onClick={() => onNodeClick(stage.id)}
+                        style={{
+                          width: 30, height: 30, borderRadius: '50%',
+                          border: isSelected ? '2.5px solid var(--lab-blue)' : '2px solid transparent',
+                          background: isDone ? 'var(--field-green)' : isActive ? 'var(--compass-gold)' : 'var(--parchment)',
+                          color: isDone || isActive ? 'var(--chalk)' : 'var(--pencil)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', padding: 0,
+                          opacity: isLocked ? 0.55 : 1,
+                          transition: 'all 150ms',
+                          boxShadow: isSelected ? '0 0 0 3px rgba(27,73,101,0.15)' : 'none',
+                        }}
+                      >
+                        {isDone ? <CheckCircle size={13} strokeWidth={2.5} />
+                          : isLocked ? <Lock size={10} strokeWidth={2} />
+                          : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700 }}>{stage.stage_number}</span>
+                        }
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{
+                  fontSize: 8, fontFamily: 'var(--font-mono)', color: 'var(--graphite)',
+                  textAlign: 'center', marginTop: 3, opacity: 0.7,
+                }}>
+                  {tier.completed}/{tier.requiredToAdvance}
+                </div>
+              </div>
+              {/* Arrow between tiers */}
+              {ti < tierInfo.length - 1 && (
+                <ChevronRight size={14} color="var(--pencil)" style={{ opacity: 0.4, flexShrink: 0 }} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy linear nav
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 0,
@@ -2588,7 +2728,14 @@ export default function StudentQuestPage() {
   useEffect(() => { injectStyles(); }, []);
 
   const [quest, setQuest] = useState(null);
-  const [stages, setStages] = useState([]);
+  const [stages, setStagesRaw] = useState([]);
+  const setStages = useCallback((stagesOrFn) => {
+    setStagesRaw(prev => {
+      const newStages = typeof stagesOrFn === 'function' ? stagesOrFn(prev) : stagesOrFn;
+      if (!newStages || newStages.length === 0) return newStages || [];
+      return hasTierData(newStages) ? computeTierStatuses(newStages) : newStages;
+    });
+  }, []);
   const [reflections, setReflections] = useState([]);
   const [assignedStudents, setAssignedStudents] = useState([]);
   const [studentName, setStudentName] = useState(() => sessionStorage.getItem(`wayfinder_student_${id}`) || '');
@@ -3181,24 +3328,44 @@ export default function StudentQuestPage() {
   const completeStage = useCallback(async (stageId) => {
     await supabase.from('quest_stages').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', stageId);
 
-    // Dependency-aware unlock
-    const completedIds = new Set(
-      stages.filter(s => s.status === 'completed' || s.id === stageId).map(s => s.id)
-    );
-    const toUnlock = stages.filter(s => {
-      if (s.status !== 'locked') return false;
-      const deps = s.dependencies || [];
-      if (deps.length === 0) return false;
-      return deps.every(depId => completedIds.has(depId));
-    });
+    const isTierBased = hasTierData(stages);
 
-    if (toUnlock.length > 0) {
-      await supabase.from('quest_stages').update({ status: 'active' }).in('id', toUnlock.map(s => s.id));
+    if (isTierBased) {
+      // Tier-based unlock: check if completing this stage unlocks the next tier
+      const completedStage = stages.find(s => s.id === stageId);
+      const currentTier = completedStage?.tier || 1;
+      const tierStages = stages.filter(s => (s.tier || 1) === currentTier);
+      const tierCompleted = tierStages.filter(s => s.status === 'completed' || s.id === stageId).length;
+      const requiredToAdvance = tierStages[0]?.required_to_advance || tierStages.length;
+
+      if (tierCompleted >= requiredToAdvance) {
+        // Unlock all stages in the next tier
+        const nextTier = currentTier + 1;
+        const nextTierStages = stages.filter(s => (s.tier || 1) === nextTier && s.status === 'locked');
+        if (nextTierStages.length > 0) {
+          await supabase.from('quest_stages').update({ status: 'active' }).in('id', nextTierStages.map(s => s.id));
+        }
+      }
     } else {
-      // Linear fallback
-      const currentIdx = stages.findIndex(s => s.id === stageId);
-      const next = stages[currentIdx + 1];
-      if (next && next.status === 'locked') await supabase.from('quest_stages').update({ status: 'active' }).eq('id', next.id);
+      // Legacy: dependency-aware unlock
+      const completedIds = new Set(
+        stages.filter(s => s.status === 'completed' || s.id === stageId).map(s => s.id)
+      );
+      const toUnlock = stages.filter(s => {
+        if (s.status !== 'locked') return false;
+        const deps = s.dependencies || [];
+        if (deps.length === 0) return false;
+        return deps.every(depId => completedIds.has(depId));
+      });
+
+      if (toUnlock.length > 0) {
+        await supabase.from('quest_stages').update({ status: 'active' }).in('id', toUnlock.map(s => s.id));
+      } else {
+        // Linear fallback
+        const currentIdx = stages.findIndex(s => s.id === stageId);
+        const next = stages[currentIdx + 1];
+        if (next && next.status === 'locked') await supabase.from('quest_stages').update({ status: 'active' }).eq('id', next.id);
+      }
     }
 
     const completedStage = stages.find(s => s.id === stageId);
