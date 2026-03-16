@@ -656,15 +656,20 @@ Generate a quest as JSON:
       "stage_number": 1,
       "stage_title": "action-oriented title",
       "stage_type": "research",
+      "tier": 1,
+      "required_to_advance": 2,
       "depends_on": [],
       "duration": 2,
-      "description": "3-4 conversational sentences",
+      "challenge": "1-2 sentence action prompt starting with a verb: Build a..., Record a..., Design a..., Investigate...",
+      "description": "MUST be identical to the challenge field (for backward compatibility)",
+      "suggested_creation_mode": "video|audio|photo|link|file|text",
       "academic_skills_embedded": ["standard_id"],
       "skill_integration_note": "how skill appears naturally",
-      "deliverable": "what student produces",
-      "guiding_questions": ["Question 1?", "Question 2?"],
+      "deliverable": "what student creates (short, concrete)",
+      "guiding_questions": ["Question 1?", "Question 2?", "Question 3?"],
       "resources_needed": ["resource 1"],
-      "stretch_challenge": "optional advanced challenge for stages 4+",
+      "stretch_challenge": "optional advanced challenge for later tiers",
+      "group_adaptation": "how this stage works for groups (or null for solo)",
       "expedition_challenge": {
         "challenge_type": "estimate|pattern|quick_write|classify|decode",
         "challenge_text": "Real-world-framed challenge. NEVER 'quiz' or 'test'. Frame as a professional problem or fun brain-teaser.",
@@ -686,37 +691,62 @@ Generate a quest as JSON:
   "parent_summary": "2-3 sentence parent-facing summary"
 }
 
-STAGE DEPENDENCIES:
-- Stage 1 always has depends_on: [] (no dependencies, it's the start)
-- Most stages depend on the previous one: depends_on: [N-1]
-- For branching: two stages can share the same dependency (parallel paths)
-- For convergence: a stage can depend on multiple stages (merge point)
-- Example: stages 3 and 4 both depend_on: [2], stage 5 depends_on: [3, 4]
-- Include at least one branch point (two parallel stages) when quest has 6+ stages
-- Keep it simple: max 1 branch point per quest
+TIER SYSTEM (CRITICAL — replaces linear stage dependencies):
+Stages are organized into tiers. All stages within a tier are available simultaneously. Students complete a required number of stages in a tier to unlock the next tier.
+
+- tier 1 (Explore): 2-3 stages of research, investigation, discovery. Students pick what interests them. required_to_advance = 2 (of 3) or 2 (of 2).
+- tier 2 (Create): 2-3 stages of building, designing, making. The core hands-on work. required_to_advance = 2 (of 3) or all if only 2.
+- tier 3 (Share): 1-2 stages of presenting, teaching others, publishing. required_to_advance = all (every stage in the final tier must be completed).
+
+Rules for tiers:
+- Every stage in the same tier has the SAME required_to_advance value.
+- Total stages should be 5-8 across all tiers.
+- depends_on should be [] for tier 1 stages. For tier 2+, depends_on is informational only (tier gating handles progression), but set it to reference the tier before it for context.
+- Tier numbers are integers starting at 1.
+
+STAGE CHALLENGE FORMAT (CRITICAL — this is the ONLY text students see):
+- The "challenge" field is the ONLY student-facing text for the stage. It MUST be 1-2 sentences max.
+- Start with an action verb: "Build...", "Record...", "Design...", "Investigate...", "Interview...", "Map out...", "Create...", "Film...", "Write...", "Prototype..."
+- Make it specific and exciting, not vague. Bad: "Research the topic." Good: "Interview 2 people in your neighborhood about how they get to work and map their routes."
+- The "description" field MUST contain the exact same text as "challenge" (this is for backward compatibility with existing code).
+
+SUGGESTED CREATION MODE:
+Pick the best creation mode for each stage based on what the student will actually produce:
+- "video" — filming, presenting, demonstrating, explaining on camera
+- "audio" — recording interviews, podcasts, voice memos, narration
+- "photo" — documenting, capturing evidence, visual proof, photo essays
+- "link" — sharing a website, online tool, or external resource they created/found
+- "file" — uploading documents, spreadsheets, code files, designs
+- "text" — writing responses, reflections, short essays, lists
+Choose based on: stage type, student age (younger = more photo/video, less text), and what's most natural for the activity.
+
+GUIDING QUESTIONS (hidden from students):
+- Generate 3-4 thoughtful guiding questions per stage.
+- These are NEVER shown to students directly. They are fed to the AI Field Guide character who uses them to coach students through Socratic dialogue.
+- Make them probing and open-ended. They should help a student who is stuck, not test what they know.
+- Calibrate depth to student proficiency levels when available.
 
 Rules:
 - Academic skills INVISIBLE to student
 - Each stage = a real project phase that a professional would do. Research, design, build, test, present — not fantasy quests.
 - Career connections are woven naturally — the student IS doing the career, not just learning about it
 - Language age-appropriate but never condescending
-- Include 5-7 stages minimum
+- Include 5-8 stages across 3 tiers
 - Project must be multidisciplinary
-- Stage descriptions should read like project briefs, not storybook pages
+- Challenges should read like exciting prompts, not assignments
 - Titles should sound professional and exciting, not like fantasy game levels
 - REQUIRED: At least one stage MUST have stage_type "simulate". A simulation stage puts the student in a realistic professional scenario — role-playing a real career situation (presenting to a client, making a design decision, defending their approach to stakeholders). This is NOT optional.
 - For academic_skills_embedded, you MUST use the EXACT standard codes provided in the academic standards input (e.g., '5.G.A.1', 'W.5.2', 'NGSS.ESS'). Do NOT paraphrase or describe them — use the code strings exactly as given.
 - Every standard provided in the input MUST appear in at least one stage's academic_skills_embedded array.
 - Incorporate specific student passions into scenarios and stage contexts
-- For group quests, assign roles that leverage individual strengths
+- For group quests, assign roles that leverage individual strengths and set group_adaptation for each stage
 - If parent expectations or learning outcomes are provided, align the quest with high-priority outcomes where natural
-- Calibrate guiding questions to student proficiency levels when available
-- Include a stretch_challenge for stages 4+ that pushes deeper analysis or synthesis
-- stretch_challenge should be null for early stages (1-3)
+- Include a stretch_challenge for tier 2+ stages that pushes deeper analysis or synthesis
+- stretch_challenge should be null for tier 1 stages
 
 LANGUAGE ADAPTATION (CRITICAL):
-Adapt ALL student-facing language to the learner's grade level:
-- K-2 (ages 5-8): Simple sentences, familiar words, max 2 syllables where possible. Short paragraphs.
+Adapt ALL student-facing language (challenge, deliverable, narrative_hook) to the learner's grade level:
+- K-2 (ages 5-8): Simple sentences, familiar words, max 2 syllables where possible. Short challenges.
 - 3-5 (ages 8-11): Clear language, define any advanced terms inline. Moderate sentence length.
 - 6-8 (ages 11-14): Can use subject-specific vocabulary with context. More complex sentence structures OK.
 - 9-12 (ages 14-18): Academic language appropriate. Technical terms expected.
@@ -726,7 +756,7 @@ ${useRealWorld ? `
 
 REAL-WORLD INTEGRATION:
 - Ground every stage in a REAL, current, verifiable problem.
-- Weave real-world context naturally into descriptions and guiding questions — don't bolt it on.` : ''}
+- Weave real-world context naturally into challenges and guiding questions — don't bolt it on.` : ''}
 
 EXPEDITION CHALLENGES (one per stage, optional — include for 60-70% of stages):
 Each stage may include an "expedition_challenge" — a quick warm-up problem the student must solve before diving into the stage.
