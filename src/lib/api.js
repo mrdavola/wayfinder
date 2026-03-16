@@ -3845,6 +3845,111 @@ export const embeddings = {
       .slice(0, 5); // Top 5 matching skills
   },
 
+  // Get all embeddings for a list of student names
+  async getStudentEmbeddings(studentNames) {
+    const { data, error } = await supabase
+      .from('submission_embeddings')
+      .select('*')
+      .in('student_name', studentNames);
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Compute average embedding per student
+  computeStudentVectors(allEmbeddings) {
+    const byStudent = {};
+    for (const emb of allEmbeddings) {
+      if (!byStudent[emb.student_name]) byStudent[emb.student_name] = [];
+      byStudent[emb.student_name].push(emb.embedding);
+    }
+
+    const vectors = {};
+    for (const [name, embeds] of Object.entries(byStudent)) {
+      if (embeds.length === 0) continue;
+      const dim = embeds[0].length;
+      const avg = new Array(dim).fill(0);
+      for (const vec of embeds) {
+        for (let i = 0; i < dim; i++) avg[i] += vec[i];
+      }
+      for (let i = 0; i < dim; i++) avg[i] /= embeds.length;
+      vectors[name] = avg;
+    }
+    return vectors;
+  },
+
+  // Simple greedy clustering: pair most similar students into groups of targetSize
+  clusterStudents(studentVectors, targetGroupSize = 3) {
+    const names = Object.keys(studentVectors);
+    if (names.length === 0) return [];
+
+    // Compute pairwise similarity matrix
+    const similarities = {};
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) {
+        const sim = this.cosineSimilarity(studentVectors[names[i]], studentVectors[names[j]]);
+        similarities[`${names[i]}|${names[j]}`] = sim;
+      }
+    }
+
+    // Greedy clustering: repeatedly pick the most similar unassigned pair
+    const assigned = new Set();
+    const groups = [];
+
+    // Sort all pairs by similarity descending
+    const pairs = Object.entries(similarities)
+      .sort((a, b) => b[1] - a[1]);
+
+    for (const [pairKey, sim] of pairs) {
+      const [a, b] = pairKey.split('|');
+      if (assigned.has(a) || assigned.has(b)) continue;
+
+      const group = { members: [a, b], avgSimilarity: sim };
+      assigned.add(a);
+      assigned.add(b);
+
+      // Try to grow group to targetSize
+      while (group.members.length < targetGroupSize) {
+        let bestCandidate = null;
+        let bestSim = -1;
+
+        for (const name of names) {
+          if (assigned.has(name)) continue;
+          // Average similarity to current group members
+          let totalSim = 0;
+          for (const member of group.members) {
+            const key1 = `${name}|${member}`;
+            const key2 = `${member}|${name}`;
+            totalSim += similarities[key1] || similarities[key2] || 0;
+          }
+          const avgSim = totalSim / group.members.length;
+          if (avgSim > bestSim) {
+            bestSim = avgSim;
+            bestCandidate = name;
+          }
+        }
+
+        if (bestCandidate && bestSim > 0.3) {
+          group.members.push(bestCandidate);
+          assigned.add(bestCandidate);
+          group.avgSimilarity = (group.avgSimilarity + bestSim) / 2;
+        } else {
+          break;
+        }
+      }
+
+      groups.push(group);
+    }
+
+    // Add remaining unassigned as solo/small groups
+    for (const name of names) {
+      if (!assigned.has(name)) {
+        groups.push({ members: [name], avgSimilarity: 0 });
+      }
+    }
+
+    return groups;
+  },
+
   // Seed all skill embeddings if not already done (runs once)
   _ensurePromise: null,
   async ensureSkillsEmbedded() {

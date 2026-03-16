@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Users, Sparkles, Loader2, Save, X, RefreshCw, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ai, skills as skillsApi, questGroups } from '../lib/api';
+import { ai, skills as skillsApi, questGroups, embeddings } from '../lib/api';
 import TopBar from '../components/layout/TopBar';
 
 const T = {
@@ -177,6 +177,7 @@ export default function GroupBuilderPage() {
               <p style={{ marginTop: 12, fontFamily: 'var(--font-body)' }}>Loading students...</p>
             </div>
           ) : (
+            <>
             <div style={{ display: 'grid', gridTemplateColumns: groups ? '1fr 1fr' : '1fr', gap: 24 }}>
               {/* Left: student selection */}
               <div>
@@ -392,11 +393,126 @@ export default function GroupBuilderPage() {
                 </div>
               )}
             </div>
+
+            {/* Smart Groups section — always visible below the main grid */}
+            <SmartGroupSuggestions students={students} />
+            </>
           )}
         </div>
       </main>
 
       <style>{`@keyframes gb-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+/* ─── Smart Groups (embedding-based) ─── */
+function SmartGroupSuggestions({ students }) {
+  const [smartGroups, setSmartGroups] = useState(null);
+  const [smartLoading, setSmartLoading] = useState(false);
+  const [smartGroupSize, setSmartGroupSize] = useState(3);
+  const [error, setError] = useState('');
+
+  const generateGroups = async () => {
+    setSmartLoading(true);
+    setError('');
+    try {
+      const studentNames = students.map(s => s.name || `${s.first_name} ${s.last_name}`);
+      const allEmbeddings = await embeddings.getStudentEmbeddings(studentNames);
+
+      if (allEmbeddings.length === 0) {
+        setSmartGroups([]);
+        setSmartLoading(false);
+        return;
+      }
+
+      const vectors = embeddings.computeStudentVectors(allEmbeddings);
+      const clustered = embeddings.clusterStudents(vectors, smartGroupSize);
+      setSmartGroups(clustered);
+    } catch (err) {
+      console.warn('Smart grouping failed:', err);
+      setError('Failed to generate smart groups. Please try again.');
+      setSmartGroups([]);
+    } finally {
+      setSmartLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid ${T.parchment}` }}>
+      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: T.ink, margin: 0 }}>
+        Smart Groups
+      </h3>
+      <p style={{ fontSize: 13, color: T.graphite, marginBottom: 16, marginTop: 4, fontFamily: 'var(--font-body)' }}>
+        Groups students based on the similarity of their actual work — not just profiles.
+        Uses embedding vectors from submitted work to find students with overlapping interests and thinking.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 13, fontFamily: 'var(--font-body)', fontWeight: 600, color: T.ink }}>Group size:</label>
+        <select
+          value={smartGroupSize}
+          onChange={e => { setSmartGroupSize(Number(e.target.value)); setSmartGroups(null); }}
+          className="input"
+          style={{ padding: '4px 8px', borderRadius: 6, fontSize: 13, width: 'auto', cursor: 'pointer' }}
+        >
+          <option value={2}>Pairs (2)</option>
+          <option value={3}>Trios (3)</option>
+          <option value={4}>Quads (4)</option>
+          <option value={5}>Fives (5)</option>
+        </select>
+        <button
+          onClick={generateGroups}
+          disabled={smartLoading}
+          className="btn btn-primary"
+          style={{ fontSize: 13, padding: '6px 16px' }}
+        >
+          {smartLoading ? 'Analyzing work...' : 'Generate Smart Groups'}
+        </button>
+      </div>
+
+      {error && (
+        <p style={{ color: T.specimenRed, fontSize: 13, fontFamily: 'var(--font-body)', marginBottom: 12 }}>
+          {error}
+        </p>
+      )}
+
+      {smartGroups && smartGroups.length === 0 && !error && (
+        <div style={{ padding: '24px 16px', borderRadius: 10, border: `1px dashed ${T.pencil}`, textAlign: 'center' }}>
+          <p style={{ color: T.graphite, fontSize: 13, fontFamily: 'var(--font-body)', margin: 0 }}>
+            No student work found with embeddings yet. Students need to submit some work first.
+          </p>
+        </div>
+      )}
+
+      {smartGroups && smartGroups.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+          {smartGroups.map((group, i) => {
+            const color = GROUP_COLORS[i % GROUP_COLORS.length];
+            return (
+              <div key={i} style={{
+                padding: 16, borderRadius: 10,
+                border: `1.5px solid ${color.border}`,
+                background: color.bg,
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: color.text, fontFamily: 'var(--font-body)' }}>
+                  Group {i + 1}
+                </div>
+                {group.members.map(name => (
+                  <div key={name} style={{ fontSize: 13, padding: '3px 8px', marginBottom: 3, borderRadius: 6, background: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-body)', color: T.ink }}>
+                    {name}
+                  </div>
+                ))}
+                {group.avgSimilarity > 0 && (
+                  <div style={{ fontSize: 11, color: T.compassGold, marginTop: 8, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+                    {Math.round(group.avgSimilarity * 100)}% work similarity
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
