@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-15
 **Branch:** `experiment/fun-mode`
-**Status:** Design approved, ready for implementation
+**Status:** Phase 1 + Phase 2 implemented on experiment/fun-mode branch. Phase 3 (Gemini Embedding 2) pending.
 
 ## Problem Statement
 
