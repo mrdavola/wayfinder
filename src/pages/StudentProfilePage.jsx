@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, RefreshCw, Check, X, Loader2, BookOpen, Sparkles, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Shield, Plus, Lightbulb, Briefcase, Map, Target } from 'lucide-react';
 import SkillTreeView from '../components/ui/SkillTreeView';
+import LearnerProgress from '../components/progress/LearnerProgress';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { skills as skillsApi, ai, recommendations as recsApi, skillSnapshots as snapshotsApi, studentStandards as stdApi, projectSuggestions as suggestionsApi, skillAssessments, xp, tokens, badgesApi, inventory, kudos as kudosApi } from '../lib/api';
@@ -171,6 +172,7 @@ export default function StudentProfilePage() {
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [activeItems, setActiveItems] = useState([]);
   const [kudosHistory, setKudosHistory] = useState([]);
+  const [studentQuests, setStudentQuests] = useState([]);
 
   useEffect(() => {
     if (id && user) loadAll();
@@ -251,6 +253,20 @@ export default function StudentProfilePage() {
     badgesApi.getStudentBadges(id).then(setEarnedBadges).catch(console.error);
     inventory.getActiveItems(id).then(setActiveItems).catch(console.error);
     kudosApi.getForStudent(id).then(setKudosHistory).catch(console.error);
+
+    // Load quests for LearnerProgress
+    const { data: questData } = await supabase
+      .from('quests')
+      .select('id, title, status, quest_stages(id, status)')
+      .contains('student_names', [stu.name])
+      .order('created_at', { ascending: false });
+
+    const enrichedQuests = (questData || []).map(q => ({
+      ...q,
+      total_stages: q.quest_stages?.length || 0,
+      completed_stages: q.quest_stages?.filter(s => s.status === 'completed').length || 0,
+    }));
+    setStudentQuests(enrichedQuests);
 
     setLoading(false);
   }
@@ -557,54 +573,26 @@ export default function StudentProfilePage() {
             </Link>
           </div>
 
-          {/* ── Progress ─────────────────────────────────── */}
-          <section style={{ ...styles.section, paddingBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <h2 style={{ ...styles.sectionTitle, marginBottom: 0 }}>
-                  <Target size={16} style={{ marginRight: 6, color: T.labBlue }} />
-                  Progress
-                </h2>
-                <div style={{ display: 'flex', background: T.parchment, borderRadius: 8, padding: 2 }}>
-                  {['bars', 'tree'].map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setProfileView(v)}
-                      style={{
-                        padding: '4px 12px', fontSize: 11, fontWeight: profileView === v ? 600 : 400,
-                        borderRadius: 6, border: 'none', cursor: 'pointer',
-                        background: profileView === v ? T.chalk : 'transparent',
-                        color: profileView === v ? T.ink : T.graphite,
-                        boxShadow: profileView === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        fontFamily: 'var(--font-body)',
-                      }}
-                    >
-                      {v === 'bars' ? 'Progress' : 'Skill Tree'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Link to={`/mastery/${id}`} style={{
-                fontSize: 11, fontWeight: 600, color: T.labBlue,
-                textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
-              }}>
-                View full Mastery Map &rarr;
-              </Link>
-            </div>
-            {profileView === 'bars' ? (
-              <SkillProgressBars
-                assessments={assessmentData}
-                studentSkills={studentSkills}
-              />
-            ) : (
-              <SkillTreeView
-                studentSkills={studentSkills}
-                allSkills={allSkills}
-                dependencies={skillDeps}
-                compact
-              />
-            )}
-          </section>
+          {/* Progress — primary section */}
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'var(--text-lg)',
+              color: 'var(--ink)',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <Target size={20} /> Progress
+            </h2>
+            <LearnerProgress
+              studentId={student.id}
+              studentName={student.name}
+              isGuide={true}
+              quests={studentQuests}
+            />
+          </div>
 
           {/* AI Field Guide toggle */}
           <div style={{
