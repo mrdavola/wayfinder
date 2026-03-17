@@ -187,21 +187,17 @@ export default function LearnerProgress({ studentId, studentName, isGuide, quest
               ? getProjectsData().map(p => (
                   <ProgressBar key={p.id} label={p.label} percentage={p.percentage} subtitle={p.subtitle} color={p.color} />
                 ))
-              : <EmptyState text="No projects yet" />
+              : <EmptyState text="No projects assigned yet" />
           )}
           {tab === 'skills' && (
-            getCoreSkillsData().some(s => s.percentage > 0)
-              ? getCoreSkillsData().map(s => (
-                  <ProgressBar key={s.label} label={s.label} percentage={s.percentage} subtitle={`Based on ${s.count} assessments`} />
-                ))
-              : <EmptyState text="Core skill ratings will appear as projects are completed and reviewed" />
+            getCoreSkillsData().map(s => (
+              <ProgressBar key={s.label} label={s.label} percentage={s.percentage} subtitle={s.count > 0 ? `Based on ${s.count} assessments` : 'Not yet assessed'} />
+            ))
           )}
           {tab === 'domains' && (
-            getDomainsData().some(d => d.percentage > 0)
-              ? getDomainsData().map(d => (
-                  <ProgressBar key={d.label} label={d.label} percentage={d.percentage} subtitle={`Based on ${d.count} assessments`} />
-                ))
-              : <EmptyState text="Domain progress will appear as skills are assessed across projects" />
+            getDomainsData().map(d => (
+              <ProgressBar key={d.label} label={d.label} percentage={d.percentage} subtitle={d.count > 0 ? `Based on ${d.count} assessments` : 'Not yet assessed'} />
+            ))
           )}
           {tab === 'custom' && isGuide && (
             <EmptyState text="Custom skill tracking coming soon" />
