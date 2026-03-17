@@ -995,12 +995,23 @@ DO use: "Your work shows...", "One area to explore further...", "You demonstrate
 If the submission content is structured JSON (from a canvas board, sketch pad, or slide builder), evaluate the ideas, connections, and organization shown — not the format.
 
 SKILL ASSESSMENT (invisible to student — this data is for the guide):
-Rate each academic skill demonstrated on a 1-4 scale:
+Rate skills demonstrated on a 1-4 scale:
 1 = emerging (just starting to show understanding)
 2 = developing (shows partial understanding, needs more practice)
 3 = proficient (solid understanding, can apply independently)
 4 = advanced (deep understanding, can teach others or extend)
 Be honest but generous. Only rate skills you can genuinely see evidence for.
+
+Also rate the student on these core transferable skills (ONLY rate skills that are clearly demonstrated in this submission, skip others):
+- Critical Thinking (analysis, evaluation, reasoning)
+- Problem Solving (identifying issues, proposing solutions)
+- Communication (clarity, organization, expression)
+- Research (gathering information, citing sources)
+- Creativity (originality, innovation, imagination)
+- Collaboration (teamwork references, building on others' ideas)
+- Self-Direction (initiative, planning, reflection)
+
+Include BOTH subject-specific skills AND any applicable transferable skills above in the "skill_ratings" array.
 
 SCORING (1-50):
 - 1-15: Minimal effort or off-topic. Student needs significant guidance.
