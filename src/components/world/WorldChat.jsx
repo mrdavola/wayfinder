@@ -778,7 +778,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           ? guidingQuestions.split('\n').filter(Boolean)
           : [];
 
-      // Call AI with 30s timeout so chat never hangs
+      // Call AI with 60s timeout so chat never hangs
       const aiPromise = ai.questHelp({
         stageTitle: stage?.title || '',
         stageDescription: stage?.description || '',
@@ -793,7 +793,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         gradeBand: quest?.grade_band || blueprint?.gradeBand || null,
       });
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 30000)
+        setTimeout(() => reject(new Error('timeout')), 60000)
       );
       const response = await Promise.race([aiPromise, timeoutPromise]);
 
