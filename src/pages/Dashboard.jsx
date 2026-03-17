@@ -926,6 +926,7 @@ function AddStudentForm({ userId, onAdded, onCancel }) {
 function StudentsCard({ user }) {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
+  const [studentProgress, setStudentProgress] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -945,6 +946,25 @@ function StudentsCard({ user }) {
         setError(err.message);
       } else {
         setStudents(data || []);
+
+        // Fetch skill assessments for mini progress bars
+        const studentIds = (data || []).map(s => s.id);
+        if (studentIds.length > 0) {
+          const { data: allAssessments } = await supabase
+            .from('skill_assessments')
+            .select('student_id, skill_name, rating')
+            .in('student_id', studentIds)
+            .order('created_at', { ascending: false });
+
+          const miniProgress = {};
+          for (const a of (allAssessments || [])) {
+            if (!miniProgress[a.student_id]) miniProgress[a.student_id] = {};
+            if (!miniProgress[a.student_id][a.skill_name]) {
+              miniProgress[a.student_id][a.skill_name] = a.rating;
+            }
+          }
+          setStudentProgress(miniProgress);
+        }
       }
       setLoading(false);
     }
@@ -1100,6 +1120,29 @@ function StudentsCard({ user }) {
                       </span>
                     ))}
                   </div>
+                  {(() => {
+                    const progress = studentProgress[student.id];
+                    if (!progress) return null;
+                    const top3 = Object.entries(progress)
+                      .sort(([,a], [,b]) => b - a)
+                      .slice(0, 3);
+                    if (top3.length === 0) return null;
+                    return (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                        {top3.map(([skill, rating]) => (
+                          <div key={skill} title={`${skill}: ${Math.round((rating/4)*100)}%`} style={{
+                            width: 40, height: 3, borderRadius: 2,
+                            background: 'var(--parchment)', overflow: 'hidden',
+                          }}>
+                            <div style={{
+                              width: `${(rating/4)*100}%`, height: '100%', borderRadius: 2,
+                              background: rating >= 3 ? 'var(--field-green)' : rating >= 2 ? 'var(--compass-gold)' : 'var(--specimen-red)',
+                            }} />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
