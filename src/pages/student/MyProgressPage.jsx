@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import LearnerProgress from '../../components/progress/LearnerProgress';
 import { supabase } from '../../lib/supabase';
+import { getStudentSession } from '../../lib/studentSession';
 
 export default function MyProgressPage() {
   const navigate = useNavigate();
@@ -11,8 +12,8 @@ export default function MyProgressPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const session = JSON.parse(sessionStorage.getItem('studentSession') || '{}');
-    if (!session.studentId || !session.studentName) {
+    const session = getStudentSession();
+    if (!session?.studentId || !session?.studentName) {
       navigate('/');
       return;
     }
