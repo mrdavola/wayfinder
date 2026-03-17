@@ -6,7 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckCircle, Clock, ChevronRight,
   LogOut, Loader2, AlertCircle, Lock, Sparkles, Plus, X, Sliders, GitBranch,
-  ShoppingBag, Star, Flame,
+  ShoppingBag, Star, Flame, TrendingUp,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { explorerLog, skills as skillsApi, explorations as explorationsApi, xp, tokens, inventory, leaderboard } from '../../lib/api';
@@ -692,6 +692,18 @@ export default function StudentHome() {
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)' }}>
             Hi, <strong style={{ color: 'var(--ink)' }}>{displayName}</strong>
           </span>
+          <button
+            onClick={() => navigate('/my-progress')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'var(--chalk)', border: '1px solid var(--pencil)',
+              borderRadius: 8, padding: '8px 14px', cursor: 'pointer',
+              fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500,
+              color: 'var(--ink)',
+            }}
+          >
+            <TrendingUp size={14} /> My Progress
+          </button>
           <button
             onClick={handleSignOut}
             style={{

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Flame, LogOut, ChevronRight, Plus, Compass, Loader2, Check, Copy, CheckCheck } from 'lucide-react';
+import { Flame, LogOut, ChevronRight, Plus, Compass, Loader2, Check, Copy, CheckCheck, TrendingUp } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { xp, ai } from '../../lib/api';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
@@ -853,6 +853,24 @@ export default function CampHub() {
         {/* right: rank badge + sign out */}
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexShrink: 0 }}>
           <ExplorerRankBadge rank={rank} size="sm" />
+          <button
+            onClick={() => navigate('/my-progress')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: 'rgba(255,220,180,0.08)',
+              border: '1px solid rgba(255,220,180,0.15)',
+              borderRadius: 8, padding: isMobile ? '8px 10px' : '6px 12px',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 500,
+              color: 'rgba(255,220,180,0.7)',
+              transition: 'background 200ms',
+              minHeight: isMobile ? 44 : 'auto',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,220,180,0.14)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,220,180,0.08)'; }}
+          >
+            <TrendingUp size={14} /> {!isMobile && 'Progress'}
+          </button>
           <button
             onClick={handleSignOut}
             style={{
