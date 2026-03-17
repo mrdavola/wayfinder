@@ -2782,7 +2782,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                   try {
                     const assessments = result.skill_ratings.map(sr => ({
                       student_id: studentProfile.id,
-                      skill_name: sr.skill_name,
+                      skill_name: sr.skill_name || sr.skill,
                       quest_id: questId,
                       stage_id: stage.id,
                       assessment_type: 'submission_review',
@@ -2970,7 +2970,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                 if (result?.skill_ratings?.length > 0 && studentProfile?.id) {
                   const assessments = result.skill_ratings.map(sr => ({
                     student_id: studentProfile.id,
-                    skill_name: sr.skill_name,
+                    skill_name: sr.skill_name || sr.skill,
                     quest_id: questId,
                     stage_id: stage.id,
                     assessment_type: 'submission_review',
@@ -3836,7 +3836,7 @@ export default function StudentQuestPage() {
       if (conversationAssessments.length > 0) {
         const assessments = conversationAssessments.map(obs => ({
           student_id: studentId,
-          skill_name: obs.skill_name,
+          skill_name: obs.skill_name || obs.skill,
           quest_id: id,
           stage_id: stageId,
           assessment_type: 'conversation',
@@ -3925,7 +3925,7 @@ export default function StudentQuestPage() {
     if (evalResult.skill_ratings?.length > 0) {
       const assessments = evalResult.skill_ratings.map(sr => ({
         student_id: studentId,
-        skill_name: sr.skill_name,
+        skill_name: sr.skill_name || sr.skill,
         quest_id: quest?.id,
         stage_id: challenge.stage_id,
         assessment_type: 'expedition_challenge',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, Plus, FileUp, Camera, Mic, Square, Award, Volume2, VolumeX } from 'lucide-react';
 import useSpeech from '../../hooks/useSpeech';
-import { ai, guideMessages, submissionFeedback } from '../../lib/api';
+import { ai, guideMessages, submissionFeedback, skillAssessments } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 
 // Strip the hidden ---ASSESSMENT--- block from AI responses before displaying
@@ -645,6 +645,20 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         score: score,
         hints: review?.hints || '',
       }).catch(() => {});
+
+      // Auto-insert skill assessments from AI ratings
+      if (review?.skill_ratings?.length > 0 && studentSession?.studentId) {
+        const assessmentRecords = review.skill_ratings.map(sr => ({
+          student_id: studentSession.studentId,
+          skill_name: sr.skill_name || sr.skill,
+          quest_id: quest.id,
+          stage_id: stage.id,
+          assessment_type: 'submission_review',
+          rating: sr.rating,
+          evidence: sr.evidence || '',
+        }));
+        skillAssessments.bulkLog(assessmentRecords).catch(() => {});
+      }
 
       // Build in-character mentor response based on score
       let mentorFeedback;
