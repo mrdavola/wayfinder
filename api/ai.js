@@ -28,8 +28,8 @@ export default async function handler(req, res) {
     }
     res.status(200).json({ text });
   } catch (err) {
-    console.error('AI proxy error:', err);
-    res.status(500).json({ error: err.message || 'AI call failed' });
+    console.error('AI proxy error:', err?.message, err?.status, err?.statusText);
+    res.status(500).json({ error: err.message || 'AI call failed', details: err?.status || '' });
   }
 }
 
@@ -48,9 +48,13 @@ async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens })
 
 async function callGemini({ systemPrompt, userMessage, messages }) {
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY not configured');
+  }
+  const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-1.5-flash',
     systemInstruction: systemPrompt,
   });
 
@@ -62,8 +66,18 @@ async function callGemini({ systemPrompt, userMessage, messages }) {
     // Gemini requires history to start with 'user' — drop leading 'model' messages
     const firstUserIdx = converted.findIndex(m => m.role === 'user');
     const history = firstUserIdx >= 0 ? converted.slice(firstUserIdx) : [];
+    // Gemini requires alternating user/model roles — deduplicate consecutive same-role messages
+    const cleanHistory = [];
+    for (const msg of history) {
+      if (cleanHistory.length > 0 && cleanHistory[cleanHistory.length - 1].role === msg.role) {
+        // Merge consecutive same-role messages
+        cleanHistory[cleanHistory.length - 1].parts[0].text += '\n' + msg.parts[0].text;
+      } else {
+        cleanHistory.push(msg);
+      }
+    }
     const lastMsg = messages[messages.length - 1];
-    const chat = model.startChat({ history: history.length > 0 ? history : undefined });
+    const chat = model.startChat({ history: cleanHistory.length > 0 ? cleanHistory : undefined });
     const result = await chat.sendMessage(lastMsg.content);
     return result.response.text();
   } else {
