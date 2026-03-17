@@ -36,6 +36,7 @@ const YearPlan = lazy(() => import('./pages/YearPlan'));
 const CareerExplorer = lazy(() => import('./pages/CareerExplorer'));
 const MasteryMap = lazy(() => import('./pages/MasteryMap'));
 const CommunityRepository = lazy(() => import('./pages/CommunityRepository'));
+const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage'));
 const WorldRenderer = lazy(() => import('./pages/student/WorldRenderer'));
 
 import './index.css';
@@ -74,6 +75,7 @@ export default function App() {
             <Route path="/student/explore/:explorationId" element={<ExploreSkillPage />} />
             <Route path="/student/shop" element={<ShopPage />} />
             <Route path="/student/collection" element={<CollectionPage />} />
+            <Route path="/my-progress" element={<MyProgressPage />} />
 
             {/* Career Explorer */}
             <Route path="/careers/:studentId" element={<CareerExplorer />} />
