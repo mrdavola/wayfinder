@@ -1,6 +1,8 @@
 // api/embeddings.js — Vercel Serverless Function
 // Proxies embedding calls to Gemini, keeping API keys server-side
 
+export const config = { maxDuration: 60 };
+
 import { verifyAuth } from './_auth.js';
 
 export default async function handler(req, res) {

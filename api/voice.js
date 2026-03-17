@@ -1,5 +1,7 @@
 // api/voice.js — ElevenLabs TTS proxy
 
+export const config = { maxDuration: 60 };
+
 import { verifyAuth } from './_auth.js';
 
 export default async function handler(req, res) {
