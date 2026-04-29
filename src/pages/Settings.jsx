@@ -10,8 +10,6 @@ import {
   Zap,
   Check,
   AlertCircle,
-  Eye,
-  EyeOff,
   ChevronLeft,
   Shield,
   ChevronRight,
@@ -344,10 +342,6 @@ export default function SettingsPage() {
 
   // ── AI tab ──
   const [aiProvider, setAiProvider] = useState('gemini');
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [geminiKey, setGeminiKey] = useState('');
-  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [anthropicStatus, setAnthropicStatus] = useState(null); // null | 'testing' | 'ok' | 'error'
   const [anthropicError, setAnthropicError] = useState('');
   const [geminiStatus, setGeminiStatus] = useState(null);
@@ -376,8 +370,13 @@ export default function SettingsPage() {
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved.provider) setAiProvider(saved.provider);
-        if (saved.anthropicKey) setAnthropicKey(saved.anthropicKey);
-        if (saved.geminiKey) setGeminiKey(saved.geminiKey);
+        // Strip any legacy plaintext keys left over from the BYOK flow.
+        if (saved.anthropicKey || saved.geminiKey) {
+          localStorage.setItem(
+            'wayfinder_ai_settings',
+            JSON.stringify({ provider: saved.provider || 'gemini' })
+          );
+        }
       }
     } catch {
       // ignore corrupt data
@@ -432,12 +431,8 @@ export default function SettingsPage() {
   async function saveAiSettings() {
     setSaving(true);
     try {
-      const aiSettings = {
-        provider: aiProvider,
-        anthropicKey,
-        geminiKey,
-      };
-      localStorage.setItem('wayfinder_ai_settings', JSON.stringify(aiSettings));
+      // Provider preference only — keys live in server env vars.
+      localStorage.setItem('wayfinder_ai_settings', JSON.stringify({ provider: aiProvider }));
 
       if (user) {
         // Best-effort — column added in migration 003; ignore error if not yet run
@@ -456,41 +451,38 @@ export default function SettingsPage() {
   }
 
   // ── Test connections ──────────────────────────────────────────────────────
+  // Test calls go through /api/ai so the server-side key is what's actually
+  // exercised. No API keys ever touch the browser.
 
-  async function testAnthropic() {
-    if (!anthropicKey.trim()) return;
-    setAnthropicStatus('testing');
-    setAnthropicError('');
+  async function testProvider(provider) {
+    const setStatus = provider === 'anthropic' ? setAnthropicStatus : setGeminiStatus;
+    const setError  = provider === 'anthropic' ? setAnthropicError  : setGeminiError;
+    setStatus('testing');
+    setError('');
     try {
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const client = new Anthropic({ apiKey: anthropicKey.trim(), dangerouslyAllowBrowser: true });
-      await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 10,
-        messages: [{ role: 'user', content: 'Hi' }],
+      const { authedFetch } = await import('../lib/api');
+      const resp = await authedFetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          userMessage: 'Reply with the single word "ok".',
+          maxTokens: 16,
+        }),
       });
-      setAnthropicStatus('ok');
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Proxy error: ${resp.status}`);
+      }
+      setStatus('ok');
     } catch (err) {
-      setAnthropicStatus('error');
-      setAnthropicError(err.message || 'Connection failed');
+      setStatus('error');
+      setError(err.message || 'Connection failed');
     }
   }
 
-  async function testGemini() {
-    if (!geminiKey.trim()) return;
-    setGeminiStatus('testing');
-    setGeminiError('');
-    try {
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(geminiKey.trim());
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      await model.generateContent('Hello');
-      setGeminiStatus('ok');
-    } catch (err) {
-      setGeminiStatus('error');
-      setGeminiError(err.message || 'Connection failed');
-    }
-  }
+  const testAnthropic = () => testProvider('anthropic');
+  const testGemini    = () => testProvider('gemini');
 
   // ── Grade band toggle ─────────────────────────────────────────────────────
 
@@ -773,46 +765,17 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        {/* Anthropic API Key */}
+        {/* Connection test — Anthropic */}
         <div style={S.apiKeySection}>
-          <div style={S.apiKeyHeader}>Anthropic API Key</div>
-          <div style={S.inputWrapper}>
-            <input
-              className="input"
-              type={showAnthropicKey ? 'text' : 'password'}
-              value={anthropicKey}
-              onChange={(e) => {
-                setAnthropicKey(e.target.value);
-                setAnthropicStatus(null);
-                setAnthropicError('');
-              }}
-              placeholder="sk-ant-..."
-              style={{ width: '100%', paddingRight: '38px' }}
-            />
-            <button
-              type="button"
-              style={S.eyeBtn}
-              onClick={() => setShowAnthropicKey((v) => !v)}
-              aria-label={showAnthropicKey ? 'Hide API key' : 'Show API key'}
-            >
-              {showAnthropicKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
+          <div style={S.apiKeyHeader}>Anthropic (Claude)</div>
           <p style={S.helpText}>
-            <a
-              href="https://console.anthropic.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={S.helpLink}
-            >
-              Get your key at console.anthropic.com
-            </a>
+            Verify the server can reach Claude with the configured key.
           </p>
           <div style={S.testRow}>
             <button
               style={S.testBtn(anthropicStatus === 'testing')}
               onClick={testAnthropic}
-              disabled={anthropicStatus === 'testing' || !anthropicKey.trim()}
+              disabled={anthropicStatus === 'testing'}
             >
               {anthropicStatus === 'testing' ? 'Testing…' : 'Test Connection'}
             </button>
@@ -820,46 +783,17 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Gemini API Key */}
+        {/* Connection test — Gemini */}
         <div style={{ ...S.apiKeySection, borderBottom: 'none', paddingBottom: 0, marginBottom: '24px' }}>
-          <div style={S.apiKeyHeader}>Google Gemini API Key</div>
-          <div style={S.inputWrapper}>
-            <input
-              className="input"
-              type={showGeminiKey ? 'text' : 'password'}
-              value={geminiKey}
-              onChange={(e) => {
-                setGeminiKey(e.target.value);
-                setGeminiStatus(null);
-                setGeminiError('');
-              }}
-              placeholder="AIza..."
-              style={{ width: '100%', paddingRight: '38px' }}
-            />
-            <button
-              type="button"
-              style={S.eyeBtn}
-              onClick={() => setShowGeminiKey((v) => !v)}
-              aria-label={showGeminiKey ? 'Hide API key' : 'Show API key'}
-            >
-              {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
+          <div style={S.apiKeyHeader}>Google Gemini</div>
           <p style={S.helpText}>
-            <a
-              href="https://aistudio.google.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={S.helpLink}
-            >
-              Get your key at aistudio.google.com
-            </a>
+            Verify the server can reach Gemini with the configured key.
           </p>
           <div style={S.testRow}>
             <button
               style={S.testBtn(geminiStatus === 'testing')}
               onClick={testGemini}
-              disabled={geminiStatus === 'testing' || !geminiKey.trim()}
+              disabled={geminiStatus === 'testing'}
             >
               {geminiStatus === 'testing' ? 'Testing…' : 'Test Connection'}
             </button>
@@ -869,8 +803,9 @@ export default function SettingsPage() {
 
         {/* Storage info box */}
         <div style={S.infoBox}>
-          Your API keys are stored locally in your browser and never sent to our servers.
-          The key you enter here takes priority over any environment variable.
+          API keys live in server environment variables (<code>ANTHROPIC_API_KEY</code>,{' '}
+          <code>GEMINI_API_KEY</code>) and never ship to the browser. AI calls
+          are proxied through <code>/api/ai</code>.
         </div>
 
         {/* Save */}

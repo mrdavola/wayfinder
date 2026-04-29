@@ -5,26 +5,29 @@ export const config = {
   maxDuration: 60, // Allow up to 60s for AI generation
 };
 
-import { verifyAuth } from './_auth.js';
+import { requireAnyCaller, SAFETY_PREAMBLE } from './_auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify auth if present (guides are authenticated, students are not)
-  // Students need AI access for Field Guide, feedback, etc.
-  const { user } = await verifyAuth(req);
-  req.user = user; // may be null for student requests
+  // Require either a guide JWT or a PIN-verified student session.
+  if (await requireAnyCaller(req, res)) return;
 
   const { provider, systemPrompt, userMessage, messages, maxTokens = 2048 } = req.body;
+
+  // Server-side safety preamble cannot be bypassed by caller-supplied prompts.
+  const finalSystemPrompt = systemPrompt
+    ? `${SAFETY_PREAMBLE}\n${systemPrompt}`
+    : SAFETY_PREAMBLE;
 
   try {
     let text;
     if (provider === 'anthropic') {
-      text = await callAnthropic({ systemPrompt, userMessage, messages, maxTokens });
+      text = await callAnthropic({ systemPrompt: finalSystemPrompt, userMessage, messages, maxTokens });
     } else {
-      text = await callGemini({ systemPrompt, userMessage, messages });
+      text = await callGemini({ systemPrompt: finalSystemPrompt, userMessage, messages });
     }
     res.status(200).json({ text });
   } catch (err) {
@@ -35,7 +38,7 @@ export default async function handler(req, res) {
 
 async function callAnthropic({ systemPrompt, userMessage, messages, maxTokens }) {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const msgs = messages || [{ role: 'user', content: userMessage }];
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',

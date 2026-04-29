@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Check,
@@ -38,9 +38,8 @@ import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFramewo
 import TrustBadge from '../components/ui/TrustBadge';
 import { getTrustTier } from '../lib/trustDomains';
 import { findYouTubeVideos, findTrustedSources } from '../lib/perplexity';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import PanoramaSphere from '../components/immersive/PanoramaSphere';
+// Three.js + drei only ship when a Marble world is actually ready (rare).
+const MiniPanoramaPreview = lazy(() => import('../components/immersive/MiniPanoramaPreview'));
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const T = {
@@ -2338,17 +2337,9 @@ function Step6Review({
       {marbleStatus === 'ready' && marbleData?.panoUrl && (
         <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--pencil)', marginBottom: 12 }}>
           <div style={{ width: '100%', height: 200, position: 'relative', cursor: 'grab', background: '#111' }}>
-            <Canvas camera={{ fov: 75, near: 0.1, far: 1000, position: [0, 0, 0.1] }}>
-              <PanoramaSphere imageUrl={marbleData.panoUrl} />
-              <OrbitControls
-                enableZoom={false}
-                enablePan={false}
-                rotateSpeed={-0.3}
-                autoRotate
-                autoRotateSpeed={0.5}
-              />
-              <ambientLight intensity={0.5} />
-            </Canvas>
+            <Suspense fallback={null}>
+              <MiniPanoramaPreview panoUrl={marbleData.panoUrl} />
+            </Suspense>
           </div>
           <div style={{
             padding: '8px 12px', background: 'var(--parchment)',

@@ -49,3 +49,69 @@ export async function requireAuth(req, res) {
   req.user = user;
   return false;
 }
+
+/**
+ * Verify a student session via PIN. Reads the X-Student-Auth header
+ * (format: "<student_id>:<pin>") and confirms against the students table.
+ * Requires SUPABASE_SERVICE_ROLE_KEY to be configured.
+ */
+export async function verifyStudentSession(req) {
+  const header = req.headers?.['x-student-auth'];
+  if (!header) return { studentId: null, error: 'No student auth header' };
+
+  const raw = String(header);
+  const sep = raw.indexOf(':');
+  if (sep <= 0) return { studentId: null, error: 'Invalid student auth format' };
+
+  const studentId = raw.slice(0, sep);
+  const pin = raw.slice(sep + 1).trim();
+  if (!studentId || !pin) return { studentId: null, error: 'Invalid student auth format' };
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return { studentId: null, error: 'Service role not configured' };
+  }
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, pin')
+      .eq('id', studentId)
+      .single();
+    if (error || !data) return { studentId: null, error: 'Student not found' };
+    if (!data.pin || data.pin !== pin) return { studentId: null, error: 'Invalid student PIN' };
+    return { studentId: data.id, error: null };
+  } catch {
+    return { studentId: null, error: 'Student auth verification failed' };
+  }
+}
+
+/**
+ * Accept either a Supabase JWT (guides) or an X-Student-Auth header
+ * (PIN-verified students). Returns true if rejected.
+ */
+export async function requireAnyCaller(req, res) {
+  const { user } = await verifyAuth(req);
+  if (user) {
+    req.user = user;
+    return false;
+  }
+  const { studentId } = await verifyStudentSession(req);
+  if (studentId) {
+    req.studentId = studentId;
+    return false;
+  }
+  res.status(401).json({ error: 'Authentication required' });
+  return true;
+}
+
+/**
+ * Server-enforced safety preamble. Prepended to every system prompt by the
+ * AI proxy so a malicious caller cannot bypass it by sending their own.
+ */
+export const SAFETY_PREAMBLE = `SAFETY RULES (non-negotiable):
+- All content MUST be appropriate for school-age children (ages 5-18).
+- NEVER generate, discuss, or reference: violence/weapons, sexual content, drugs/alcohol, self-harm, hate speech, profanity, or any content unsuitable for a K-12 classroom.
+- If a student's input references inappropriate topics, gently redirect to the learning task without engaging with the inappropriate content.
+- Keep all scenarios, examples, and language educational and age-appropriate.
+`;

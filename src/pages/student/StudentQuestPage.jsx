@@ -31,10 +31,19 @@ import TrustBadge from '../../components/ui/TrustBadge';
 import ScoreCard, { MASTERY_THRESHOLD } from '../../components/ui/ScoreCard';
 import { getTrustTier } from '../../lib/trustDomains';
 import BranchingMap from '../../components/map/BranchingMap';
-import { stageBranches, studentPaths } from '../../lib/api';
+import { stageBranches, studentPaths, uploadSubmissionFile } from '../../lib/api';
 import EnterWorldButton from '../../components/immersive/EnterWorldButton';
 import VideoEmbed from '../../components/ui/VideoEmbed';
-import { CanvasBoard, SketchPad, SlideBuilder, EvidenceBoardCreator, RankingSorter, SurveyBuilder, ChecklistBuilder, ComparisonTable } from '../../components/creation';
+// Creation tools: lazy-loaded so a learner only downloads the one they're using
+// for the current stage. Saves ~40-70KB gzipped on the initial chunk.
+const CanvasBoard           = lazy(() => import('../../components/creation/CanvasBoard'));
+const SketchPad             = lazy(() => import('../../components/creation/SketchPad'));
+const SlideBuilder          = lazy(() => import('../../components/creation/SlideBuilder'));
+const EvidenceBoardCreator  = lazy(() => import('../../components/creation/EvidenceBoardCreator'));
+const RankingSorter         = lazy(() => import('../../components/creation/RankingSorter'));
+const SurveyBuilder         = lazy(() => import('../../components/creation/SurveyBuilder'));
+const ChecklistBuilder      = lazy(() => import('../../components/creation/ChecklistBuilder'));
+const ComparisonTable       = lazy(() => import('../../components/creation/ComparisonTable'));
 const ImmersiveWorldView = lazy(() => import('../../components/immersive/ImmersiveWorldView'));
 // MarbleWorldView iframe approach blocked by CSP — using Marble pano_url with ImmersiveWorldView instead
 
@@ -224,18 +233,30 @@ function getTierInfo(stages) {
 }
 
 // ===================== MARKDOWN HELPER =====================
-function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+// Renders markdown to a sanitized HTML string. AI-generated and user-submitted
+// content can both flow through here, so we run output through DOMPurify with a
+// restrictive allowlist before it reaches dangerouslySetInnerHTML.
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+const MARKED_OPTS = { breaks: true, gfm: true, mangle: false, headerIds: false };
+const SANITIZE_OPTS = {
+  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'code', 'pre',
+                 'blockquote', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4'],
+  ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+  ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#)/i,
+  // Strip inline styles + event handlers and reject data: URIs explicitly so
+  // crafted markdown like [x](data:text/html,...) can't smuggle in script.
+  FORBID_ATTR: ['style', 'srcset', 'formaction', 'action', 'background',
+                'onerror', 'onload', 'onclick', 'onmouseover'],
+  FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'svg', 'math', 'form'],
+  ALLOW_DATA_ATTR: false,
+};
+
 function renderMarkdown(text) {
   if (!text) return '';
-  // Escape HTML first to prevent XSS, then apply markdown formatting
-  return escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-    .replace(/\n/g, '<br/>');
+  const html = marked.parse(String(text), MARKED_OPTS);
+  return DOMPurify.sanitize(html, SANITIZE_OPTS);
 }
 
 // ===================== CREATION DATA SERIALIZATION FOR AI REVIEW =====================
@@ -412,39 +433,57 @@ function ConfettiBurst({ active }) {
 // ===================== WELCOME SCREEN =====================
 function WelcomeScreen({ quest, assignedStudents, onEnter }) {
   const [name, setName] = useState('');
-  const [selected, setSelected] = useState(null); // { name, id, pin } | null
+  const [selected, setSelected] = useState(null); // { name, id, has_pin } | null
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const inputRef = useRef(null);
   const pinRef = useRef(null);
 
-  const needsPin = selected?.pin; // only require code if student has a pin
+  const needsPin = !!selected?.has_pin;
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const finalName = selected?.name || name.trim();
     if (!finalName) return;
 
-    // Verify PIN for assigned students
     if (needsPin) {
-      if (pinInput.trim() !== selected.pin) {
-        setPinError('That code doesn\u2019t match. Try again.');
+      setVerifying(true);
+      setPinError('');
+      try {
+        const { data, error } = await supabase.rpc('verify_student_pin', {
+          p_quest_id: quest.id,
+          p_student_id: selected.id,
+          p_pin: pinInput.trim(),
+        });
+        if (error) {
+          setPinError('Could not verify the code. Please try again.');
+          return;
+        }
+        if (!data?.valid) {
+          setPinError(data?.error || 'That code doesn\u2019t match. Try again.');
+          return;
+        }
+      } catch {
+        setPinError('Network error. Please try again.');
         return;
+      } finally {
+        setVerifying(false);
       }
     }
 
-    onEnter(finalName, selected?.id || null);
+    onEnter(finalName, selected?.id || null, needsPin ? pinInput.trim() : null);
   };
 
   // Focus pin input when student is selected
   useEffect(() => {
-    if (selected?.pin && pinRef.current) {
+    if (selected?.has_pin && pinRef.current) {
       setTimeout(() => pinRef.current?.focus(), 100);
     }
   }, [selected]);
 
-  const canStart = needsPin
+  const canStart = !verifying && (needsPin
     ? (selected?.name && pinInput.trim())
-    : (selected?.name || name.trim());
+    : (selected?.name || name.trim()));
 
   return (
     <div style={{
@@ -502,7 +541,7 @@ function WelcomeScreen({ quest, assignedStudents, onEnter }) {
               {assignedStudents.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => { setSelected({ name: s.name, id: s.id, pin: s.pin }); setName(''); setPinInput(''); setPinError(''); }}
+                  onClick={() => { setSelected({ name: s.name, id: s.id, has_pin: s.has_pin }); setName(''); setPinInput(''); setPinError(''); }}
                   className="sq-pop"
                   style={{
                     padding: '8px 16px', borderRadius: 100,
@@ -1049,19 +1088,17 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         const ext = isRecorded
           ? (type === 'video' ? 'webm' : 'webm')
           : (file.name.includes('.') ? file.name.split('.').pop() : 'bin');
+        const safeExt = String(ext).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
         const safeName = studentName.replace(/[^a-zA-Z0-9]/g, '_');
-        const path = `${questId}/${stageId}/${safeName}/${Date.now()}.${ext}`;
+        const path = `${questId}/${stageId}/${safeName}/${Date.now()}.${safeExt}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('student-submissions')
-          .upload(path, uploadSource, { upsert: true });
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('student-submissions')
-          .getPublicUrl(path);
+        const publicUrl = await uploadSubmissionFile({
+          path,
+          file: uploadSource,
+          contentType: uploadSource.type,
+        });
         fileUrl = publicUrl;
-        fileName = isRecorded ? `recording_${Date.now()}.${ext}` : file.name;
+        fileName = isRecorded ? `recording_${Date.now()}.${safeExt}` : file.name;
         fileSize = uploadSource.size;
         mimeType = uploadSource.type;
       }
@@ -1077,6 +1114,7 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         p_file_size: fileSize,
         p_mime_type: mimeType,
         p_creation_data: isCreation ? creationData : null,
+        p_pin: getStudentSession()?.studentPin || null,
       });
       if (rpcError) throw new Error(rpcError.message || 'Sharing failed');
       if (result?.success === false) throw new Error(result.error || 'Sharing failed');
@@ -1550,15 +1588,17 @@ function SubmissionPanel({ stageId, questId, studentName, onSubmitComplete, init
         </div>
       )}
 
-      {/* Creation tools */}
-      {type === 'canvas' && <CanvasBoard onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
-      {type === 'sketch' && <SketchPad onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
-      {type === 'slides' && <SlideBuilder onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
-      {type === 'evidence_board' && <EvidenceBoardCreator onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
-      {type === 'ranking' && <RankingSorter onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
-      {type === 'survey' && <SurveyBuilder onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
-      {type === 'checklist' && <ChecklistBuilder onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
-      {type === 'comparison' && <ComparisonTable onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      {/* Creation tools — each lazy-loaded on first use */}
+      <Suspense fallback={null}>
+        {type === 'canvas'         && <CanvasBoard          onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+        {type === 'sketch'         && <SketchPad            onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+        {type === 'slides'         && <SlideBuilder         onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+        {type === 'evidence_board' && <EvidenceBoardCreator onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+        {type === 'ranking'        && <RankingSorter        onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+        {type === 'survey'         && <SurveyBuilder        onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+        {type === 'checklist'      && <ChecklistBuilder     onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+        {type === 'comparison'     && <ComparisonTable      onSave={(data) => setCreationData(data)} ageGroup={ageGroup} />}
+      </Suspense>
 
       {error && (
         <div style={{ fontSize: 11, color: 'var(--specimen-red)', marginBottom: 8, padding: '6px 10px', background: 'rgba(192,57,43,0.06)', borderRadius: 5, lineHeight: 1.4 }}>
@@ -3553,9 +3593,13 @@ export default function StudentQuestPage() {
       setLoading(true);
       const { data, error: err } = await supabase
         .from('quests')
-        .select(`*, quest_stages(*), quest_students(student_id, students(id, name, pin)), career_simulations(*), reflection_entries(*)`)
+        .select(`*, quest_stages(*), quest_students(student_id), career_simulations(*), reflection_entries(*)`)
         .eq('id', id)
         .single();
+
+      // Load picker data via RPC — never receive PIN values in the browser.
+      const { data: pickerRows } = await supabase
+        .rpc('get_quest_assigned_students', { p_quest_id: id });
 
       console.log('[StudentQuestPage] Quest loaded:', {
         id: data?.id,
@@ -3575,7 +3619,9 @@ export default function StudentQuestPage() {
       const sortedStages = [...(data.quest_stages || [])].sort((a, b) => a.stage_number - b.stage_number);
       setStages(sortedStages);
       setReflections([...(data.reflection_entries || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
-      const names = (data.quest_students || []).map(qs => qs.students).filter(Boolean);
+      const names = Array.isArray(pickerRows)
+        ? pickerRows.map((r) => ({ id: r.id, name: r.name, has_pin: r.has_pin }))
+        : [];
       setAssignedStudents(names);
 
       // Auto-select the current active stage so students see it immediately
@@ -3597,13 +3643,25 @@ export default function StudentQuestPage() {
     load();
   }, [id]);
 
-  // Load submissions when student is known
+  // Load submissions when student is known. Uses the PIN-verified RPC so a
+  // visitor who only knows the project link can't read other students' work.
   const loadSubmissions = useCallback(async (currentStudentName) => {
     const name = currentStudentName || studentName;
     if (!id || !name) return;
-    const { data } = await supabase.rpc('get_stage_submissions_for_student', {
+
+    const session = getStudentSession();
+    const studentId = session?.studentId;
+    const pin = session?.studentPin || '';
+    if (!studentId) {
+      // Anonymous picker session (no real student row) — leave map empty.
+      setSubmissions({});
+      return;
+    }
+
+    const { data } = await supabase.rpc('get_stage_submissions_for_session', {
       p_quest_id: id,
-      p_student_name: name,
+      p_student_id: studentId,
+      p_pin: pin,
     });
     const map = {};
     (data || []).forEach((s) => { map[s.stage_id] = s; });
@@ -4046,11 +4104,15 @@ export default function StudentQuestPage() {
     }
   }, [id, quest, studentProfile]);
 
-  const handleEnter = (name, studentId) => {
+  const handleEnter = (name, studentId, studentPin) => {
     sessionStorage.setItem(`wayfinder_student_${id}`, name);
-    // Persist to localStorage if student has an account
+    // Persist to localStorage if student has an account.
+    // Carry forward an existing PIN from session if the picker didn't supply one
+    // (legacy students with no PIN, or already-verified sessions).
     if (studentId) {
-      setStudentSession({ studentId, studentName: name });
+      const existing = getStudentSession();
+      const carriedPin = studentPin ?? (existing?.studentId === studentId ? existing.studentPin : undefined);
+      setStudentSession({ studentId, studentName: name, studentPin: carriedPin });
     }
     setStudentName(name);
   };
@@ -4078,30 +4140,35 @@ export default function StudentQuestPage() {
   const completeStage = useCallback(async (stageId) => {
     await supabase.from('quest_stages').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', stageId);
 
-    const isTierBased = hasTierData(stages);
+    // Refetch stages from DB before deciding what to unlock — using the
+    // in-memory `stages` array races with rapid successive completions and can
+    // miscount tier gates.
+    const { data: freshStages = [] } = await supabase
+      .from('quest_stages')
+      .select('*')
+      .eq('quest_id', id)
+      .order('stage_number');
+    const live = freshStages || [];
+
+    const isTierBased = hasTierData(live);
 
     if (isTierBased) {
-      // Tier-based unlock: check if completing this stage unlocks the next tier
-      const completedStage = stages.find(s => s.id === stageId);
+      const completedStage = live.find(s => s.id === stageId);
       const currentTier = completedStage?.tier || 1;
-      const tierStages = stages.filter(s => (s.tier || 1) === currentTier);
-      const tierCompleted = tierStages.filter(s => s.status === 'completed' || s.id === stageId).length;
+      const tierStages = live.filter(s => (s.tier || 1) === currentTier);
+      const tierCompleted = tierStages.filter(s => s.status === 'completed').length;
       const requiredToAdvance = tierStages[0]?.required_to_advance || tierStages.length;
 
       if (tierCompleted >= requiredToAdvance) {
-        // Unlock all stages in the next tier
         const nextTier = currentTier + 1;
-        const nextTierStages = stages.filter(s => (s.tier || 1) === nextTier && s.status === 'locked');
+        const nextTierStages = live.filter(s => (s.tier || 1) === nextTier && s.status === 'locked');
         if (nextTierStages.length > 0) {
           await supabase.from('quest_stages').update({ status: 'active' }).in('id', nextTierStages.map(s => s.id));
         }
       }
     } else {
-      // Legacy: dependency-aware unlock
-      const completedIds = new Set(
-        stages.filter(s => s.status === 'completed' || s.id === stageId).map(s => s.id)
-      );
-      const toUnlock = stages.filter(s => {
+      const completedIds = new Set(live.filter(s => s.status === 'completed').map(s => s.id));
+      const toUnlock = live.filter(s => {
         if (s.status !== 'locked') return false;
         const deps = s.dependencies || [];
         if (deps.length === 0) return false;
@@ -4111,14 +4178,13 @@ export default function StudentQuestPage() {
       if (toUnlock.length > 0) {
         await supabase.from('quest_stages').update({ status: 'active' }).in('id', toUnlock.map(s => s.id));
       } else {
-        // Linear fallback
-        const currentIdx = stages.findIndex(s => s.id === stageId);
-        const next = stages[currentIdx + 1];
+        const currentIdx = live.findIndex(s => s.id === stageId);
+        const next = live[currentIdx + 1];
         if (next && next.status === 'locked') await supabase.from('quest_stages').update({ status: 'active' }).eq('id', next.id);
       }
     }
 
-    const completedStage = stages.find(s => s.id === stageId);
+    const completedStage = live.find(s => s.id === stageId);
     if (completedStage) {
       await supabase.from('reflection_entries').insert({
         quest_id: id, content: `${studentName || 'Student'} completed Challenge ${completedStage.stage_number}: ${completedStage.title}`,
@@ -4126,7 +4192,7 @@ export default function StudentQuestPage() {
       });
     }
 
-    const allDone = stages.every(s => s.id === stageId || s.status === 'completed');
+    const allDone = live.every(s => s.status === 'completed');
     if (allDone) {
       await supabase.from('quests').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
     }
@@ -4185,7 +4251,7 @@ export default function StudentQuestPage() {
         explorerLog.add(studentProfile.id, 'project_complete', `${studentName} completed "${quest.title}"!`);
       }
     }
-  }, [id, stages, studentName, loadSubmissions, studentProfile, quest]);
+  }, [id, studentName, loadSubmissions, studentProfile, quest]);
 
   const addReflection = useCallback(async (content) => {
     await supabase.from('reflection_entries').insert({ quest_id: id, content, entry_type: 'student' });
@@ -5067,6 +5133,7 @@ export default function StudentQuestPage() {
                   p_file_name: null,
                   p_file_size: null,
                   p_mime_type: null,
+                  p_pin: getStudentSession()?.studentPin || null,
                 });
                 if (rpcError) throw new Error(rpcError.message);
                 // Non-blocking: generate embedding in background

@@ -95,9 +95,13 @@ export default function LearnerIntakeForm() {
       return;
     }
 
-    // Set student session
+    // Set student session — include PIN so quest reads pass server-side check
     if (data.student_id) {
-      setStudentSession({ studentId: data.student_id, studentName: data.student_name });
+      setStudentSession({
+        studentId: data.student_id,
+        studentName: data.student_name,
+        studentPin: data.pin,
+      });
     }
 
     // Jump straight into project creation with their interests

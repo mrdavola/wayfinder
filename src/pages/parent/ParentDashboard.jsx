@@ -524,20 +524,25 @@ function DashboardView({ data, token, onOutcomesUpdate }) {
 function JoinWithCode() {
   const navigate = useNavigate();
   const [code, setCode] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
     const pin = code.trim();
-    if (!pin) return;
+    const first = firstName.trim();
+    if (!pin || !first) return;
     setChecking(true);
     setError('');
 
-    const { data, error: rpcErr } = await supabase.rpc('parent_join_by_pin', { p_pin: pin });
+    const { data, error: rpcErr } = await supabase.rpc('parent_join_by_pin', {
+      p_pin: pin,
+      p_first_name: first,
+    });
 
     if (rpcErr || !data?.success) {
-      setError(data?.error || rpcErr?.message || 'No student found with that code. Please check and try again.');
+      setError(data?.error || rpcErr?.message || 'No student found with that code and name. Please check and try again.');
       setChecking(false);
       return;
     }
@@ -561,7 +566,21 @@ function JoinWithCode() {
         background: T.chalk, borderRadius: 16, border: `1px solid ${T.parchment}`,
         boxShadow: '0 4px 24px rgba(26,26,46,0.06)', padding: '28px 28px 24px',
       }}>
-        <label style={labelStyle}>Student code</label>
+        <label style={labelStyle}>Child's first name</label>
+        <p style={{ fontSize: 12, color: T.graphite, margin: '0 0 8px', lineHeight: 1.5 }}>
+          The name your child uses on Wayfinder.
+        </p>
+        <input
+          type="text"
+          value={firstName}
+          onChange={e => { setFirstName(e.target.value); setError(''); }}
+          placeholder="e.g. Alex"
+          maxLength={40}
+          style={{ ...inputStyle, padding: '12px' }}
+          autoFocus
+        />
+
+        <label style={{ ...labelStyle, marginTop: 16 }}>Student code</label>
         <p style={{ fontSize: 12, color: T.graphite, margin: '0 0 8px', lineHeight: 1.5 }}>
           Your child's guide gave them a 4-digit code. It's the same code they use to join projects.
         </p>
@@ -576,7 +595,6 @@ function JoinWithCode() {
             fontSize: 20, fontFamily: 'var(--font-mono)', fontWeight: 700,
             letterSpacing: '0.2em', textAlign: 'center', padding: '14px',
           }}
-          autoFocus
         />
 
         {error && (
@@ -587,13 +605,13 @@ function JoinWithCode() {
 
         <button
           type="submit"
-          disabled={checking || !code.trim()}
+          disabled={checking || !code.trim() || !firstName.trim()}
           style={{
             width: '100%', padding: '13px', borderRadius: 10, border: 'none', marginTop: 16,
-            background: checking || !code.trim() ? T.pencil : T.fieldGreen,
-            color: checking || !code.trim() ? T.graphite : T.chalk,
+            background: checking || !code.trim() || !firstName.trim() ? T.pencil : T.fieldGreen,
+            color: checking || !code.trim() || !firstName.trim() ? T.graphite : T.chalk,
             fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-body)',
-            cursor: checking || !code.trim() ? 'not-allowed' : 'pointer',
+            cursor: checking || !code.trim() || !firstName.trim() ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >

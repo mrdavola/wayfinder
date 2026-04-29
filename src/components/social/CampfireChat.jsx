@@ -27,13 +27,33 @@ export default function CampfireChat({ questId, stageId, studentName, studentId 
   const handleSend = async () => {
     if (!input.trim() || sending) return;
     setSending(true);
-    const { data, error } = await supabase.from('guide_messages').insert({
-      quest_id: questId, stage_id: stageId,
-      student_id: studentId, student_name: studentName,
-      role: 'user', content: input.trim(),
-      message_type: 'campfire_chat',
-    }).select().single();
-    if (!error && data) setMessages(prev => [...prev, data]);
+    let pin = '';
+    try {
+      const raw = localStorage.getItem('wayfinder_student_session');
+      if (raw) pin = JSON.parse(raw)?.studentPin || '';
+    } catch { /* fall through */ }
+
+    const { data, error } = await supabase.rpc('insert_guide_message', {
+      p_quest_id: questId,
+      p_stage_id: stageId,
+      p_student_id: studentId,
+      p_pin: pin,
+      p_student_name: studentName,
+      p_role: 'user',
+      p_content: input.trim(),
+      p_message_type: 'campfire_chat',
+    });
+    if (!error && data?.success) {
+      // Optimistically add the row using the returned id + created_at
+      setMessages(prev => [...prev, {
+        id: data.id,
+        quest_id: questId, stage_id: stageId,
+        student_id: studentId, student_name: studentName,
+        role: 'user', content: input.trim(),
+        message_type: 'campfire_chat',
+        created_at: data.created_at,
+      }]);
+    }
     setInput('');
     setSending(false);
   };

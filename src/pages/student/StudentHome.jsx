@@ -584,8 +584,9 @@ export default function StudentHome() {
     setLoading(true);
     setError('');
     try {
-      const { data, error: rpcErr } = await supabase.rpc('get_student_quests', {
+      const { data, error: rpcErr } = await supabase.rpc('get_student_quests_for_session', {
         p_student_id: studentId,
+        p_pin: session?.studentPin || '',
       });
       if (rpcErr) throw rpcErr;
       setQuests(Array.isArray(data) ? data : []);

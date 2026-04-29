@@ -28,48 +28,30 @@ const LOADING_MESSAGES = [
 
 // ─── AI helpers ───────────────────────────────────────────────────────────────
 
-// Shared helper: calls Gemini (default) or Anthropic based on localStorage preference
+// All AI calls go through the /api/ai proxy so provider keys never ship to the
+// browser. The provider preference is read from localStorage but that's all —
+// the actual key lives in Vercel env vars (ANTHROPIC_API_KEY / GEMINI_API_KEY).
 async function callExperimentAI({ systemPrompt, userMessage, messages }) {
   const aiSettings = JSON.parse(localStorage.getItem('wayfinder_ai_settings') || '{}');
   const provider = aiSettings.provider || 'gemini';
-
-  if (provider === 'gemini') {
-    const apiKey = aiSettings.geminiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
-    const { GoogleGenerativeAI } = await import('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: systemPrompt,
-    });
-
-    if (messages && messages.length > 0) {
-      const converted = messages.slice(0, -1).map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      }));
-      const firstUserIdx = converted.findIndex(m => m.role === 'user');
-      const history = firstUserIdx > 0 ? converted.slice(firstUserIdx) : converted;
-      const lastMsg = messages[messages.length - 1];
-      const chat = model.startChat({ history });
-      const result = await chat.sendMessage(lastMsg.content);
-      return result.response.text();
-    } else {
-      const result = await model.generateContent(userMessage);
-      return result.response.text();
-    }
-  } else {
-    const apiKey = aiSettings.anthropicKey || import.meta.env.VITE_ANTHROPIC_API_KEY || '';
-    const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-    const msgs = messages || [{ role: 'user', content: userMessage }];
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: messages ? 200 : 2000,
-      system: systemPrompt,
-      messages: msgs,
-    });
-    return response.content[0].text;
+  const { authedFetch } = await import('../lib/api');
+  const resp = await authedFetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider,
+      systemPrompt,
+      userMessage,
+      messages,
+      maxTokens: messages ? 200 : 2000,
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `AI proxy error: ${resp.status}`);
   }
+  const data = await resp.json();
+  return data.text;
 }
 
 async function generateGroupQuest(learners, concepts) {

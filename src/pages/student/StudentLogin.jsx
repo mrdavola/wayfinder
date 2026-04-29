@@ -46,6 +46,7 @@ export default function StudentLogin() {
       setStudentSession({
         studentId: data.id,
         studentName: data.name,
+        studentPin: pin.trim(),
       });
 
       navigate(returnTo, { replace: true });

@@ -1564,11 +1564,17 @@ export default function QuestMap() {
       .update({ status: 'completed', completed_at: new Date().toISOString() })
       .eq('id', stageId);
 
+    // Refetch stages from DB before computing unlocks — using the in-memory
+    // `stages` array races with rapid successive completions.
+    const { data: live = [] } = await supabase.from('quest_stages')
+      .select('*').eq('quest_id', id).order('stage_number');
+    const liveStages = live || [];
+
     // Dependency-aware unlock: find stages whose deps are all met
     const completedIds = new Set(
-      stages.filter(s => s.status === 'completed' || s.id === stageId).map(s => s.id)
+      liveStages.filter(s => s.status === 'completed').map(s => s.id)
     );
-    const toUnlock = stages.filter(s => {
+    const toUnlock = liveStages.filter(s => {
       if (s.status !== 'locked') return false;
       const deps = s.dependencies || [];
       if (deps.length === 0) return false;
@@ -1581,8 +1587,8 @@ export default function QuestMap() {
         .in('id', toUnlock.map(s => s.id));
     } else {
       // Linear fallback: unlock next by stage_number
-      const currentIndex = stages.findIndex((s) => s.id === stageId);
-      const nextStage = stages[currentIndex + 1];
+      const currentIndex = liveStages.findIndex((s) => s.id === stageId);
+      const nextStage = liveStages[currentIndex + 1];
       if (nextStage && nextStage.status === 'locked') {
         await supabase.from('quest_stages')
           .update({ status: 'active' })
@@ -1591,7 +1597,7 @@ export default function QuestMap() {
     }
 
     // Auto-reflection entry
-    const completedStage = stages.find((s) => s.id === stageId);
+    const completedStage = liveStages.find((s) => s.id === stageId);
     if (completedStage) {
       await supabase.from('reflection_entries').insert({
         quest_id: id,
@@ -1602,7 +1608,7 @@ export default function QuestMap() {
     }
 
     // Check if all stages done
-    const allComplete = stages.every((s) => s.id === stageId || s.status === 'completed');
+    const allComplete = liveStages.every((s) => s.status === 'completed');
     if (allComplete) {
       await supabase.from('quests').update({
         status: 'completed',
@@ -1611,7 +1617,7 @@ export default function QuestMap() {
       setQuest((q) => ({ ...q, status: 'completed', completed_at: new Date().toISOString() }));
     }
 
-    // Refresh stages
+    // Refresh stages (re-fetch after any unlock writes above)
     const { data: updatedStages } = await supabase.from('quest_stages')
       .select('*').eq('quest_id', id).order('stage_number');
     setStages(updatedStages || []);
@@ -1636,7 +1642,7 @@ export default function QuestMap() {
     // Confetti
     setConfettiNode(stageId);
     setTimeout(() => setConfettiNode(null), 700);
-  }, [id, stages]);
+  }, [id]);
 
   // ---- Add reflection ----
   const addReflection = useCallback(async (content) => {

@@ -3,15 +3,15 @@
 
 export const config = { maxDuration: 60 };
 
-import { verifyAuth } from './_auth.js';
+import { requireAnyCaller } from './_auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { user } = await verifyAuth(req);
-  req.user = user;
+  // Require either a guide JWT or a PIN-verified student session.
+  if (await requireAnyCaller(req, res)) return;
 
   const { action, content, contentType, taskType, dimensions } = req.body;
 

@@ -1,13 +1,31 @@
 import { supabase } from './supabase';
 
 // ── Authenticated fetch for serverless API endpoints ────────────────────────
-// Attaches the Supabase JWT so api/_auth.js can verify the caller
+// Attaches the Supabase JWT (guides) or X-Student-Auth (PIN-verified students)
+// so api/_auth.js can verify the caller. Endpoints reject if neither is present.
 export async function authedFetch(url, options = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
+
+  let studentAuth;
+  if (!token) {
+    try {
+      const raw = localStorage.getItem('wayfinder_student_session');
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s?.studentId && s?.studentPin) {
+          studentAuth = `${s.studentId}:${s.studentPin}`;
+        }
+      }
+    } catch {
+      // ignore — request will go without student auth and may 401
+    }
+  }
+
   const headers = {
     ...options.headers,
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(studentAuth ? { 'X-Student-Auth': studentAuth } : {}),
   };
   return fetch(url, { ...options, headers });
 }
@@ -406,6 +424,30 @@ export const templates = {
 // ===================== AI HELPERS =====================
 // Gemini is the default provider. Anthropic is an optional fallback.
 // In production, proxy through a serverless function rather than calling from browser.
+
+// ===================== SUBMISSION UPLOADS =====================
+// Bucket writes are service-role-only (migration 051). Frontend asks the
+// /api/submission-upload-url endpoint for a signed upload URL after auth.
+
+export async function uploadSubmissionFile({ path, file, contentType }) {
+  const resp = await authedFetch('/api/submission-upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => '');
+    throw new Error(`Upload URL error (${resp.status}): ${detail.slice(0, 200)}`);
+  }
+  const { token, path: storagePath, publicUrl } = await resp.json();
+
+  const { error } = await supabase.storage
+    .from('student-submissions')
+    .uploadToSignedUrl(storagePath, token, file, { contentType });
+  if (error) throw error;
+
+  return publicUrl;
+}
 
 // ===================== WORLD SCENE UTILITIES =====================
 
@@ -2293,20 +2335,51 @@ export const guideMessages = {
   },
 
   add: async ({ questId, stageId, studentId, studentName, role, content, messageType = 'field_guide' }) => {
-    const row = {
-      quest_id: questId,
-      stage_id: stageId,
-      student_name: studentName,
-      role,
-      content,
-      message_type: messageType,
-    };
-    // Only include student_id if it looks like a valid UUID (avoids FK constraint failures)
-    if (studentId && /^[0-9a-f]{8}-/.test(studentId)) {
-      row.student_id = studentId;
+    // Guides (authenticated) write directly via RLS; students go through the
+    // PIN-verified RPC. We detect a guide session by checking for a Supabase
+    // user — if absent, fall through to the RPC.
+    const { data: { session } } = await supabase.auth.getSession();
+    const isAuthedGuide = !!session?.access_token;
+
+    if (isAuthedGuide) {
+      const row = {
+        quest_id: questId,
+        stage_id: stageId,
+        student_name: studentName,
+        role,
+        content,
+        message_type: messageType,
+      };
+      if (studentId && /^[0-9a-f]{8}-/.test(studentId)) row.student_id = studentId;
+      const { data, error } = await supabase.from('guide_messages').insert(row);
+      if (error) console.warn('guide_messages insert warn:', error.message);
+      return { data, error };
     }
-    const { data, error } = await supabase.from('guide_messages').insert(row);
-    if (error) console.warn('guide_messages insert warn:', error.message);
+
+    // Anon student → use PIN-verified RPC
+    let pin = '';
+    try {
+      const raw = localStorage.getItem('wayfinder_student_session');
+      if (raw) pin = JSON.parse(raw)?.studentPin || '';
+    } catch { /* fall through */ }
+
+    const validStudentId = studentId && /^[0-9a-f]{8}-/.test(studentId) ? studentId : null;
+    if (!validStudentId) {
+      // Without a verifiable student id we cannot write. Fail closed.
+      return { data: null, error: { message: 'Missing student identity' } };
+    }
+
+    const { data, error } = await supabase.rpc('insert_guide_message', {
+      p_quest_id: questId,
+      p_stage_id: stageId,
+      p_student_id: validStudentId,
+      p_pin: pin,
+      p_student_name: studentName || '',
+      p_role: role,
+      p_content: content,
+      p_message_type: messageType,
+    });
+    if (error) console.warn('insert_guide_message warn:', error.message);
     return { data, error };
   },
 

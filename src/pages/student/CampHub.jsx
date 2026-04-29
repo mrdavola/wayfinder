@@ -708,9 +708,10 @@ export default function CampHub() {
     (async () => {
       setLoading(true);
       try {
-        /* fetch quests */
-        const { data: questData, error: questErr } = await supabase.rpc('get_student_quests', {
+        /* fetch quests — anon RPC requires PIN to prove the session is real */
+        const { data: questData, error: questErr } = await supabase.rpc('get_student_quests_for_session', {
           p_student_id: s.studentId,
+          p_pin: s.studentPin || '',
         });
         if (questErr) throw questErr;
         const raw = Array.isArray(questData) ? questData : [];

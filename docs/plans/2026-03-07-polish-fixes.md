@@ -15,11 +15,13 @@
 **Problem:** Every generated quest feels like a fantasy theme park adventure — "wayfarers," "expeditions," "mystical journeys." Students see through this. It doesn't feel real. Quests should feel like real-world projects with real roles, real deliverables, and real career connections.
 
 **GOOD example (what we want):**
+
 > "Cosmic Habitats: Building Life Beyond Earth (or for a Better Earth!)"
 > "Imagine you're part of an elite team tasked with designing future homes for humans and plants..."
 > Simulation: "You are a team of Bio-Habitat Specialists presenting your final design to the 'Cosmic Gardens' corporation..."
 
 **BAD example (what we have now):**
+
 > "Aethelgard's Secrets: Initial Recon"
 > "The expedition reaches a crossroads, wayfinder..."
 > Generic exploration/adventure framing on every quest
@@ -29,22 +31,21 @@
 **Fix — Rewrite the core system prompt and generation instructions:**
 
 1. **WAYFINDER_SYSTEM_PROMPT** — Replace exploration/adventure framing with:
+
    - "Generate projects grounded in REAL scenarios. Students take on real professional roles (engineer, biologist, urban planner, journalist, game designer) working on real problems."
    - "The narrative hook should connect to something the student actually cares about (their interests, games they play, things they build) but the PROJECT itself should be real work."
    - "Deliverables should be real artifacts: designs, reports, presentations, prototypes, models — things a professional in that field would actually produce."
    - "NEVER use generic fantasy/exploration language like 'wayfarer,' 'expedition,' 'mystical journey,' 'ancient secrets.' The framing can be exciting and imaginative, but it must be rooted in reality."
-
 2. **Simulation stages** — Every quest must include a career simulation where the student role-plays a real professional scenario:
+
    - "You are a [real job title] presenting to [real audience]"
    - "You've been hired by [real-sounding company] to solve [real problem]"
    - NOT "You are an explorer in the Cave of Knowledge"
-
 3. **Stage descriptions** — Should read like project briefs, not storybook pages:
+
    - "Research different extreme environments on Earth" NOT "The mystical lands call you to discover ancient ecosystems"
    - "Create a design proposal for..." NOT "Craft your expedition report for the guild..."
-
 4. **Field Guide (questHelp)** — The AI assistant should talk like a supportive mentor/coach, not a fantasy guide character. Use the student's name, reference their actual interests, ask about their real thinking.
-
 5. **Expedition challenges** — Keep the gamified framing (these are meant to be fun), but ground the content in real knowledge. "Navigation Check" is fine, but the actual question should test real understanding, not fantasy lore.
 
 **Commit:** `feat: rewrite AI prompts — real-world projects, real roles, no fantasy framing`
@@ -60,6 +61,7 @@
 **Investigation:** Find the `saveQuest` / launch handler. Likely the save function hits an error silently (could be branch-saving failing for non-branching quests, or a missing await, or the stage-saving loop timing out). Add error handling and ensure the button resets on failure. Also check if the `is_branching` column or `stageBranches.bulkCreate` call throws when there are no branches.
 
 **Fix:**
+
 - Wrap the entire save flow in try/catch
 - Reset saving state in the catch block
 - Add a timeout fallback (if save takes >30s, show error and reset)
@@ -79,6 +81,7 @@
 **Investigation:** Find the submission handler (likely `handleSubmit` or similar). The AI review call (`ai.reviewSubmission`) may be failing silently, or the skill assessment chain after it may throw. The submitting state never resets.
 
 **Fix:**
+
 - Wrap the submission + AI review + skill assessment chain in try/catch
 - Reset `submitting` state in catch and finally blocks
 - Show a brief error toast/message if submission fails
@@ -95,6 +98,7 @@
 **File:** `src/components/ui/TrustBadge.jsx`
 
 **Fix:**
+
 - Remove the "View source" link from the tooltip entirely
 - Keep the trust tier label and icon (Trusted source / Needs review / etc.)
 - Keep the guide override buttons (Mark verified / Mark incorrect)
@@ -113,6 +117,7 @@
 **Investigation:** Find where AI feedback, Field Guide messages, and "What to Explore Next" are rendered. They're displaying raw text with markdown syntax.
 
 **Fix:**
+
 - Create a simple `renderMarkdown(text)` utility that converts:
   - `**text**` → `<strong>text</strong>`
   - `*text*` → `<em>text</em>`
@@ -136,8 +141,11 @@
 **Investigation:** Check how Standards Coverage is calculated. The AI generates `academic_skills_embedded` per stage, but the coverage checker likely compares these against the selected standards codes. The AI may be generating skill descriptions instead of matching the exact standard codes.
 
 **Fix:**
+
 - In the generation prompt (both `generateQuest` and `generateBranchingQuest`), add explicit instruction: "For academic_skills_embedded, use the EXACT standard codes provided (e.g., '5.G.A.1', 'W.5.2'), not paraphrased descriptions"
 - If the coverage checker does exact string matching, also add fuzzy matching (check if the standard code appears anywhere in the embedded skill string)
+
+**yes**
 
 **Commit:** `fix: AI now uses exact standard codes in academic_skills_embedded`
 
@@ -150,6 +158,7 @@
 **File:** `src/lib/api.js` — branching quest prompt
 
 **Fix:**
+
 - In the `generateBranchingQuest` prompt, explicitly require: "Choice fork stages MUST include guiding_questions that help the student think about which path to choose. Example: 'What aspect of the problem interests you most — the hands-on investigation or the creative design?'"
 - In the JSON schema example, add `guiding_questions` to the choice_fork stage
 
@@ -164,6 +173,7 @@
 **Files:** `src/lib/api.js` — all AI prompts that generate student-facing content
 
 **Fix:**
+
 - Add grade-level adaptation instructions to these prompts:
   - `generateQuest` / `generateBranchingQuest` — stage descriptions, guiding questions
   - `questHelp` (Field Guide) — already has some, strengthen it
@@ -186,6 +196,7 @@
 **File:** `src/lib/api.js` — `generateQuest` and `generateBranchingQuest` prompts
 
 **Fix:**
+
 - Add to both generation prompts: "REQUIRED: At least one stage MUST be of type 'simulate'. A simulation stage puts the student in an immersive scenario where they apply what they've learned — role-playing as a scientist, engineer, city planner, etc. The simulation should feel like a game or adventure, not a worksheet."
 - Add validation after generation: if no simulate stage exists, log a warning (don't block, but flag it)
 - The simulate stage type is already in the allowed stage_type CHECK constraint
@@ -201,6 +212,7 @@
 **Problem:** The Devil's Advocate / Challenger is too subtle — it's a small card in the sidebar that's easy to ignore. It should feel like a boss encounter that pops up, demands attention, and tests what the student actually knows. This is one of the most important learning moments.
 
 **Files:**
+
 - `src/pages/student/StudentQuestPage.jsx` — challenger trigger logic + UI
 - `src/components/gamified/ChallengerEncounter.jsx` — NEW component
 - `src/lib/api.js` — `ai.devilsAdvocate()` prompt improvements
@@ -210,42 +222,44 @@
 **New behavior — Boss Encounter:**
 
 1. **Dramatic entrance:** When triggered, the Challenger takes over the screen with a modal/overlay:
+
    - Dark semi-transparent backdrop
    - Challenger avatar (use a distinct icon — maybe a flame or lightning bolt)
    - Animated entrance (slide up from bottom or fade in with scale)
    - Sound cue (optional, via Web Speech or a subtle CSS animation pulse)
    - Bold title: "CHALLENGER APPEARS" or the challenger's name
-
 2. **The challenge itself:**
+
    - Large, readable challenge text — a pointed question that tests understanding
    - NOT a quiz. It's more like: "You said X, but what about Y? How do you explain that?"
    - The AI should reference what the student actually submitted/said
    - Timer or urgency visual (pulsing border, not a countdown — no test anxiety)
-
 3. **Student response:**
+
    - Large textarea for their response
    - "Stand Your Ground" button (not "Submit" — this is a boss fight)
    - EP reward shown upfront: "Defeat this challenge: +30 EP"
-
 4. **Result:**
+
    - If strong response: "CHALLENGER DEFEATED" with celebration animation, EP awarded, skill assessment logged
    - If weak response: "The Challenger isn't convinced..." with a follow-up question or hint. They can try again (no penalty, reduced EP on retry)
    - Response and result persist — show "Challenged" badge on the stage with collapsed response
-
 5. **Trigger points (more aggressive than current):**
+
    - After EVERY stage completion (not just checkpoints)
    - After short/low-effort submissions (< 50 words)
    - When the student advances quickly through multiple stages
    - Random chance (~30%) even on good submissions to keep them on their toes
    - The AI should adapt difficulty: harder challenges for students who keep defeating them
-
 6. **AI prompt improvements:**
+
    - The Challenger should have personality — skeptical but fair, like a tough mentor
    - Reference the student's actual work: "You wrote about X, but you didn't mention Y. Can you explain why?"
    - Grade-level adapted language (same as Task 7)
    - Should feel like a real conversation, not a generated quiz question
 
 **Component structure:**
+
 ```
 ChallengerEncounter (modal overlay)
 ├── ChallengerAvatar (animated icon/character)
@@ -270,6 +284,7 @@ ChallengerEncounter (modal overlay)
 **Investigation:** Find `TreasureMap` component. It renders a vertical SVG path with landmark nodes.
 
 **Fix:**
+
 - Redesign TreasureMap as a horizontal scrollable trail:
   - Nodes flow left-to-right with a connecting path
   - Active node is centered/highlighted with a pulse animation
@@ -291,6 +306,7 @@ ChallengerEncounter (modal overlay)
 **File:** `src/pages/student/StudentQuestPage.jsx`
 
 **Fix:**
+
 - Increase padding inside stage cards (current ~16px → 24px)
 - Add more vertical spacing between sections (description, questions, deliverable, submission)
 - Make stage titles larger and more prominent
@@ -310,6 +326,7 @@ ChallengerEncounter (modal overlay)
 **File:** `src/pages/student/StudentQuestPage.jsx`
 
 **Fix:**
+
 - On desktop (>1024px): Use a two-column layout:
   - Left column (60%): Stage content with good max-width
   - Right column (40%): Trail map (vertical is fine here as sidebar), AI sidebar, buddy chat

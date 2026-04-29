@@ -938,14 +938,11 @@ export default function StudentProjectBuilder() {
           .neq('id', student.id);
         if (mates) setClassmates(mates);
 
-        // Check if buddy pairing is enabled (guide-level setting)
-        // For now check if guide has enabled it — we'll use a simple approach
-        const { data: guideProfile } = await supabase
-          .from('profiles')
-          .select('buddy_pairing_enabled')
-          .eq('id', student.guide_id)
-          .single();
-        if (guideProfile?.buddy_pairing_enabled) setBuddyEnabled(true);
+        // Check if buddy pairing is enabled — use scoped RPC instead of reading
+        // the full profiles row (anon SELECT on profiles is no longer allowed).
+        const { data: buddyEnabled } = await supabase
+          .rpc('get_buddy_pairing_enabled', { p_guide_id: student.guide_id });
+        if (buddyEnabled) setBuddyEnabled(true);
       }
     }
   }

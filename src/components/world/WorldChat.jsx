@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, Plus, FileUp, Camera, Mic, Square, Award, Volume2, VolumeX } from 'lucide-react';
 import useSpeech from '../../hooks/useSpeech';
-import { ai, guideMessages, submissionFeedback, skillAssessments } from '../../lib/api';
+import { ai, guideMessages, submissionFeedback, skillAssessments, uploadSubmissionFile } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 
 // Strip the hidden ---ASSESSMENT--- block from AI responses before displaying
@@ -489,26 +489,20 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
   }, []);
 
   const uploadFile = useCallback(async (file) => {
-    const ext = file.name.split('.').pop() || 'bin';
+    const rawExt = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+    const safeExt = String(rawExt).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
     const timestamp = Date.now();
     const safeName = (studentSession?.studentName || 'student').replace(/[^a-zA-Z0-9]/g, '_');
-    const path = `${quest.id}/${stage.id}/${safeName}/${timestamp}.${ext}`;
+    const path = `${quest.id}/${stage.id}/${safeName}/${timestamp}.${safeExt}`;
 
-    const { data, error } = await supabase.storage
-      .from('student-submissions')
-      .upload(path, file, { contentType: file.type });
-
-    if (error) {
-      console.error('File upload error:', error);
-      throw error;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('student-submissions')
-      .getPublicUrl(path);
+    const publicUrl = await uploadSubmissionFile({
+      path,
+      file,
+      contentType: file.type,
+    });
 
     return {
-      url: urlData?.publicUrl || '',
+      url: publicUrl,
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
@@ -581,7 +575,9 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
         messageType: 'field_guide',
       }).catch(() => {});
 
-      // Save to stage_submissions via RPC (fire-and-forget — RPC may not exist)
+      // Save to stage_submissions via RPC (fire-and-forget — RPC may not exist).
+      // PIN is required server-side for unauthenticated callers; passed from
+      // the student session populated at /student/login.
       try {
         supabase.rpc('submit_stage_work', {
           p_quest_id: quest.id,
@@ -593,6 +589,7 @@ export default function WorldChat({ quest, stage, blueprint, studentSession, onC
           p_file_name: fileInfo?.fileName || null,
           p_file_size: fileInfo?.fileSize || null,
           p_mime_type: fileInfo?.mimeType || null,
+          p_pin: studentSession?.studentPin || null,
         }).then(() => {});
       } catch (e) { /* RPC may not exist */ }
 
