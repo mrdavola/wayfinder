@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, BookOpen, Star, Clock, ArrowRight, Plus, X, PenLine } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 const T = {
   ink: '#1A1A2E', paper: '#FAF8F5', parchment: '#F0EDE6',
@@ -152,9 +152,9 @@ function OnboardingForm({ onComplete, saving }) {
   return (
     <div style={{ maxWidth: 520, width: '100%' }}>
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <WayfinderLogoIcon size={32} color={T.fieldGreen} style={{ display: 'block', margin: '0 auto' }} />
+        <DiagonallyLogoIcon size={32} color={T.fieldGreen} style={{ display: 'block', margin: '0 auto' }} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '14px 0 6px' }}>
-          Welcome to Wayfinder
+          Welcome to Diagonally
         </h1>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: T.graphite, lineHeight: 1.6 }}>
           Tell us a little about yourself so we can personalize your child's learning experience.
@@ -358,9 +358,9 @@ function DashboardView({ data, token, onOutcomesUpdate }) {
     <div style={{ maxWidth: 640, width: '100%' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <WayfinderLogoIcon size={24} color={T.fieldGreen} />
+        <DiagonallyLogoIcon size={24} color={T.fieldGreen} />
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: T.ink }}>
-          Wayfinder
+          Diagonally
         </span>
         <div style={{ flex: 1 }} />
         {parent?.parent_name && (
@@ -553,7 +553,7 @@ function JoinWithCode() {
   return (
     <div style={{ maxWidth: 420, width: '100%' }}>
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <WayfinderLogoIcon size={32} color={T.fieldGreen} style={{ display: 'block', margin: '0 auto' }} />
+        <DiagonallyLogoIcon size={32} color={T.fieldGreen} style={{ display: 'block', margin: '0 auto' }} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: T.ink, margin: '14px 0 6px' }}>
           Parent Portal
         </h1>
@@ -568,7 +568,7 @@ function JoinWithCode() {
       }}>
         <label style={labelStyle}>Child's first name</label>
         <p style={{ fontSize: 12, color: T.graphite, margin: '0 0 8px', lineHeight: 1.5 }}>
-          The name your child uses on Wayfinder.
+          The name your child uses on Diagonally.
         </p>
         <input
           type="text"
@@ -691,11 +691,34 @@ export default function ParentDashboard() {
   if (error) {
     return (
       <div style={pageStyle}>
-        <WayfinderLogoIcon size={36} color={T.specimenRed} />
+        <DiagonallyLogoIcon size={36} color={T.specimenRed} />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: T.ink, margin: '14px 0 6px' }}>
           Something went wrong
         </h2>
-        <p style={{ fontSize: 14, color: T.graphite, fontFamily: 'var(--font-body)' }}>{error}</p>
+        <p style={{ fontSize: 14, color: T.graphite, fontFamily: 'var(--font-body)', maxWidth: 360, textAlign: 'center' }}>{error}</p>
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button
+            onClick={() => loadDashboard()}
+            style={{
+              padding: '10px 20px', borderRadius: 10, border: `1.5px solid ${T.fieldGreen}`,
+              background: T.fieldGreen, color: T.chalk, fontSize: 13, fontWeight: 600,
+              fontFamily: 'var(--font-body)', cursor: 'pointer',
+            }}
+          >
+            Try again
+          </button>
+          <a
+            href="/parent"
+            style={{
+              padding: '10px 20px', borderRadius: 10, border: `1.5px solid ${T.pencil}`,
+              background: 'transparent', color: T.ink, fontSize: 13, fontWeight: 600,
+              fontFamily: 'var(--font-body)', textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center',
+            }}
+          >
+            Use a different code
+          </a>
+        </div>
       </div>
     );
   }

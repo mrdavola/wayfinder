@@ -602,7 +602,7 @@ export default function SettingsPage() {
                   </span>
                 </div>
                 <p style={{ ...S.helpText, marginTop: 8 }}>
-                  Roles are assigned by your school administrator. To request a role change, contact your Wayfinder admin.
+                  Roles are assigned by your school administrator. To request a role change, contact your Diagonally admin.
                 </p>
               </div>
             );

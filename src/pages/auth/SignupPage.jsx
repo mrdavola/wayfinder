@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Check, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 function GoogleIcon() {
   return (
@@ -47,8 +47,10 @@ export default function SignupPage() {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
+    setError('');
     const { error: googleError } = await signInWithGoogle();
     if (googleError) {
+      setError(googleError.message || 'Google sign-in failed. Please try again.');
       setGoogleLoading(false);
     }
     // On success: browser redirects to Google
@@ -129,7 +131,7 @@ export default function SignupPage() {
               lineHeight: 1.1,
               margin: 0,
             }}>
-              Wayfinder
+              Diagonally
             </h1>
             <p style={{
               fontFamily: 'var(--font-body)',
@@ -142,7 +144,7 @@ export default function SignupPage() {
           </div>
 
           <div style={{ marginBottom: '40px', opacity: 0.9 }}>
-            <WayfinderLogoIcon size={80} color="var(--compass-gold)" />
+            <DiagonallyLogoIcon size={80} color="var(--compass-gold)" />
           </div>
 
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 40px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -218,7 +220,7 @@ export default function SignupPage() {
             color: 'var(--paper)',
             margin: 0,
           }}>
-            Wayfinder
+            Diagonally
           </h1>
           <p style={{
             fontFamily: 'var(--font-body)',

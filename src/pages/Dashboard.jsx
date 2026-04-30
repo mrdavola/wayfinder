@@ -465,8 +465,20 @@ function ActiveQuestsColumn({ user }) {
     setQuests(prev => prev.filter(q => q.id !== questId));
   };
 
-  const handleDelete = (questId, questTitle) => {
-    setDeleteConfirm({ id: questId, title: questTitle });
+  const handleDelete = async (questId, questTitle) => {
+    // Look up active submissions before showing the confirm modal so we can
+    // warn the guide rather than silently nuke a learner's in-flight work.
+    const { count: submissionCount } = await supabase
+      .from('stage_submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('quest_id', questId);
+    const learnerCount = quests.find(q => q.id === questId)?.quest_students?.length || 0;
+    setDeleteConfirm({
+      id: questId,
+      title: questTitle,
+      submissionCount: submissionCount || 0,
+      learnerCount,
+    });
   };
 
   const confirmDelete = async () => {
@@ -663,9 +675,31 @@ function ActiveQuestsColumn({ user }) {
             style={{ background: 'var(--chalk)', borderRadius: 14, padding: '28px 28px 24px', maxWidth: 400, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}
           >
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', margin: '0 0 8px' }}>Delete this project?</h3>
-            <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, margin: '0 0 20px' }}>
+            <p style={{ fontSize: 13, color: 'var(--graphite)', lineHeight: 1.6, margin: '0 0 12px' }}>
               "<strong>{deleteConfirm.title}</strong>" and all its stages, reflections, and simulation data will be permanently deleted. This cannot be undone.
             </p>
+            {(deleteConfirm.submissionCount > 0 || deleteConfirm.learnerCount > 0) && (
+              <div style={{
+                background: 'rgba(196, 30, 58, 0.08)',
+                border: '1px solid rgba(196, 30, 58, 0.25)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                margin: '0 0 16px',
+              }}>
+                <p style={{ fontSize: 12, color: 'var(--specimen-red)', margin: 0, lineHeight: 1.5, fontWeight: 600 }}>
+                  Heads up — {deleteConfirm.learnerCount > 0 && (
+                    <>{deleteConfirm.learnerCount} learner{deleteConfirm.learnerCount === 1 ? ' is' : 's are'} assigned</>
+                  )}
+                  {deleteConfirm.learnerCount > 0 && deleteConfirm.submissionCount > 0 && ' and '}
+                  {deleteConfirm.submissionCount > 0 && (
+                    <>{deleteConfirm.submissionCount} submission{deleteConfirm.submissionCount === 1 ? ' has' : 's have'} been turned in</>
+                  )}.
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--graphite)', margin: '4px 0 0', lineHeight: 1.5 }}>
+                  Consider archiving instead — deletes drop all submitted work.
+                </p>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => setDeleteConfirm(null)}
@@ -1000,7 +1034,7 @@ function StudentsCard({ user }) {
         </h3>
         <button
           className="btn btn-ghost"
-          onClick={() => navigate('/students')}
+          onClick={() => setShowForm(true)}
           style={{ fontSize: 'var(--text-sm)', padding: '4px 10px' }}
         >
           <Plus size={13} />
@@ -1671,30 +1705,8 @@ function ActiveQuestsColumnWithSharedData({ user, activeQuests, completedQuests,
     setDeleteConfirm(null);
   };
 
-  useEffect(() => {
-    if (!user?.id) return;
-
-    async function fetchQuests() {
-      setLoading(true);
-      setError(null);
-      const { data, error: err } = await supabase
-        .from('quests')
-        .select('*, quest_stages(*), quest_students(student_id, students(id, name))')
-        .eq('guide_id', user.id)
-        .in('status', ['active', 'completed'])
-        .order('created_at', { ascending: false });
-
-      if (err) {
-        setError(err.message);
-      } else {
-        setAllQuests(data || []);
-      }
-      setLoading(false);
-    }
-
-    fetchQuests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  // Quest data is fetched once by the parent Dashboard and passed down via
+  // the activeQuests/completedQuests/setAllQuests props. Do not refetch here.
 
   // Fetch project ideas
   useEffect(() => {

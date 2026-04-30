@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { careerInsights, ai } from '../lib/api';
 import TrustBadge from '../components/ui/TrustBadge';
 import { getTrustTier } from '../lib/trustDomains';
-import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 
 export default function CareerExplorer() {
   const { studentId } = useParams();
@@ -80,7 +80,7 @@ export default function CareerExplorer() {
           <ArrowLeft size={14} /> Back to profile
         </Link>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <WayfinderLogoIcon size={16} color="var(--compass-gold)" />
+          <DiagonallyLogoIcon size={16} color="var(--compass-gold)" />
           <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, color: 'var(--ink)' }}>Career Explorer</span>
         </div>
       </header>

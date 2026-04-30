@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 function GoogleIcon() {
   return (
@@ -119,7 +119,7 @@ export default function LoginPage() {
               lineHeight: 1.1,
               margin: 0,
             }}>
-              Wayfinder
+              Diagonally
             </h1>
             <p style={{
               fontFamily: 'var(--font-body)',
@@ -133,7 +133,7 @@ export default function LoginPage() {
 
           {/* Compass */}
           <div style={{ marginBottom: '40px', opacity: 0.9 }}>
-            <WayfinderLogoIcon size={80} color="var(--compass-gold)" />
+            <DiagonallyLogoIcon size={80} color="var(--compass-gold)" />
           </div>
 
           {/* Benefits */}
@@ -211,7 +211,7 @@ export default function LoginPage() {
             color: 'var(--paper)',
             margin: 0,
           }}>
-            Wayfinder
+            Diagonally
           </h1>
           <p style={{
             fontFamily: 'var(--font-body)',
@@ -236,7 +236,7 @@ export default function LoginPage() {
               Welcome back
             </h2>
             <p style={{ color: 'var(--graphite)', fontSize: 'var(--text-sm)', margin: 0 }}>
-              Sign in to your Wayfinder account
+              Sign in to your Diagonally account
             </p>
           </div>
 

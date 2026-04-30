@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import WayfinderLogoIcon from '../icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../icons/DiagonallyLogo';
 
 function getInitials(fullName) {
   if (!fullName) return '?';
@@ -64,8 +64,8 @@ export default function TopBar() {
         color: 'var(--ink)', textDecoration: 'none',
         letterSpacing: '-0.01em', flexShrink: 0,
       }}>
-        <WayfinderLogoIcon size={22} color="var(--ink)" />
-        <span className="topbar-logo-text">Wayfinder</span>
+        <DiagonallyLogoIcon size={22} color="var(--ink)" />
+        <span className="topbar-logo-text">Diagonally</span>
       </Link>
 
       {/* Center nav */}

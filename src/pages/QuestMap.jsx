@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ai, guidePlaybook as guidePlaybookApi, landmarksApi, communityProjects } from '../lib/api';
 import TreasureMap from '../components/map/TreasureMap';
-import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 const ImmersiveWorldView = lazy(() => import('../components/immersive/ImmersiveWorldView'));
 
 // ===================== CONSTANTS =====================
@@ -774,7 +774,7 @@ function StageCard({ stage, onComplete, completing, onNavigateToSim, submissions
           {helpResponse && (
             <div style={{ marginTop: 12, background: 'var(--parchment)', borderRadius: 6, padding: '12px 14px', borderLeft: '3px solid var(--lab-blue)' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--lab-blue)', marginBottom: 6 }}>
-                Wayfinder asks...
+                Diagonally asks...
               </div>
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', color: 'var(--ink)', lineHeight: 1.65, margin: 0 }}>
                 {helpResponse}
@@ -1711,8 +1711,8 @@ export default function QuestMap() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
           <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--ink)', textDecoration: 'none', letterSpacing: '-0.01em' }}>
-            <WayfinderLogoIcon size={20} color="var(--ink)" />
-            Wayfinder
+            <DiagonallyLogoIcon size={20} color="var(--ink)" />
+            Diagonally
           </Link>
           <span style={{ color: 'var(--pencil)', fontSize: 14 }}>/</span>
           <Link to="/dashboard" style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--graphite)', textDecoration: 'none' }}>

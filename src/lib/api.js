@@ -490,7 +490,7 @@ const SAFETY_PREAMBLE = `SAFETY RULES (non-negotiable):
 const WAYFINDER_SYSTEM_PROMPT = `${SAFETY_PREAMBLE}
 
 WAYFINDER AI IDENTITY:
-You are a Wayfinder AI — part of an educational platform for learner-driven schools serving ages 8-14.
+You are a Diagonally AI — part of an educational platform for learner-driven schools serving ages 8-14.
 
 CORE BEHAVIOR:
 - Use Socratic questioning by default. Ask questions that help learners think deeper — never give direct answers unless explicitly instructed otherwise.
@@ -674,7 +674,7 @@ ${projectMode === 'hands_on'
   ? '- Emphasize physical experiments, building, art, fieldwork, interviews, and real-world observation.\n- Deliverables should be tangible: models, prototypes, field journals, art pieces, interviews recorded.\n- Resources should include physical materials, tools, outdoor spaces.\n- Minimize screen time — if research is needed, keep it brief and purposeful.'
   : '- Emphasize research, writing, coding, digital design, data analysis, and presentations.\n- Deliverables should be digital: reports, websites, infographics, slide decks, code projects.\n- Resources should include software, websites, databases, digital tools.\n- Physical activities are fine as supplements but focus should be screen-based work.'}` : '';
 
-    const systemPrompt = `You are Wayfinder's project engine. You design real-world project-based learning experiences for students in learner-driven schools.
+    const systemPrompt = `You are Diagonally's project engine. You design real-world project-based learning experiences for students in learner-driven schools.
 
 You MUST respond with ONLY valid JSON matching this exact structure. No other text.
 
@@ -855,7 +855,7 @@ Set "expedition_challenge" to null for stages where no challenge is included.`;
       `Stage ${i + 1}: "${s.title}" — ${(s.description || '').slice(0, 100)}...`
     ).join('\n');
 
-    const prompt = `You are a world-builder for Wayfinder, an immersive learning platform. Generate a World Blueprint that transforms this educational project into an immersive Hero's Journey experience.
+    const prompt = `You are a world-builder for Diagonally, an immersive learning platform. Generate a World Blueprint that transforms this educational project into an immersive Hero's Journey experience.
 
 PROJECT:
 Title: ${quest.title}
@@ -1141,7 +1141,7 @@ Be honest. Don't sugarcoat, but don't be harsh.`
 Be direct and intellectually rigorous.`;
 
     return callAI({
-      systemPrompt: `You are "The Challenger" — a sharp, direct character in Wayfinder who pushes students to think harder. Challenge assumptions with ONE pointed question that flips an assumption or exposes a gap. 2-3 sentences max. Never undermine — challenge to strengthen. Start with something like "Hold on..." or "Wait a moment..." or "Not so fast..."
+      systemPrompt: `You are "The Challenger" — a sharp, direct character in Diagonally who pushes students to think harder. Challenge assumptions with ONE pointed question that flips an assumption or exposes a gap. 2-3 sentences max. Never undermine — challenge to strengthen. Start with something like "Hold on..." or "Wait a moment..." or "Not so fast..."
 
 ${challengerTone}
 
@@ -1191,7 +1191,7 @@ Be direct, respectful, and intellectually demanding.`;
           ? 'Keep replies to 3 sentences max. Ask 1 follow-up question.'
           : 'CRITICAL: Keep replies to 2-3 sentences MAX. Ask only 1 follow-up question.';
 
-    const systemPrompt = `You are "The Mentor" — a Socratic deep-thinker in Wayfinder. You are the wise character students come to when they want to go deeper. You question assumptions, invite deeper thinking, and help students see connections they haven't noticed yet. ${brevityRule}
+    const systemPrompt = `You are "The Mentor" — a Socratic deep-thinker in Diagonally. You are the wise character students come to when they want to go deeper. You question assumptions, invite deeper thinking, and help students see connections they haven't noticed yet. ${brevityRule}
 
 You are NOT a teacher and NOT a cheerleader. You ask the questions that make people stop and think. You help students examine WHY they think what they think, and what lies beneath the surface.
 
@@ -1297,7 +1297,7 @@ Return ONLY valid JSON, no markdown fences.`;
     const profileStr = studentProfile ? `Student: ${studentProfile.name || 'student'}${studentProfile.interests?.length ? `, interests: ${studentProfile.interests.join(', ')}` : ''}${studentProfile.passions?.length ? `, passions: ${studentProfile.passions.join(', ')}` : ''}` : '';
 
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's stage editor. A student wants to modify a project stage. Your job is to honor their request while ensuring academic skills remain covered.
+      systemPrompt: `You are Diagonally's stage editor. A student wants to modify a project stage. Your job is to honor their request while ensuring academic skills remain covered.
 
 You MUST respond with ONLY valid JSON:
 {
@@ -1362,7 +1362,7 @@ Find 5-8 real-world problems, stakeholders, and data points. Return JSON:
 
   recommendSkills: async ({ name, age, gradeBand, interests, passions, selfAssessment }) => {
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's learner profiling engine. Given a student's profile, recommend skills they should focus on and project pathways that would engage them.
+      systemPrompt: `You are Diagonally's learner profiling engine. Given a student's profile, recommend skills they should focus on and project pathways that would engage them.
 
 You MUST respond with ONLY valid JSON matching this structure:
 {
@@ -1400,7 +1400,7 @@ Generate skill recommendations and quest pathway ideas.`,
     ).join('\n');
 
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's standards recommendation engine. Given a student profile and available academic standards, recommend standards that align with the student's interests, passions, and learning needs.
+      systemPrompt: `You are Diagonally's standards recommendation engine. Given a student profile and available academic standards, recommend standards that align with the student's interests, passions, and learning needs.
 
 You MUST respond with ONLY valid JSON matching this structure:
 {
@@ -1453,7 +1453,7 @@ Suggest standards for this student.`,
     ).join('\n') || 'No past projects';
 
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's career pathway recommendation engine. Given student profiles, their project history, and academic context, suggest career pathways that feel like discovery — not a forced selection.
+      systemPrompt: `You are Diagonally's career pathway recommendation engine. Given student profiles, their project history, and academic context, suggest career pathways that feel like discovery — not a forced selection.
 
 You MUST respond with ONLY valid JSON matching this structure:
 {
@@ -1502,7 +1502,7 @@ Suggest career pathways.`,
     }).join('\n');
 
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's academic standards recommendation engine. Given student profiles (their interests, passions, and what parents have shared), suggest academic standards that connect to who these students are.
+      systemPrompt: `You are Diagonally's academic standards recommendation engine. Given student profiles (their interests, passions, and what parents have shared), suggest academic standards that connect to who these students are.
 
 You MUST respond with ONLY valid JSON:
 {
@@ -1552,7 +1552,7 @@ Suggest academic standards that connect to these students' interests and passion
     ).join('\n') || 'No past projects';
 
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's project idea generator. Given a student profile, their standards, and project history, suggest creative project ideas that connect their interests to academics.
+      systemPrompt: `You are Diagonally's project idea generator. Given a student profile, their standards, and project history, suggest creative project ideas that connect their interests to academics.
 
 You MUST respond with ONLY valid JSON matching this structure:
 {
@@ -1604,7 +1604,7 @@ Suggest project ideas.`,
     ).join('\n');
 
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's guide facilitation planner. Given a project's stages, create a day-by-day playbook for the GUIDE (teacher/facilitator), not the student.
+      systemPrompt: `You are Diagonally's guide facilitation planner. Given a project's stages, create a day-by-day playbook for the GUIDE (teacher/facilitator), not the student.
 
 You MUST respond with ONLY valid JSON matching this structure:
 {
@@ -1650,7 +1650,7 @@ Generate the day-by-day guide playbook.`,
     ).join('\n');
 
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's group formation engine. Given a list of students and optional quest context, suggest optimal group pairings that balance skills, interests, and roles.
+      systemPrompt: `You are Diagonally's group formation engine. Given a list of students and optional quest context, suggest optimal group pairings that balance skills, interests, and roles.
 
 You MUST respond with ONLY valid JSON matching this structure:
 {
@@ -2209,7 +2209,7 @@ Generate a BRANCHING quest as JSON:
 
   generateExplorationTree: async ({ skillName, level, studentAge, studentInterests }) => {
     const text = await callAI({
-      systemPrompt: `You are Wayfinder's skill exploration engine. Given a skill to explore, generate a mini learning tree — a structured set of 5-8 learning nodes that take a student from basics to competence.
+      systemPrompt: `You are Diagonally's skill exploration engine. Given a skill to explore, generate a mini learning tree — a structured set of 5-8 learning nodes that take a student from basics to competence.
 
 You MUST respond with ONLY valid JSON matching this structure:
 {
@@ -2256,7 +2256,7 @@ Create 5-8 learning nodes that would take this student from basics to competence
 
       const op = await generateMarbleWorld({
         textPrompt: sceneData.image_prompt,
-        displayName: questTitle || 'Wayfinder World',
+        displayName: questTitle || 'Diagonally World',
         model: 'Marble 0.1-mini',
       });
 

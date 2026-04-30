@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowRight, LogIn } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { setStudentSession, getStudentSession } from '../../lib/studentSession';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 export default function StudentLogin() {
   const navigate = useNavigate();
@@ -80,7 +80,7 @@ export default function StudentLogin() {
       }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <WayfinderLogoIcon size={36} color="var(--compass-gold)" style={{ display: 'block', margin: '0 auto' }} />
+          <DiagonallyLogoIcon size={36} color="var(--compass-gold)" style={{ display: 'block', margin: '0 auto' }} />
           <div style={{
             fontFamily: 'var(--font-display)',
             fontSize: 26,
@@ -88,7 +88,7 @@ export default function StudentLogin() {
             letterSpacing: '-0.02em',
             marginTop: 10,
           }}>
-            Wayfinder
+            Diagonally
           </div>
           <div style={{
             fontFamily: 'var(--font-body)',
@@ -235,7 +235,7 @@ export default function StudentLogin() {
               ) : (
                 <>
                   <LogIn size={17} />
-                  Enter Wayfinder
+                  Enter Diagonally
                 </>
               )}
             </button>

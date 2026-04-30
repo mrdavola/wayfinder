@@ -17,7 +17,7 @@ import { explorations, ai, skills as skillsApi, skillSnapshots, xp, tokens, ST_V
 import { supabase } from '../../lib/supabase';
 import { getStudentSession } from '../../lib/studentSession';
 import ScoreCard, { MASTERY_THRESHOLD } from '../../components/ui/ScoreCard';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 /* ── design tokens ─────────────────────────────────────────────────────── */
 const T = {
@@ -420,7 +420,7 @@ export default function ExploreSkillPage() {
         </button>
 
         <div style={S.headerCenter}>
-          <WayfinderLogoIcon size={20} color={T.labBlue} />
+          <DiagonallyLogoIcon size={20} color={T.labBlue} />
           <span style={S.headerTitle}>
             Exploring: {exploration?.skill_name || 'Skill Tree'}
           </span>

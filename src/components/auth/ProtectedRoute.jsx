@@ -52,8 +52,12 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If user exists but hasn't completed onboarding
-  if (profile && !profile.onboarding_complete && location.pathname !== '/onboarding') {
+  // If user exists but hasn't completed onboarding (including the case where
+  // the profile row hasn't been created yet — common right after OAuth signup,
+  // before the trigger has run). Treat null profile the same as "not onboarded"
+  // so we never land on a half-rendered authenticated page.
+  const needsOnboarding = !profile || !profile.onboarding_complete;
+  if (needsOnboarding && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 

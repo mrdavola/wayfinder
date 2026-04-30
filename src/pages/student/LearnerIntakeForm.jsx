@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ChevronLeft, ArrowRight } from 'lucide-react';
 import { invites } from '../../lib/api';
 import { setStudentSession } from '../../lib/studentSession';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -55,13 +55,18 @@ export default function LearnerIntakeForm() {
   async function validateCode() {
     setLoading(true);
     setError('');
-    const { data } = await invites.validate(code);
-    if (!data?.valid) {
-      setError(data?.error || 'Invalid invite code');
-    } else {
-      setInviteData(data);
+    try {
+      const { data } = await invites.validate(code);
+      if (!data?.valid) {
+        setError(data?.error || 'Invalid invite code');
+      } else {
+        setInviteData(data);
+      }
+    } catch (err) {
+      setError(err?.message || 'Could not reach the server. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   function toggleInterest(interest) {
@@ -79,33 +84,38 @@ export default function LearnerIntakeForm() {
     setSubmitting(true);
     setError('');
 
-    const { data } = await invites.submitIntake({
-      code,
-      name: name.trim(),
-      interests: selectedInterests,
-      passions: passions.trim() ? [passions.trim()] : [],
-      avatarEmoji,
-      // grade_band comes from the invite — pass null so DB keeps whatever default
-      gradeBand: inviteData?.grade_band || null,
-    });
-
-    if (!data?.success) {
-      setError(data?.error || 'Something went wrong. Please try again.');
-      setSubmitting(false);
-      return;
-    }
-
-    // Set student session — include PIN so quest reads pass server-side check
-    if (data.student_id) {
-      setStudentSession({
-        studentId: data.student_id,
-        studentName: data.student_name,
-        studentPin: data.pin,
+    try {
+      const { data } = await invites.submitIntake({
+        code,
+        name: name.trim(),
+        interests: selectedInterests,
+        passions: passions.trim() ? [passions.trim()] : [],
+        avatarEmoji,
+        // grade_band comes from the invite — pass null so DB keeps whatever default
+        gradeBand: inviteData?.grade_band || null,
       });
-    }
 
-    // Jump straight into project creation with their interests
-    navigate('/student/project/new?from=intake');
+      if (!data?.success) {
+        setError(data?.error || 'Something went wrong. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Set student session — include PIN so quest reads pass server-side check
+      if (data.student_id) {
+        setStudentSession({
+          studentId: data.student_id,
+          studentName: data.student_name,
+          studentPin: data.pin,
+        });
+      }
+
+      // Jump straight into project creation with their interests
+      navigate('/student/project/new?from=intake');
+    } catch (err) {
+      setError(err?.message || 'Could not finish sign-up. Please check your connection and try again.');
+      setSubmitting(false);
+    }
   }
 
   // ── Loading state ──────────────────────────────────────────────────────────
@@ -349,7 +359,7 @@ function LoadingGame() {
 
       {/* Compass logo */}
       <div style={{ marginBottom: 16, animation: 'lif-pulse-glow 2s ease-in-out infinite' }}>
-        <WayfinderLogoIcon size={36} color="#2D6A4F" />
+        <DiagonallyLogoIcon size={36} color="#2D6A4F" />
       </div>
 
       <h2 style={{
@@ -470,9 +480,9 @@ function PageShell({ children }) {
 
       {/* Logo */}
       <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <WayfinderLogoIcon size={28} color={T.fieldGreen} />
+        <DiagonallyLogoIcon size={28} color={T.fieldGreen} />
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: T.ink, marginTop: 4 }}>
-          Wayfinder
+          Diagonally
         </div>
       </div>
 

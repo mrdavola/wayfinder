@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { ai, worldBlueprints } from '../../lib/api';
 import { getStudentSession } from '../../lib/studentSession';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../../data/careerPathways';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 const T = {
   ink: '#1A1A2E', paper: '#FAF8F5', parchment: '#F0EDE6',
@@ -1330,7 +1330,7 @@ export default function StudentProjectBuilder() {
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <WayfinderLogoIcon size={16} color={T.compassGold} />
+          <DiagonallyLogoIcon size={16} color={T.compassGold} />
           <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, color: T.ink, fontWeight: 700 }}>
             Create Project
           </span>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Check,
@@ -30,7 +30,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 import { supabase } from '../lib/supabase';
 import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges, stageBranches, generateWorldImage, uploadWorldScene, worldBlueprints } from '../lib/api';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
@@ -844,18 +844,20 @@ function Step2Skills({
   )];
 
   // Frameworks to show based on subject + grade band filter
-  const visibleFrameworks = STANDARDS_FRAMEWORKS.filter((fw) => {
+  const visibleFrameworks = useMemo(() => STANDARDS_FRAMEWORKS.filter((fw) => {
     if (fw.subject !== activeSubject) return false;
     if (activeGradeBand !== 'all' && fw.gradeBand !== activeGradeBand) return false;
     return true;
-  });
+  }), [activeSubject, activeGradeBand]);
 
   // Filter standards by search query
-  const searchLower = search.toLowerCase();
-  const matchesSearch = (std) =>
+  const searchLower = useMemo(() => search.toLowerCase(), [search]);
+  const matchesSearch = useCallback((std) =>
     !search ||
     std.label.toLowerCase().includes(searchLower) ||
-    std.description.toLowerCase().includes(searchLower);
+    std.description.toLowerCase().includes(searchLower),
+    [search, searchLower]
+  );
 
   const count = selectedStandards.length;
   const usingCustomTopic = customTopic.trim().length > 0;
@@ -3571,11 +3573,16 @@ export default function QuestBuilder() {
   const saved = useRef(loadSaved());
   const yearPlanItemRef = useRef(null);
 
-  // Step state
+  // Step state — restore the step the guide was on so a refresh doesn't drop
+  // them all the way back to step 1. Step 5 is the AI-generation screen; if
+  // the saved state doesn't include the generated result, drop to step 4 so
+  // the guide can re-trigger generation without re-entering selections.
   const [step, setStep] = useState(() => {
     const s = saved.current;
-    // Only restore to step 6 (review) — don't restore mid-generation
-    return s?.step === 6 && s?.generatedQuest ? 6 : 1;
+    if (!s?.step) return 1;
+    if (s.step === 6 && s.generatedQuest) return 6;
+    if (s.step >= 5 && !s.generatedQuest) return 4;
+    return Math.min(Math.max(s.step, 1), 6);
   });
 
   // Step 1
@@ -3654,6 +3661,18 @@ export default function QuestBuilder() {
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
   const [progress, setProgress] = useState(0);
   const [genError, setGenError] = useState(null);
+
+  // Warn the guide before they navigate away mid-generation. Closing the tab
+  // during the AI call wastes ~30s of work and leaves them on step 4 to retry.
+  useEffect(() => {
+    if (step !== 5 || genError) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [step, genError]);
 
   // Step 6 (Review)
   const [generatedQuest, setGeneratedQuest] = useState(() => saved.current?.generatedQuest || null);
@@ -3980,6 +3999,7 @@ export default function QuestBuilder() {
     if (!generatedQuest) return null;
     setSaveError(null);
     setLaunching(true);
+    let createdQuestId = null;
     try {
       // Save quest
       const { data: quest, error: questError } = await supabase
@@ -4002,6 +4022,7 @@ export default function QuestBuilder() {
         .single();
 
       if (questError) throw questError;
+      createdQuestId = quest?.id || null;
 
       // Save stages
       if (generatedQuest.stages?.length) {
@@ -4261,6 +4282,14 @@ export default function QuestBuilder() {
       return quest.id;
     } catch (err) {
       console.error('saveQuest error:', err);
+      // Roll back the orphan quest row so a retry doesn't create duplicates.
+      if (createdQuestId) {
+        try {
+          await supabase.from('quests').delete().eq('id', createdQuestId);
+        } catch (rollbackErr) {
+          console.warn('saveQuest rollback failed:', rollbackErr);
+        }
+      }
       setSaveError(typeof err?.message === 'string' ? err.message : 'Failed to save project. Check console for details.');
       return null;
     } finally {
@@ -4373,7 +4402,7 @@ export default function QuestBuilder() {
               textDecoration: 'none',
             }}
           >
-            <WayfinderLogoIcon size={22} color={T.ink} />
+            <DiagonallyLogoIcon size={22} color={T.ink} />
             <span style={{
               fontFamily: 'var(--font-display)',
               fontSize: 18,
@@ -4381,7 +4410,7 @@ export default function QuestBuilder() {
               color: T.ink,
               letterSpacing: '-0.02em',
             }}>
-              Wayfinder
+              Diagonally
             </span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

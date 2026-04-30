@@ -184,19 +184,42 @@ export default function OnboardingPage() {
     try {
       if (!user?.id) throw new Error('Not signed in. Please refresh and try again.');
 
-      // 1. Create school record
-      const { data: schoolData, error: schoolError } = await supabase
-        .from('schools')
-        .insert({
-          name: schoolName.trim(),
-          location: location.trim() || null,
-          standards_framework: standards,
-          grade_bands: gradeBands,
-        })
-        .select()
-        .single();
+      // 1a. If a previous attempt already created a school for this profile,
+      // update it instead of inserting a new one. This avoids duplicate rows
+      // when the profile update later in the flow fails and the user retries.
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('school_id')
+        .eq('id', user.id)
+        .maybeSingle();
 
-      if (schoolError) throw schoolError;
+      let schoolId = existingProfile?.school_id || null;
+
+      if (schoolId) {
+        const { error: schoolError } = await supabase
+          .from('schools')
+          .update({
+            name: schoolName.trim(),
+            location: location.trim() || null,
+            standards_framework: standards,
+            grade_bands: gradeBands,
+          })
+          .eq('id', schoolId);
+        if (schoolError) throw schoolError;
+      } else {
+        const { data: schoolData, error: schoolError } = await supabase
+          .from('schools')
+          .insert({
+            name: schoolName.trim(),
+            location: location.trim() || null,
+            standards_framework: standards,
+            grade_bands: gradeBands,
+          })
+          .select()
+          .single();
+        if (schoolError) throw schoolError;
+        schoolId = schoolData.id;
+      }
 
       // 2. Update profile
       const { error: profileError } = await supabase
@@ -204,7 +227,7 @@ export default function OnboardingPage() {
         .update({
           full_name: fullName.trim(),
           role,
-          school_id: schoolData.id,
+          school_id: schoolId,
           onboarding_complete: true,
         })
         .eq('id', user.id);
@@ -236,6 +259,9 @@ export default function OnboardingPage() {
           .onboarding-illustration { display: none !important; }
           .onboarding-form-col { width: 100% !important; max-width: 100% !important; }
         }
+        @media (max-width: 600px) {
+          .onboarding-form-col { padding: 24px 16px !important; }
+        }
       `}</style>
 
       {/* Form column */}
@@ -257,7 +283,7 @@ export default function OnboardingPage() {
             fontSize: '1.25rem',
             color: 'var(--ink)',
           }}>
-            Wayfinder
+            Diagonally
           </span>
         </div>
 
@@ -275,7 +301,7 @@ export default function OnboardingPage() {
                 margin: '0 0 8px',
                 lineHeight: 1.2,
               }}>
-                Welcome to Wayfinder, {firstName}!
+                Welcome to Diagonally, {firstName}!
               </h2>
               <p style={{ color: 'var(--graphite)', margin: 0, fontSize: 'var(--text-sm)' }}>
                 Let's set up your account. This takes less than two minutes.
@@ -528,7 +554,7 @@ export default function OnboardingPage() {
                   </>
                 ) : (
                   <>
-                    Launch Wayfinder
+                    Launch Diagonally
                     <ChevronRight size={16} />
                   </>
                 )}
@@ -580,7 +606,7 @@ export default function OnboardingPage() {
               margin: 0,
               lineHeight: 1.5,
             }}>
-              Wayfinder helps you map it — turning curiosity into structured, meaningful projects.
+              Diagonally helps you map it — turning curiosity into structured, meaningful projects.
             </p>
           </div>
 

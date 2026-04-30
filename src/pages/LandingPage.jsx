@@ -18,7 +18,7 @@ import {
   BarChart2,
   ShieldCheck,
 } from 'lucide-react';
-import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 import { supabase } from '../lib/supabase';
 
 /* ─── Scroll animation hook ─────────────────────────────────────────────── */
@@ -70,7 +70,7 @@ function QuestMapIllustration() {
     <svg
       viewBox="0 0 340 480"
       xmlns="http://www.w3.org/2000/svg"
-      aria-label="Wayfinder project map illustration"
+      aria-label="Diagonally project map illustration"
       style={{ width: '100%', maxWidth: 340, height: 'auto' }}
     >
       {/* Grid paper lines */}
@@ -272,14 +272,14 @@ export default function LandingPage() {
               color: 'var(--ink)',
             }}
           >
-            <WayfinderLogoIcon size={28} color="var(--ink)" />
+            <DiagonallyLogoIcon size={28} color="var(--ink)" />
             <span style={{
               fontFamily: 'var(--font-display)',
               fontSize: 'var(--text-xl)',
               letterSpacing: '-0.01em',
               lineHeight: 1,
             }}>
-              Wayfinder
+              Diagonally
             </span>
           </Link>
 
@@ -479,7 +479,7 @@ export default function LandingPage() {
                   maxWidth: 520,
                 }}
               >
-                Tell Wayfinder what your learners care about, pick your standards, and let the AI build a rigorous, career-connected project in under two minutes.
+                Tell Diagonally what your learners care about, pick your standards, and let the AI build a rigorous, career-connected project in under two minutes.
               </p>
 
               <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -589,7 +589,7 @@ export default function LandingPage() {
               Meanwhile, AI is transforming fields like material science, synthetic biology, and telemedicine — but a 9-year-old building a Minecraft world has no idea these fields exist, let alone that their spatial reasoning could lead there.
             </p>
             <p style={{ color: 'var(--graphite)', lineHeight: 1.75 }}>
-              Wayfinder bridges that gap.
+              Diagonally bridges that gap.
             </p>
           </div>
         </div>
@@ -646,7 +646,7 @@ export default function LandingPage() {
                 num: '1',
                 Icon: Compass,
                 title: 'Guide Inputs Interests',
-                desc: 'Share what your students are obsessed with. Select the academic skills you need to embed. Wayfinder\'s AI does the rest.',
+                desc: 'Share what your students are obsessed with. Select the academic skills you need to embed. Diagonally\'s AI does the rest.',
               },
               {
                 num: '2',
@@ -916,7 +916,7 @@ export default function LandingPage() {
               padding: 0,
             }}
           >
-            Wayfinder made me feel like I could actually design projects that honor who my students are — and I did it in 10 minutes.
+            Diagonally made me feel like I could actually design projects that honor who my students are — and I did it in 10 minutes.
           </blockquote>
 
           <p
@@ -981,7 +981,7 @@ export default function LandingPage() {
                 For Schools
               </p>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)', color: 'var(--chalk)', marginBottom: 'var(--space-6)', lineHeight: 1.2, letterSpacing: '-0.02em' }}>
-                Bring Wayfinder to your whole campus.
+                Bring Diagonally to your whole campus.
               </h2>
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)', color: 'rgba(255,255,255,0.72)', lineHeight: 1.7, marginBottom: 'var(--space-8)' }}>
                 School licenses unlock a shared Project Library, administrator dashboards, standards alignment reports, and onboarding support — so every guide can hit the ground running.
@@ -1003,7 +1003,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <a
-                href="mailto:schools@wayfinder.app"
+                href="mailto:schools@diagonally.app"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   background: 'var(--compass-gold)', color: 'var(--ink)',
@@ -1195,7 +1195,7 @@ export default function LandingPage() {
               letterSpacing: '-0.01em',
             }}
           >
-            Wayfinder
+            Diagonally
           </span>
 
           <nav
@@ -1210,7 +1210,7 @@ export default function LandingPage() {
               { label: 'About',       href: '#' },
               { label: 'For Guides',  href: '#how-it-works' },
               { label: 'For Schools', href: '#schools' },
-              { label: 'Contact',     href: 'mailto:hello@wayfinder.app' },
+              { label: 'Contact',     href: 'mailto:hello@diagonally.app' },
             ].map(({ label, href }) => (
               <a
                 key={label}
@@ -1239,7 +1239,7 @@ export default function LandingPage() {
               letterSpacing: '0.03em',
             }}
           >
-            &copy; 2025 Wayfinder. Built for learner-driven schools.
+            &copy; 2025 Diagonally. Built for learner-driven schools.
           </p>
         </div>
       </footer>

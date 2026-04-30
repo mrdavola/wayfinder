@@ -140,7 +140,7 @@ function PageHeader() {
         color: 'var(--ink)',
         letterSpacing: '0.01em',
       }}>
-        Wayfinder Experiment
+        Diagonally Experiment
       </span>
     </header>
   );
@@ -1232,7 +1232,7 @@ function PhaseReflection({ learners, quest, selectedConcepts, onComplete, onRest
               <ArrowLeft size={16} /> Start a new expedition
             </button>
             <a href="/signup" className="btn btn-primary">
-              Join Wayfinder
+              Join Diagonally
               <ArrowRight size={16} />
             </a>
           </div>

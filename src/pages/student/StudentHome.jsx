@@ -15,7 +15,7 @@ import XPBar from '../../components/xp/XPBar';
 import { STBadge } from '../../components/xp/STBadge';
 import { generateExploration } from '../../lib/explorationPipeline';
 import { getStudentSession, clearStudentSession } from '../../lib/studentSession';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 
 const PATHWAY_COLORS = {
   biology: '#2D6A4F',
@@ -675,9 +675,9 @@ export default function StudentHome() {
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <WayfinderLogoIcon size={20} color="var(--ink)" />
+          <DiagonallyLogoIcon size={20} color="var(--ink)" />
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-            Wayfinder
+            Diagonally
           </span>
         </div>
 

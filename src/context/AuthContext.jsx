@@ -50,10 +50,13 @@ export function AuthProvider({ children }) {
   };
 
   const signInWithGoogle = async () => {
+    // Send OAuth users to /onboarding first; ProtectedRoute then routes
+    // already-onboarded users on to /dashboard. This avoids the half-rendered
+    // dashboard window while the profile row is still being created.
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/onboarding`,
       },
     });
     return { data, error };

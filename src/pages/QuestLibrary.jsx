@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 import TopBar from '../components/layout/TopBar';
 
 // ── Pathway Options ────────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ import { getStudentSession } from '../lib/studentSession';
 // ===================== SYSTEM PROMPT BUILDER =====================
 
 const buildSystemPrompt = (simulation, quest, fieldNotes) => `
-You are a voice agent in Wayfinder's career simulation.
+You are a voice agent in Diagonally's career simulation.
 Role: ${simulation?.voice_agent_personality || 'An experienced professional'}
 Quest: ${quest?.title || 'Career exploration'}
 Scenario: ${simulation?.context || ''}
@@ -570,7 +570,18 @@ function DebriefScreen({ simulation, messages, onReturnToQuest }) {
 export default function SimulationChamber() {
   const { id } = useParams();
   const navigate = useNavigate();
-  useAuth(); // Auth context available; user accessible if needed for future writes
+  const { user, loading: authLoading } = useAuth();
+
+  // Authorize access. The route is unwrapped so it can serve both guides
+  // (authenticated Supabase user) and students (PIN-verified session). Bounce
+  // anyone who is neither once auth state has settled.
+  useEffect(() => {
+    if (authLoading) return;
+    const studentSession = getStudentSession();
+    if (!user && !studentSession?.studentId) {
+      navigate('/login', { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   // Inject CSS once
   useEffect(() => { injectStyles(); }, []);
@@ -922,7 +933,7 @@ export default function SimulationChamber() {
           letterSpacing: '0.05em',
           textTransform: 'uppercase',
         }}>
-          Wayfinder
+          Diagonally
         </span>
 
         {/* Timer */}

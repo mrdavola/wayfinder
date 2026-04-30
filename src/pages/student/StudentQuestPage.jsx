@@ -26,7 +26,7 @@ import ChoiceFork from '../../components/stages/ChoiceFork';
 import EvidenceBoard from '../../components/stages/EvidenceBoard';
 import useAmbientSound from '../../hooks/useAmbientSound';
 import CampfireChat from '../../components/social/CampfireChat';
-import WayfinderLogoIcon from '../../components/icons/WayfinderLogo';
+import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
 import TrustBadge from '../../components/ui/TrustBadge';
 import ScoreCard, { MASTERY_THRESHOLD } from '../../components/ui/ScoreCard';
 import { getTrustTier } from '../../lib/trustDomains';
@@ -493,9 +493,9 @@ function WelcomeScreen({ quest, assignedStudents, onEnter }) {
     }}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
-        <WayfinderLogoIcon size={28} color="var(--compass-gold)" />
+        <DiagonallyLogoIcon size={28} color="var(--compass-gold)" />
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>
-          Wayfinder
+          Diagonally
         </span>
       </div>
 
@@ -2439,6 +2439,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
 
   const [feedback, setFeedback] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
   const [revising, setRevising] = useState(false);
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -2782,6 +2783,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
 
               // AI review chain — determines if mastery is passed before advancing
               setFeedbackLoading(true);
+              setFeedbackError('');
               try {
                 const result = await ai.reviewSubmission({
                   stageTitle: stage.title,
@@ -2889,6 +2891,7 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
                 }
               } catch (e) {
                 console.error('AI review failed — submission was saved successfully:', e);
+                setFeedbackError('Your work was saved, but feedback couldn’t load right now. Try again in a moment.');
               } finally {
                 setFeedbackLoading(false);
               }
@@ -2922,6 +2925,17 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
       {feedbackLoading && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0', fontSize: 11, color: 'var(--graphite)', fontStyle: 'italic' }}>
           <Loader2 size={12} className="sq-spin" /> Getting reactions from your Field Guide...
+        </div>
+      )}
+      {feedbackError && !feedbackLoading && !feedback && (
+        <div style={{
+          padding: '10px 12px', marginTop: 8,
+          background: 'rgba(184,134,11,0.08)', border: '1px solid rgba(184,134,11,0.25)',
+          borderRadius: 8, fontSize: 12, color: 'var(--ink)', lineHeight: 1.5,
+          display: 'flex', alignItems: 'flex-start', gap: 8,
+        }}>
+          <AlertCircle size={14} color="var(--compass-gold)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>{feedbackError}</span>
         </div>
       )}
       {feedback && (
@@ -3672,29 +3686,40 @@ export default function StudentQuestPage() {
     if (studentName) loadSubmissions();
   }, [studentName, loadSubmissions]);
 
-  // Load student profile and group role when student is identified
+  // Load student profile and group role when student is identified.
+  // If a session-stored studentId points at a name no longer assigned to this
+  // project (e.g. teacher reassigned), clear the session and re-prompt rather
+  // than silently degrading to anonymous mode.
   useEffect(() => {
-    if (!studentName || !id) return;
+    if (!studentName || !id || assignedStudents.length === 0) return;
     const loadProfile = async () => {
-      // Find student by name among assigned students
       const matched = assignedStudents.find(s => s.name === studentName);
-      if (matched?.id) {
-        const { data: profile } = await supabase
-          .from('students')
-          .select('id, name, age, grade_band, interests, passions, about_me, self_assessment, avatar_emoji, allow_ai_guide')
-          .eq('id', matched.id)
-          .single();
-        if (profile) setStudentProfile(profile);
-
-        // Check for group role
-        const { data: groupMember } = await supabase
-          .from('quest_group_members')
-          .select('role, quest_groups!inner(quest_id)')
-          .eq('student_id', matched.id)
-          .eq('quest_groups.quest_id', id)
-          .maybeSingle();
-        if (groupMember?.role) setGroupRole(groupMember.role);
+      if (!matched?.id) {
+        const session = getStudentSession();
+        if (session?.studentId) {
+          // The picker UI is still right, the session is stale — clear and reload.
+          clearStudentSession();
+          sessionStorage.removeItem(`wayfinder_student_${id}`);
+          setStudentName('');
+          setStudentProfile(null);
+        }
+        return;
       }
+      const { data: profile } = await supabase
+        .from('students')
+        .select('id, name, age, grade_band, interests, passions, about_me, self_assessment, avatar_emoji, allow_ai_guide')
+        .eq('id', matched.id)
+        .single();
+      if (profile) setStudentProfile(profile);
+
+      // Check for group role
+      const { data: groupMember } = await supabase
+        .from('quest_group_members')
+        .select('role, quest_groups!inner(quest_id)')
+        .eq('student_id', matched.id)
+        .eq('quest_groups.quest_id', id)
+        .maybeSingle();
+      if (groupMember?.role) setGroupRole(groupMember.role);
     };
     loadProfile();
   }, [studentName, assignedStudents, id]);
@@ -4409,7 +4434,7 @@ export default function StudentQuestPage() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-      <WayfinderLogoIcon size={36} color="var(--compass-gold)" />
+      <DiagonallyLogoIcon size={36} color="var(--compass-gold)" />
       <Loader2 size={20} color="var(--graphite)" className="sq-spin" />
     </div>
   );
@@ -4483,9 +4508,9 @@ export default function StudentQuestPage() {
             </button>
           ) : (
             <>
-              <WayfinderLogoIcon size={16} color="var(--compass-gold)" />
+              <DiagonallyLogoIcon size={16} color="var(--compass-gold)" />
               <span className="sq-topbar-title" style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-                Wayfinder
+                Diagonally
               </span>
             </>
           )}

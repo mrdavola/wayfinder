@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { masteryMap } from '../lib/api';
 import { supabase } from '../lib/supabase';
-import WayfinderLogoIcon from '../components/icons/WayfinderLogo';
-import ProgressRadar from '../components/ui/ProgressRadar';
+import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
+// recharts (~300KB) only loads when the user picks the radar view.
+const ProgressRadar = lazy(() => import('../components/ui/ProgressRadar'));
 import SkillTreeView from '../components/ui/SkillTreeView';
 import { skills as skillsApi } from '../lib/api';
 
@@ -82,7 +83,7 @@ export default function MasteryMap() {
           <ArrowLeft size={14} /> Back to profile
         </Link>
         <div style={{ marginLeft: 'auto' }}>
-          <WayfinderLogoIcon size={16} color="var(--compass-gold)" />
+          <DiagonallyLogoIcon size={16} color="var(--compass-gold)" />
         </div>
       </header>
 
@@ -120,11 +121,17 @@ export default function MasteryMap() {
           </div>
         </div>
         {masteryView === 'radar' ? (
-          <ProgressRadar
-            assessments={data?.assessments || {}}
-            studentSkills={data?.studentSkills || []}
-            learningOutcomes={learningOutcomes}
-          />
+          <Suspense fallback={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 280 }}>
+              <Loader2 size={20} color="var(--graphite)" style={{ animation: 'spin 1s linear infinite' }} />
+            </div>
+          }>
+            <ProgressRadar
+              assessments={data?.assessments || {}}
+              studentSkills={data?.studentSkills || []}
+              learningOutcomes={learningOutcomes}
+            />
+          </Suspense>
         ) : (
           <SkillTreeView
             studentSkills={data?.studentSkills || []}
