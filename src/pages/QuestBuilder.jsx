@@ -3807,9 +3807,12 @@ export default function QuestBuilder() {
   const [marbleStatus, setMarbleStatus] = useState(() => saved.current?.marbleStatus || null); // null | 'generating' | 'ready' | 'failed'
   const [marbleData, setMarbleData] = useState(() => saved.current?.marbleData || null);
   const marblePollingRef = useRef(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (marblePollingRef.current) clearTimeout(marblePollingRef.current);
     };
   }, []);
@@ -3987,9 +3990,9 @@ export default function QuestBuilder() {
         selectedInterests.slice(0, 2).join(' and '),
       ].filter(Boolean).join(', ');
       generatePortrait(biomeId, portraitHint)
-        .then((url) => setPortraitUrl(url))
+        .then((url) => { if (mountedRef.current) setPortraitUrl(url); })
         .catch(() => {})
-        .finally(() => setPortraitLoading(false));
+        .finally(() => { if (mountedRef.current) setPortraitLoading(false); });
 
       const standardsStr = selectedStandards.length > 0
         ? selectedStandards.map((s) => `${s.id}: ${s.description}`).join('; ')
@@ -4527,9 +4530,9 @@ export default function QuestBuilder() {
       .filter(Boolean);
     const portraitHint = pathwayLabels[0] ? `for a ${pathwayLabels[0].toLowerCase()} project` : '';
     generatePortrait(biomeId, portraitHint)
-      .then((url) => setPortraitUrl(url))
+      .then((url) => { if (mountedRef.current) setPortraitUrl(url); })
       .catch(() => {})
-      .finally(() => setPortraitLoading(false));
+      .finally(() => { if (mountedRef.current) setPortraitLoading(false); });
   };
 
   const handleSkipPathway = () => {
