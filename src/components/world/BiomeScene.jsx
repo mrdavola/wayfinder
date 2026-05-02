@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import './BiomeScene.css';
 import { getBiome } from '../../biomes';
 import ParallaxScene from './ParallaxScene';
@@ -39,8 +39,14 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }
   const systemReduced = useReducedMotion();
   const { zoomedHotspot, zoomTo, zoomOut } = useWorldState();
   const [igniting, setIgniting] = useState(null);
+  const igniteTimer = useRef(null);
 
-  const resolved = resolveHotspots(cfg.hotspots, stages);
+  const resolved = useMemo(
+    () => resolveHotspots(cfg.hotspots, stages),
+    [cfg.hotspots, stages]
+  );
+
+  useEffect(() => () => clearTimeout(igniteTimer.current), []);
   const activeHotspot = resolved.find(h => zoomedHotspot === `${h.role}-${h.configIndex}`);
   const guideHotspot = cfg.hotspots.find(h => h.role === 'guide');
 
@@ -54,7 +60,7 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }
       const nextStageH = resolved.find((h, i) => i > completedIdx && h.role === 'stage' && h.state === 'future');
       if (nextStageH) {
         setIgniting(nextStageH.configIndex);
-        setTimeout(() => setIgniting(null), 800);
+        igniteTimer.current = setTimeout(() => setIgniting(null), 800);
       }
     }
     onStageComplete?.(stageId);
