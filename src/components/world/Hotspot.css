@@ -1,0 +1,44 @@
+.hotspot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border: 2px dashed var(--graphite, #4a3f33);
+  border-radius: 50%;
+  background: rgba(255, 246, 220, 0.45);
+  cursor: pointer;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.hotspot:focus-visible {
+  outline: 3px solid var(--compass-gold, #d6a64d);
+  outline-offset: 2px;
+}
+.hotspot[data-state='future'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-style: dotted;
+}
+.hotspot[data-state='completed'] {
+  opacity: 0.7;
+}
+.hotspot__pulse {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--specimen-red, #b8443a);
+  box-shadow: 0 0 0 0 rgba(184, 68, 58, 0.6);
+  animation: hotspot-pulse 2.4s ease-in-out infinite;
+}
+.hotspot[data-state='future'] .hotspot__pulse,
+.hotspot[data-state='completed'] .hotspot__pulse { animation: none; }
+
+@keyframes hotspot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184,68,58,0.6); }
+  50%      { box-shadow: 0 0 0 12px rgba(184,68,58,0);   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hotspot__pulse { animation: none; }
+}
