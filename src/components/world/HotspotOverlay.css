@@ -1,0 +1,101 @@
+.hotspot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+
+.hotspot-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 22, 12, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.hotspot-overlay__sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  background: var(--paper, #fbf6e7);
+  border-radius: 18px 18px 0 0;
+  border-top: 2px solid var(--parchment, #e8d8b0);
+  box-shadow: 0 -8px 40px rgba(30, 22, 12, 0.18);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  animation: ho-slide-up 280ms cubic-bezier(0.34, 1.46, 0.64, 1) both;
+}
+
+@keyframes ho-slide-up {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to   { transform: translateY(0);    opacity: 1;   }
+}
+
+.hotspot-overlay__close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--pencil, #888);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--graphite, #4a3f33);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+}
+.hotspot-overlay__close:hover { background: var(--parchment); }
+.hotspot-overlay__close:focus-visible {
+  outline: 2px solid var(--compass-gold, #d6a64d);
+  outline-offset: 2px;
+}
+
+.hotspot-overlay__scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px 20px 32px;
+}
+
+.hotspot-overlay__sheet::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 4px;
+  background: var(--pencil, #888);
+  border-radius: 2px;
+  margin: 10px auto 4px;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.ho-panel { padding: 8px 0; }
+.ho-title { font-family: var(--font-display, 'Instrument Serif', serif); font-size: 22px; color: var(--ink); margin: 0 0 10px; padding-right: 36px; }
+.ho-body  { font-family: var(--font-body, 'DM Sans', sans-serif); font-size: 15px; color: var(--graphite); line-height: 1.6; margin: 0 0 12px; }
+.ho-empty { font-family: var(--font-body); font-size: 14px; color: var(--pencil); text-align: center; padding: 32px 0; }
+.ho-hint  { font-family: var(--font-mono); font-size: 11px; color: var(--pencil); margin: 8px 0 0; }
+.ho-stage-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--chalk, #fff);
+  background: var(--field-green, #3d7a3d);
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+}
+.ho-cta { width: 100%; margin-top: 16px; }
+.ho-feedback-list { display: flex; flex-direction: column; }
+.ho-panel--chat { padding: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hotspot-overlay__sheet { animation: none; }
+}
