@@ -33,6 +33,9 @@ import { useAuth } from '../context/AuthContext';
 import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 import { supabase } from '../lib/supabase';
 import { ai, questGroups as questGroupsApi, guidePlaybook, landmarksApi, interactiveStages, yearPlanItems, expeditionChallenges, stageBranches, generateWorldImage, uploadWorldScene, worldBlueprints } from '../lib/api';
+import { generatePortrait, generateDecorSlot } from '../lib/artGen';
+import { getBiome } from '../biomes';
+import CharacterPortrait from '../components/world/CharacterPortrait';
 import { CAREER_PATHWAYS, PATHWAY_CATEGORIES } from '../data/careerPathways';
 import { STANDARDS_FRAMEWORKS, findStandardById } from '../data/standardsFrameworks';
 import TrustBadge from '../components/ui/TrustBadge';
@@ -55,8 +58,11 @@ const T = {
   chalk: '#FFFFFF',
 };
 
-
-
+const BIOME_META = {
+  campsite: { label: 'Field Campsite', desc: 'Learners explore as naturalists in the field', icon: '🏕️' },
+  lab:      { label: 'Science Lab',    desc: 'Learners work as scientists in a lab',          icon: '🔬' },
+  workshop: { label: 'Workshop',        desc: 'Learners build and make in a workshop',         icon: '🔧' },
+};
 
 const STEP_LABELS = ['Students', 'Skills', 'Pathway', 'Anything Else?', 'Generating', 'Review', 'Launch'];
 
@@ -1748,7 +1754,7 @@ function Step3Pathway({ selectedPathways, setSelectedPathways, customCareer, set
 }
 
 // ── Step 4: Anything Else? ───────────────────────────────────────────────────
-function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWorld, setUseRealWorld, projectMode, setProjectMode, isBranching, setIsBranching, onBack, onNext }) {
+function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWorld, setUseRealWorld, projectMode, setProjectMode, isBranching, setIsBranching, biomeId, setBiomeId, onBack, onNext }) {
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: T.ink, margin: '0 0 6px' }}>
@@ -1817,6 +1823,46 @@ function Step4AnythingElse({ additionalContext, setAdditionalContext, useRealWor
             </div>
           </div>
         </label>
+      </div>
+
+      {/* Biome Picker */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--graphite)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+          World Environment
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)', margin: '0 0 10px', lineHeight: 1.5 }}>
+          Choose where learners will complete this project. Your AI guide character and decorations are styled to match.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          {[
+            { id: 'campsite', label: 'Field Campsite', desc: 'Outdoors, nature, exploration', icon: '🏕️', available: true },
+            { id: 'lab',      label: 'Science Lab',    desc: 'Experiments, discovery',        icon: '🔬', available: false },
+            { id: 'workshop', label: 'Workshop',        desc: 'Making, building, crafting',   icon: '🔧', available: false },
+          ].map((b) => {
+            const selected = biomeId === b.id;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                onClick={b.available ? () => setBiomeId(b.id) : undefined}
+                style={{
+                  padding: '10px 8px',
+                  border: `1.5px solid ${selected ? 'var(--compass-gold)' : 'var(--pencil)'}`,
+                  borderRadius: 10,
+                  background: selected ? 'rgba(184,134,11,0.08)' : b.available ? 'var(--paper)' : 'var(--parchment)',
+                  cursor: b.available ? 'pointer' : 'default',
+                  opacity: b.available ? 1 : 0.55,
+                  textAlign: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ fontSize: 22, marginBottom: 4 }}>{b.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: selected ? 'var(--ink)' : 'var(--graphite)', fontFamily: 'var(--font-body)' }}>{b.label}</div>
+                <div style={{ fontSize: 10, color: 'var(--pencil)', fontFamily: 'var(--font-body)', marginTop: 2 }}>{b.available ? b.desc : 'Coming soon'}</div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <textarea
@@ -2158,6 +2204,10 @@ function Step6Review({
   saveError,
   marbleStatus,
   marbleData,
+  biomeId,
+  portraitUrl,
+  portraitLoading,
+  onRegeneratePortrait,
 }) {
   const [openStage, setOpenStage] = useState(null);
   const [editingStudents, setEditingStudents] = useState(false);
@@ -2280,6 +2330,77 @@ function Step6Review({
           {editingStudents ? 'Done' : 'Edit'}
         </button>
       </div>
+
+      {/* Your World: biome + portrait preview */}
+      {(() => {
+        const meta = BIOME_META[biomeId] ?? BIOME_META.campsite;
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 16,
+            marginBottom: 24, padding: '14px 16px',
+            background: 'rgba(184,134,11,0.05)', borderRadius: 12,
+            border: '1.5px solid rgba(184,134,11,0.25)',
+          }}>
+            {/* Portrait */}
+            <div style={{ flexShrink: 0, width: 60, height: 92, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {portraitLoading ? (
+                <div style={{
+                  width: 40, height: 40, border: '3px solid var(--pencil)',
+                  borderTopColor: 'var(--compass-gold)',
+                  borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                }} />
+              ) : (
+                <CharacterPortrait
+                  imageUrl={portraitUrl}
+                  size={80}
+                  label={`${meta.label} guide character`}
+                  figureProps={{ outfit: biomeId === 'lab' ? 'lab' : biomeId === 'workshop' ? 'workshop' : 'field' }}
+                />
+              )}
+            </div>
+
+            {/* Biome info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <span style={{ fontSize: 16 }}>{meta.icon}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: 'var(--font-body)' }}>
+                  {meta.label}
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: T.graphite, fontFamily: 'var(--font-body)', margin: '0 0 8px', lineHeight: 1.4 }}>
+                {meta.desc}
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={onRegenerate}
+                  style={{
+                    fontSize: 11, fontWeight: 600, color: T.labBlue,
+                    background: 'none', border: `1px solid ${T.labBlue}`,
+                    borderRadius: 6, padding: '3px 10px', cursor: 'pointer',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  Change biome
+                </button>
+                {onRegeneratePortrait && (
+                  <button
+                    onClick={onRegeneratePortrait}
+                    disabled={portraitLoading}
+                    style={{
+                      fontSize: 11, fontWeight: 600, color: T.graphite,
+                      background: 'none', border: `1px solid ${T.pencil}`,
+                      borderRadius: 6, padding: '3px 10px', cursor: 'pointer',
+                      fontFamily: 'var(--font-body)', opacity: portraitLoading ? 0.5 : 1,
+                    }}
+                  >
+                    {portraitLoading ? 'Generating…' : 'New portrait'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Inline student picker */}
       {editingStudents && allStudents && (
@@ -3603,6 +3724,9 @@ export default function QuestBuilder() {
 
   // Step 4 (Anything Else?)
   const [additionalContext, setAdditionalContext] = useState(() => saved.current?.additionalContext || '');
+  const [biomeId, setBiomeId] = useState(() => saved.current?.biomeId || 'campsite');
+  const [portraitUrl, setPortraitUrl] = useState(() => saved.current?.portraitUrl || null);
+  const [portraitLoading, setPortraitLoading] = useState(false);
   const [useRealWorld, setUseRealWorld] = useState(false);
   const [projectMode, setProjectMode] = useState('mixed');
   const [isBranching, setIsBranching] = useState(false);
@@ -3734,9 +3858,10 @@ export default function QuestBuilder() {
       selectedInterests, selectedStandards, customTopic, additionalContext,
       selectedPathways, customCareer, generatedQuest,
       marbleStatus, marbleData,
+      biomeId, portraitUrl,
     };
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-  }, [step, questType, selectedStudentId, selectedStudentIds, selectedInterests, selectedStandards, customTopic, additionalContext, selectedPathways, customCareer, generatedQuest, launchedQuestId, marbleStatus, marbleData]);
+  }, [step, questType, selectedStudentId, selectedStudentIds, selectedInterests, selectedStandards, customTopic, additionalContext, selectedPathways, customCareer, generatedQuest, launchedQuestId, marbleStatus, marbleData, biomeId, portraitUrl]);
 
   // Refs for generation timers
   const progressRef = useRef(null);
@@ -3853,6 +3978,18 @@ export default function QuestBuilder() {
         .map((id) => CAREER_PATHWAYS.find((p) => p.id === id)?.label)
         .filter(Boolean);
       if (customCareer.trim()) pathwayLabels.push(customCareer.trim());
+
+      // Portrait generation fires in parallel — never blocks quest gen.
+      // If it fails, portraitUrl stays null and BiomeScene falls back to <FieldFigure>.
+      setPortraitLoading(true);
+      const portraitHint = [
+        pathwayLabels[0] ? `for a ${pathwayLabels[0].toLowerCase()} project` : '',
+        selectedInterests.slice(0, 2).join(' and '),
+      ].filter(Boolean).join(', ');
+      generatePortrait(biomeId, portraitHint)
+        .then((url) => setPortraitUrl(url))
+        .catch(() => {})
+        .finally(() => setPortraitLoading(false));
 
       const standardsStr = selectedStandards.length > 0
         ? selectedStandards.map((s) => `${s.id}: ${s.description}`).join('; ')
@@ -3981,7 +4118,7 @@ export default function QuestBuilder() {
       setGenError(err?.message || 'Something went wrong. Please try again.');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedInterests, selectedStudents, selectedStandards, selectedPathways, customCareer, questType]);
+  }, [selectedInterests, selectedStudents, selectedStandards, selectedPathways, customCareer, questType, biomeId]);
 
   useEffect(() => {
     if (step === 5) {
@@ -4017,6 +4154,8 @@ export default function QuestBuilder() {
           reflection_prompts: generatedQuest.reflection_prompts,
           parent_summary: generatedQuest.parent_summary,
           project_mode: projectMode,
+          biome_id: biomeId || 'campsite',
+          character_image_url: portraitUrl || null,
         })
         .select()
         .single();
@@ -4134,6 +4273,28 @@ export default function QuestBuilder() {
                 console.warn('Expedition challenges save failed:', e);
               }
             }
+          }
+
+          // Decor slots — fire-and-forget, same pattern as landmarks
+          const biomeCfg = getBiome(biomeId || 'campsite');
+          const decorSlots = biomeCfg?.decor || [];
+          if (decorSlots.length > 0 && createdQuestId) {
+            const questTitle = generatedQuest.quest_title || '';
+            Promise.allSettled(
+              decorSlots.map(async (d) => {
+                const { url, prompt } = await generateDecorSlot(d.slot, biomeId, questTitle);
+                await supabase.from('quest_decor').upsert(
+                  {
+                    quest_id: createdQuestId,
+                    slot:      d.slot,
+                    image_url: url,
+                    prompt,
+                    style_prefix_version: 'v1',
+                  },
+                  { onConflict: 'quest_id,slot' }
+                );
+              })
+            );
           }
 
           // Upload world scene image and save to quest (AWAITED — critical for student view)
@@ -4357,6 +4518,20 @@ export default function QuestBuilder() {
     setStep(4); // Go to "Anything Else?" so guide can refine before re-generating
   };
 
+  const handleRegeneratePortrait = () => {
+    if (portraitLoading) return;
+    setPortraitUrl(null);
+    setPortraitLoading(true);
+    const pathwayLabels = selectedPathways
+      .map((id) => CAREER_PATHWAYS.find((p) => p.id === id)?.label)
+      .filter(Boolean);
+    const portraitHint = pathwayLabels[0] ? `for a ${pathwayLabels[0].toLowerCase()} project` : '';
+    generatePortrait(biomeId, portraitHint)
+      .then((url) => setPortraitUrl(url))
+      .catch(() => {})
+      .finally(() => setPortraitLoading(false));
+  };
+
   const handleSkipPathway = () => {
     setSelectedPathways([]);
     setCustomCareer('');
@@ -4515,6 +4690,8 @@ export default function QuestBuilder() {
                 setProjectMode={setProjectMode}
                 isBranching={isBranching}
                 setIsBranching={setIsBranching}
+                biomeId={biomeId}
+                setBiomeId={setBiomeId}
                 onBack={() => setStep(3)}
                 onNext={() => setStep(5)}
               />
@@ -4552,6 +4729,10 @@ export default function QuestBuilder() {
                 saveError={saveError}
                 marbleStatus={marbleStatus}
                 marbleData={marbleData}
+                biomeId={biomeId}
+                portraitUrl={portraitUrl}
+                portraitLoading={portraitLoading}
+                onRegeneratePortrait={handleRegeneratePortrait}
               />
             )}
 
