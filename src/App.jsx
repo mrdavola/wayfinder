@@ -38,6 +38,7 @@ const MasteryMap = lazy(() => import('./pages/MasteryMap'));
 const CommunityRepository = lazy(() => import('./pages/CommunityRepository'));
 const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage'));
 const WorldRenderer = lazy(() => import('./pages/student/WorldRenderer'));
+const BiomePreview = lazy(() => import('./pages/student/_BiomePreview.jsx'));
 
 import './index.css';
 
@@ -67,6 +68,7 @@ export default function App() {
             {/* Student-facing routes — no auth required */}
             <Route path="/world/:id" element={<WorldRenderer />} />
             <Route path="/q/:id" element={<StudentQuestPage />} />
+            <Route path="/q/:questId/world-preview" element={<BiomePreview />} />
             <Route path="/join/:code" element={<LearnerIntakeForm />} />
             <Route path="/student/login" element={<StudentLogin />} />
             <Route path="/student" element={<CampHub />} />
