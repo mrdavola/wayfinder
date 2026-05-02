@@ -1,5 +1,5 @@
 // src/components/world/AmbientLayer.test.jsx
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import AmbientLayer from './AmbientLayer';
 
@@ -26,5 +26,15 @@ describe('<AmbientLayer>', () => {
   it('renders a lanternFlicker element for campsite', () => {
     const { container } = render(<AmbientLayer ambient={['lanternFlicker']} />);
     expect(container.querySelector('[data-ambient="lanternFlicker"]')).toBeTruthy();
+  });
+
+  it('adds data-calm when system prefers-reduced-motion', () => {
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    const { container } = render(<AmbientLayer ambient={['lanternFlicker']} />);
+    expect(container.firstChild).toHaveAttribute('data-calm', 'true');
   });
 });

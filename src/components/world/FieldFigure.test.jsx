@@ -44,4 +44,10 @@ describe('<FieldFigure>', () => {
     const body = container.querySelector('[data-feature="body"]');
     expect(body).toHaveAttribute('fill', OUTFIT_COLORS.field);
   });
+
+  it('unknown mood falls back to neutral mouth', () => {
+    const { container } = render(<FieldFigure mood="confused" />);
+    expect(container.querySelector('[data-feature="mouth-neutral"]')).toBeTruthy();
+    expect(container.querySelector('[data-feature="mouth-happy"]')).toBeNull();
+  });
 });
