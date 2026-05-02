@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useViewMode } from '../../hooks/useViewMode';
 import { useBiomeQuest } from '../../hooks/useBiomeQuest';
 import { getStudentSession } from '../../lib/studentSession';
+import { supabase } from '../../lib/supabase';
 import BiomeScene from '../../components/world/BiomeScene';
 
 const StudentQuestPage = lazy(() => import('./StudentQuestPage'));
@@ -59,6 +60,21 @@ export default function BiomePage() {
 function BiomePageWorld({ questId }) {
   const { quest, stages, loading, error, refreshStages } = useBiomeQuest(questId);
   const studentSession = getStudentSession() || {};
+  const [feedback, setFeedback] = useState([]);
+
+  useEffect(() => {
+    if (!questId) return;
+    const studentId = studentSession.studentId || null;
+    const name      = studentSession.studentName || null;
+    let q = supabase
+      .from('submission_feedback')
+      .select('*')
+      .eq('quest_id', questId)
+      .order('created_at', { ascending: false });
+    if (studentId) q = q.eq('student_id', studentId);
+    else if (name)  q = q.eq('student_name', name);
+    q.then(({ data }) => setFeedback(data || []));
+  }, [questId, studentSession.studentId, studentSession.studentName]);
 
   if (loading) return <LoadingScreen />;
   if (error || !quest) return <ErrorScreen message={error?.message} />;
@@ -68,6 +84,7 @@ function BiomePageWorld({ questId }) {
       quest={quest}
       stages={stages}
       studentSession={studentSession}
+      feedback={feedback}
       onStageComplete={refreshStages}
     />
   );
