@@ -22,12 +22,17 @@ const DECOR_SUBJECT = {
  */
 export async function generatePortrait(biomeId = 'campsite', extraHint = '') {
   const subject = GUIDE_SUBJECT[biomeId] ?? GUIDE_SUBJECT.campsite;
-  const hint    = extraHint.trim();
+  const hint    = String(extraHint || '').trim();
   const prompt  = buildArtPrompt(hint ? `${subject}, ${hint}` : subject);
 
-  const result = await fal.subscribe('fal-ai/nano-banana-2', {
-    input: { prompt, image_size: 'portrait_4_3', num_images: 1 },
-  });
+  let result;
+  try {
+    result = await fal.subscribe('fal-ai/nano-banana-2', {
+      input: { prompt, image_size: 'portrait_4_3', num_images: 1 },
+    });
+  } catch (err) {
+    throw new Error(`fal.ai portrait request failed (biome: ${biomeId}): ${err.message}`);
+  }
 
   const url = result?.data?.images?.[0]?.url;
   if (!url) throw new Error('No image URL returned from fal.ai');
@@ -42,12 +47,17 @@ export async function generatePortrait(biomeId = 'campsite', extraHint = '') {
  */
 export async function generateDecorSlot(slot, biomeId = 'campsite', questTitle = '') {
   const subject = DECOR_SUBJECT[slot] ?? `a decorative element for a ${biomeId} biome`;
-  const hint    = questTitle.trim();
+  const hint    = String(questTitle || '').trim();
   const prompt  = buildArtPrompt(hint ? `${subject}, related to "${hint}"` : subject);
 
-  const result = await fal.subscribe('fal-ai/nano-banana-2', {
-    input: { prompt, image_size: 'square', num_images: 1 },
-  });
+  let result;
+  try {
+    result = await fal.subscribe('fal-ai/nano-banana-2', {
+      input: { prompt, image_size: 'square', num_images: 1 },
+    });
+  } catch (err) {
+    throw new Error(`fal.ai decor request failed (slot: ${slot}): ${err.message}`);
+  }
 
   const url = result?.data?.images?.[0]?.url;
   if (!url) throw new Error('No image URL returned from fal.ai');

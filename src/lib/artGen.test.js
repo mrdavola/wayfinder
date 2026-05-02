@@ -42,7 +42,7 @@ describe('generatePortrait', () => {
     fal.subscribe.mockResolvedValue({ data: { images: [{ url: 'https://cdn.fal.ai/x.png' }] } });
     await generatePortrait('lab');
     const { prompt } = fal.subscribe.mock.calls[0][1].input;
-    expect(prompt).toContain('lab');
+    expect(prompt).toContain('laboratory mentor');
   });
 
   it('falls back to campsite subject for unknown biomeId', async () => {
@@ -64,6 +64,11 @@ describe('generatePortrait', () => {
     await generatePortrait('campsite');
     const { image_size } = fal.subscribe.mock.calls[0][1].input;
     expect(image_size).toBe('portrait_4_3');
+  });
+
+  it('handles null extraHint without throwing', async () => {
+    fal.subscribe.mockResolvedValue({ data: { images: [{ url: 'https://cdn.fal.ai/x.png' }] } });
+    await expect(generatePortrait('campsite', null)).resolves.toBe('https://cdn.fal.ai/x.png');
   });
 });
 
