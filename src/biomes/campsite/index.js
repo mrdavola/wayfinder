@@ -2,7 +2,7 @@
 export const campsite = {
   id: 'campsite',
   layers: {
-    back: '/biomes/campsite/back.svg',  // not yet created — Phase 1 deliverable
+    back: '/biomes/campsite/back.svg',
     mid:  '/biomes/campsite/mid.svg',
     fore: '/biomes/campsite/fore.svg',
   },
@@ -17,5 +17,19 @@ export const campsite = {
     { role: 'mailbox',        x: '88%', y: '64%' },
     { role: 'reflection',     x: '40%', y: '76%' },
     { role: 'challenger',     x: '20%', y: '70%' },
+  ],
+  decor: [
+    {
+      slot: 'bulletin_note',
+      x: '77%',
+      y: '43%',
+      subject: 'a hand-lettered expedition notice board pinned with field notes and sketches',
+    },
+    {
+      slot: 'trailhead_banner',
+      x: '11%',
+      y: '57%',
+      subject: 'a weathered wooden trailhead sign with carved text and a small compass rose',
+    },
   ],
 };
