@@ -1,0 +1,107 @@
+/* src/components/world/AmbientLayer.css */
+.ambient-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ---- Lantern flicker ---- */
+.ambient-lantern-wrap {
+  position: absolute;
+  left: 44%;
+  top: 58%;
+  transform: translateX(-50%);
+}
+.ambient-lantern-flame {
+  transform-origin: center bottom;
+  animation: ambient-flicker 2.2s ease-in-out infinite;
+}
+@keyframes ambient-flicker {
+  0%,100% { transform: scaleX(1)   scaleY(1);   opacity: 0.9; }
+  25%      { transform: scaleX(0.9) scaleY(1.08); opacity: 1;   }
+  50%      { transform: scaleX(1.1) scaleY(0.92); opacity: 0.85;}
+  75%      { transform: scaleX(0.95) scaleY(1.04);opacity: 0.95;}
+}
+
+/* ---- Leaf fall ---- */
+.ambient-leaves-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+.ambient-leaf {
+  position: absolute;
+  top: -20px;
+  left: var(--leaf-x, 10%);
+  animation:
+    ambient-leaf-fall 7s ease-in var(--leaf-delay, 0s) infinite,
+    ambient-leaf-sway 3s ease-in-out var(--leaf-delay, 0s) infinite;
+}
+@keyframes ambient-leaf-fall {
+  0%   { top: -20px; opacity: 0; }
+  10%  { opacity: 0.75; }
+  90%  { opacity: 0.6; }
+  100% { top: 100%; opacity: 0; }
+}
+@keyframes ambient-leaf-sway {
+  0%,100% { transform: translateX(0)    rotate(0deg);  }
+  33%     { transform: translateX(18px) rotate(12deg); }
+  66%     { transform: translateX(-12px) rotate(-8deg); }
+}
+
+/* ---- Paper curl ---- */
+.ambient-paper-wrap {
+  position: absolute;
+  bottom: 28%;
+  right: 18%;
+}
+.ambient-paper-curl {
+  width: 48px;
+  height: 36px;
+  border: 1px solid rgba(90,70,40,0.25);
+  background: rgba(250,245,220,0.4);
+  border-radius: 2px;
+  transform-origin: top left;
+  animation: ambient-curl 8s ease-in-out 1.5s infinite;
+}
+@keyframes ambient-curl {
+  0%,75%,100% { transform: rotate(0deg); }
+  40%         { transform: rotate(1.5deg) translateY(-2px); }
+}
+
+/* ---- Moth flutter ---- */
+.ambient-moth-wrap {
+  position: absolute;
+  animation: ambient-moth-drift 14s ease-in-out 3s infinite;
+}
+.ambient-moth {
+  animation: ambient-moth-wings 0.4s ease-in-out infinite alternate;
+}
+@keyframes ambient-moth-drift {
+  0%   { top: 35%; left: 30%; opacity: 0; }
+  8%   { opacity: 0.7; }
+  45%  { top: 28%; left: 55%; opacity: 0.65; }
+  80%  { top: 40%; left: 48%; opacity: 0.55; }
+  95%  { opacity: 0; }
+  100% { top: 35%; left: 30%; opacity: 0; }
+}
+@keyframes ambient-moth-wings {
+  0%   { transform: scaleY(1);    }
+  100% { transform: scaleY(0.55); }
+}
+
+/* Calm mode — disable everything */
+.ambient-layer[data-calm='true'] * {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-layer * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
