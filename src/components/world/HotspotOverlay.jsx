@@ -2,13 +2,22 @@ import { lazy, Suspense, useRef, useEffect } from 'react';
 import './HotspotOverlay.css';
 import Specimen from './Specimen';
 import CampfireChat from '../social/CampfireChat';
+import TactilePropViewer from './TactilePropViewer';
+import { getPropForRole } from '../../lib/tactileProps';
 
 const WorldChat = lazy(() => import('./WorldChat'));
+
+function PropHeader({ role }) {
+  const propId = getPropForRole(role);
+  if (!propId) return null;
+  return <TactilePropViewer propId={propId} />;
+}
 
 function TrailheadPanel({ quest }) {
   return (
     <div className="ho-panel">
-      <h2 id="ho-dialog-title" className="ho-title">{quest?.title}</h2>
+      <PropHeader role="trailheadSign" />
+      <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>{quest?.title}</h2>
       <p className="ho-body">{quest?.description}</p>
     </div>
   );
@@ -18,7 +27,8 @@ function StagePanel({ stage, onOpenChat, studentSession }) {
   if (!stage) return <p className="ho-empty">No stage data.</p>;
   return (
     <div className="ho-panel">
-      <div className="ho-stage-badge">Stage {stage.stage_number}</div>
+      <PropHeader role="stage" />
+      <div className="ho-stage-badge" style={{ marginTop: 14 }}>Stage {stage.stage_number}</div>
       <h2 id="ho-dialog-title" className="ho-title">{stage.title}</h2>
       {stage.description && <p className="ho-body">{stage.description}</p>}
       {stage.challenge && (
@@ -43,7 +53,8 @@ function StagePanel({ stage, onOpenChat, studentSession }) {
 function MailboxPanel({ feedback = [] }) {
   return (
     <div className="ho-panel">
-      <h2 id="ho-dialog-title" className="ho-title">Mailbox</h2>
+      <PropHeader role="mailbox" />
+      <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>Mailbox</h2>
       {feedback.length === 0 ? (
         <p className="ho-empty">No feedback letters yet. Submit work to get a response.</p>
       ) : (
@@ -78,7 +89,8 @@ function BulletinPanel() {
 function ReflectionPanel({ quest, stage, studentSession }) {
   return (
     <div className="ho-panel">
-      <h2 id="ho-dialog-title" className="ho-title">Reflection Journal</h2>
+      <PropHeader role="reflection" />
+      <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>Reflection Journal</h2>
       <CampfireChat
         questId={quest?.id}
         stageId={stage?.id || null}
@@ -89,7 +101,7 @@ function ReflectionPanel({ quest, stage, studentSession }) {
   );
 }
 
-function ChatPanel({ quest, stage, studentSession, onClose, onStageComplete }) {
+function ChatPanel({ quest, stage, studentSession, onClose, onStageComplete, role }) {
   const session = {
     studentName: studentSession?.studentName,
     studentId: studentSession?.studentId,
@@ -97,6 +109,7 @@ function ChatPanel({ quest, stage, studentSession, onClose, onStageComplete }) {
   };
   return (
     <div className="ho-panel ho-panel--chat">
+      <PropHeader role={role ?? 'guide'} />
       <Suspense fallback={<p className="ho-empty">Loading guide...</p>}>
         <WorldChat
           quest={quest}
@@ -118,9 +131,9 @@ function OverlayContent({ role, quest, stage, studentSession, feedback, onClose,
     case 'stage':
       return <StagePanel stage={stage} onOpenChat={onOpenChat} studentSession={studentSession} />;
     case 'guide':
-      return <ChatPanel quest={quest} stage={stage} studentSession={studentSession} onClose={onClose} onStageComplete={onStageComplete} />;
+      return <ChatPanel quest={quest} stage={stage} studentSession={studentSession} onClose={onClose} onStageComplete={onStageComplete} role="guide" />;
     case 'challenger':
-      return <ChatPanel quest={quest} stage={stage} studentSession={studentSession} onClose={onClose} onStageComplete={onStageComplete} />;
+      return <ChatPanel quest={quest} stage={stage} studentSession={studentSession} onClose={onClose} onStageComplete={onStageComplete} role="challenger" />;
     case 'reflection':
       return <ReflectionPanel quest={quest} stage={stage} studentSession={studentSession} />;
     case 'mailbox':

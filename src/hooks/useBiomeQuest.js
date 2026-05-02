@@ -45,6 +45,7 @@ export function useBiomeQuest(questId) {
       return;
     }
     setLoading(true);
+    setError(null);
     const { data, error: err } = await supabase
       .from('quests')
       .select('*, quest_stages(*)')
