@@ -42,3 +42,12 @@
 @media (prefers-reduced-motion: reduce) {
   .hotspot__pulse { animation: none; }
 }
+
+.hotspot--igniting {
+  animation: hotspot-ignite 800ms ease-out forwards;
+}
+@keyframes hotspot-ignite {
+  0%   { box-shadow: 0 0 0 0   rgba(214,166,77,0.9);  border-color: var(--compass-gold, #d6a64d); }
+  30%  { box-shadow: 0 0 0 24px rgba(214,166,77,0.5); border-color: var(--compass-gold, #d6a64d); }
+  100% { box-shadow: 0 0 0 0   rgba(214,166,77,0);    border-color: var(--graphite, #4a3f33); }
+}
