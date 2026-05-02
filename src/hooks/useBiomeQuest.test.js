@@ -76,7 +76,7 @@ describe('useBiomeQuest', () => {
 
   it('does nothing when questId is falsy', () => {
     const { result } = renderHook(() => useBiomeQuest(null));
-    expect(result.current.loading).toBe(true); // stays loading, no fetch
+    expect(result.current.loading).toBe(false);
     expect(mockSingle).not.toHaveBeenCalled();
   });
 
@@ -87,5 +87,17 @@ describe('useBiomeQuest', () => {
     mockSingle.mockClear();
     await result.current.refreshStages();
     expect(mockSingle).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears error state on successful refresh after failure', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: new Error('DB error') });
+    const { result } = renderHook(() => useBiomeQuest('q1'));
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+
+    mockSingle.mockResolvedValue({ data: makeQuest([]), error: null });
+    await result.current.refreshStages();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBeNull();
+    expect(result.current.quest).not.toBeNull();
   });
 });

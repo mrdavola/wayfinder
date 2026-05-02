@@ -40,7 +40,10 @@ export function useBiomeQuest(questId) {
   const [error,   setError]   = useState(null);
 
   const load = useCallback(async () => {
-    if (!questId) return;
+    if (!questId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error: err } = await supabase
       .from('quests')
@@ -59,6 +62,7 @@ export function useBiomeQuest(questId) {
     );
     const mapped = sorted.map(s => ({ ...s, biomeState: toState(s.status) }));
 
+    setError(null);
     setQuest(data);
     setStages(mapped);
     setLoading(false);
