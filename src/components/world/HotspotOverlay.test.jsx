@@ -40,7 +40,7 @@ describe('<HotspotOverlay>', () => {
   });
 
   it('renders mailbox heading for mailbox role', () => {
-    render(<HotspotOverlay {...baseProps} role="mailbox" submissions={[]} feedback={[]} />);
+    render(<HotspotOverlay {...baseProps} role="mailbox" feedback={[]} />);
     expect(screen.getByText(/mailbox/i)).toBeInTheDocument();
   });
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef, useEffect } from 'react';
 import './HotspotOverlay.css';
 import Specimen from './Specimen';
 import CampfireChat from '../social/CampfireChat';
@@ -8,7 +8,7 @@ const WorldChat = lazy(() => import('./WorldChat'));
 function TrailheadPanel({ quest }) {
   return (
     <div className="ho-panel">
-      <h2 className="ho-title">{quest?.title}</h2>
+      <h2 id="ho-dialog-title" className="ho-title">{quest?.title}</h2>
       <p className="ho-body">{quest?.description}</p>
     </div>
   );
@@ -19,7 +19,7 @@ function StagePanel({ stage, onOpenChat, studentSession }) {
   return (
     <div className="ho-panel">
       <div className="ho-stage-badge">Stage {stage.stage_number}</div>
-      <h2 className="ho-title">{stage.title}</h2>
+      <h2 id="ho-dialog-title" className="ho-title">{stage.title}</h2>
       {stage.description && <p className="ho-body">{stage.description}</p>}
       {stage.challenge && (
         <Specimen id={stage.id} pin="pin" size="md" style={{ margin: '12px 0', width: '100%', boxSizing: 'border-box' }}>
@@ -43,7 +43,7 @@ function StagePanel({ stage, onOpenChat, studentSession }) {
 function MailboxPanel({ feedback = [] }) {
   return (
     <div className="ho-panel">
-      <h2 className="ho-title">Mailbox</h2>
+      <h2 id="ho-dialog-title" className="ho-title">Mailbox</h2>
       {feedback.length === 0 ? (
         <p className="ho-empty">No feedback letters yet. Submit work to get a response.</p>
       ) : (
@@ -67,7 +67,7 @@ function MailboxPanel({ feedback = [] }) {
 function BulletinPanel() {
   return (
     <div className="ho-panel">
-      <h2 className="ho-title">Submit Work</h2>
+      <h2 id="ho-dialog-title" className="ho-title">Submit Work</h2>
       <p className="ho-body">
         Pin your work to the bulletin board. Use the <strong>list view</strong> (↗ top-right) for the full submission uploader.
       </p>
@@ -78,7 +78,7 @@ function BulletinPanel() {
 function ReflectionPanel({ quest, stage, studentSession }) {
   return (
     <div className="ho-panel">
-      <h2 className="ho-title">Reflection Journal</h2>
+      <h2 id="ho-dialog-title" className="ho-title">Reflection Journal</h2>
       <CampfireChat
         questId={quest?.id}
         stageId={stage?.id || null}
@@ -132,22 +132,24 @@ function OverlayContent({ role, quest, stage, studentSession, feedback, onClose,
   }
 }
 
-export default function HotspotOverlay({ role, quest, stage, studentSession, feedback = [], onClose, onStageComplete }) {
-  const handleOpenChat = () => {
-    // Phase 1: noop — BiomeScene will handle role upgrade via state
-  };
+export default function HotspotOverlay({ role, quest, stage, studentSession, feedback = [], onClose, onStageComplete, onOpenChat = () => {} }) {
+  const sheetRef = useRef(null);
+
+  useEffect(() => {
+    sheetRef.current?.focus();
+  }, []);
 
   return (
-    <div className="hotspot-overlay" data-role={role} role="dialog" aria-modal="true">
+    <div className="hotspot-overlay" data-role={role} role="dialog" aria-modal="true" aria-labelledby="ho-dialog-title">
       <div className="hotspot-overlay__backdrop" onClick={onClose} aria-hidden="true" />
-      <div className="hotspot-overlay__sheet">
+      <div className="hotspot-overlay__sheet" ref={sheetRef} tabIndex={-1}>
         <button
           className="hotspot-overlay__close"
           onClick={onClose}
           aria-label="Close"
           type="button"
         >
-          ×
+          <span aria-hidden="true">×</span>
         </button>
         <div className="hotspot-overlay__scroll">
           <OverlayContent
@@ -158,7 +160,7 @@ export default function HotspotOverlay({ role, quest, stage, studentSession, fee
             feedback={feedback}
             onClose={onClose}
             onStageComplete={onStageComplete}
-            onOpenChat={handleOpenChat}
+            onOpenChat={onOpenChat}
           />
         </div>
       </div>
