@@ -1,7 +1,7 @@
 // src/components/world/FieldFigure.test.jsx
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import FieldFigure from './FieldFigure';
+import FieldFigure, { OUTFIT_COLORS } from './FieldFigure';
 
 describe('<FieldFigure>', () => {
   it('renders an SVG element', () => {
@@ -36,12 +36,12 @@ describe('<FieldFigure>', () => {
   it('outfit=lab renders lab-coat color body', () => {
     const { container } = render(<FieldFigure outfit="lab" />);
     const body = container.querySelector('[data-feature="body"]');
-    expect(body).toHaveAttribute('fill', '#e8e8e0');
+    expect(body).toHaveAttribute('fill', OUTFIT_COLORS.lab);
   });
 
   it('outfit=field renders field-vest color body', () => {
     const { container } = render(<FieldFigure outfit="field" />);
     const body = container.querySelector('[data-feature="body"]');
-    expect(body).toHaveAttribute('fill', '#8a7050');
+    expect(body).toHaveAttribute('fill', OUTFIT_COLORS.field);
   });
 });

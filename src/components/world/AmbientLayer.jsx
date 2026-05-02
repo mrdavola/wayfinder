@@ -1,5 +1,6 @@
 // src/components/world/AmbientLayer.jsx
 import './AmbientLayer.css';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const ELEMENTS = {
   lanternFlicker: () => (
@@ -51,12 +52,13 @@ const ELEMENTS = {
  * @param {boolean}  [props.calmMode]  disables all animations
  */
 export default function AmbientLayer({ ambient = [], calmMode = false }) {
+  const systemReduced = useReducedMotion();
   const active = ambient.filter(id => ELEMENTS[id]);
   if (active.length === 0) return null;
   return (
     <div
       className="ambient-layer"
-      data-calm={calmMode ? 'true' : undefined}
+      data-calm={(calmMode || systemReduced) ? 'true' : undefined}
       aria-hidden="true"
     >
       {active.map(id => {

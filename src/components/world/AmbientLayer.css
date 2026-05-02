@@ -75,18 +75,20 @@
 /* ---- Moth flutter ---- */
 .ambient-moth-wrap {
   position: absolute;
+  top: 35%;
+  left: 30%;
   animation: ambient-moth-drift 14s ease-in-out 3s infinite;
 }
 .ambient-moth {
   animation: ambient-moth-wings 0.4s ease-in-out infinite alternate;
 }
 @keyframes ambient-moth-drift {
-  0%   { top: 35%; left: 30%; opacity: 0; }
+  0%   { transform: translate(0, 0);    opacity: 0; }
   8%   { opacity: 0.7; }
-  45%  { top: 28%; left: 55%; opacity: 0.65; }
-  80%  { top: 40%; left: 48%; opacity: 0.55; }
+  45%  { transform: translate(25%, -7%); opacity: 0.65; }
+  80%  { transform: translate(18%, 5%);  opacity: 0.55; }
   95%  { opacity: 0; }
-  100% { top: 35%; left: 30%; opacity: 0; }
+  100% { transform: translate(0, 0);    opacity: 0; }
 }
 @keyframes ambient-moth-wings {
   0%   { transform: scaleY(1);    }

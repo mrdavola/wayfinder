@@ -1,7 +1,7 @@
 // src/components/world/FieldFigure.jsx
 // Procedural pencil-and-wash SVG character — fallback when AI portraits aren't available.
 
-const OUTFIT_COLORS = {
+export const OUTFIT_COLORS = {
   field:    '#8a7050',   // field vest — brown/tan
   lab:      '#e8e8e0',   // lab coat — off-white
   workshop: '#5a4a3a',   // workshop apron — dark brown
@@ -39,6 +39,7 @@ export default function FieldFigure({
   label    = 'Field guide character',
   className = '',
 }) {
+  const safeMood = ['happy', 'neutral', 'curious'].includes(mood) ? mood : 'neutral';
   const skin  = SKIN_TONES[skinTone]  ?? SKIN_TONES.medium;
   const hair  = HAIR_TONES[hairTone]  ?? HAIR_TONES.dark;
   const body  = OUTFIT_COLORS[outfit] ?? OUTFIT_COLORS.field;
@@ -68,7 +69,7 @@ export default function FieldFigure({
       <circle cx="30.7" cy="17.4" r="0.5" fill="white" opacity="0.8"/>
 
       {/* Mouth */}
-      {mood === 'happy' && (
+      {safeMood === 'happy' && (
         <path
           data-feature="mouth-happy"
           d="M22,23 Q26,27 30,23"
@@ -78,7 +79,7 @@ export default function FieldFigure({
           strokeLinecap="round"
         />
       )}
-      {mood === 'neutral' && (
+      {safeMood === 'neutral' && (
         <line
           data-feature="mouth-neutral"
           x1="22" y1="23.5" x2="30" y2="23.5"
@@ -87,7 +88,7 @@ export default function FieldFigure({
           strokeLinecap="round"
         />
       )}
-      {mood === 'curious' && (
+      {safeMood === 'curious' && (
         <path
           data-feature="mouth-curious"
           d="M22,24 Q24,22 26,23.5 Q28,25 30,23"
