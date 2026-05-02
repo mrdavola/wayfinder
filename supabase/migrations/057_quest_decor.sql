@@ -29,6 +29,7 @@ ALTER TABLE quest_decor ENABLE ROW LEVEL SECURITY;
 
 -- RLS: authenticated users can read decor for any quest they can
 -- already see (we rely on the existing quests RLS to gate visibility).
+DROP POLICY IF EXISTS quest_decor_read ON quest_decor;
 CREATE POLICY quest_decor_read
   ON quest_decor FOR SELECT
   TO authenticated
