@@ -1,4 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <rect width="1600" height="900" fill="#d4c094"/>
-  <text x="800" y="100" font-family="serif" font-size="40" text-anchor="middle" fill="#5a4a30">CAMPSITE &#x2014; MID LAYER (placeholder)</text>
+  <defs>
+    <linearGradient id="trunk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b4e2a"/>
+      <stop offset="100%" stop-color="#4a3420"/>
+    </linearGradient>
+    <linearGradient id="canopy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a7a3a"/>
+      <stop offset="100%" stop-color="#3d5a28"/>
+    </linearGradient>
+    <linearGradient id="smoke" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#b8a890" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#d8cbb0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- Ground mid-plane -->
+  <path d="M0,680 Q400,650 800,665 Q1200,680 1600,660 L1600,900 L0,900 Z"
+        fill="#b8a070" opacity="0.5"/>
+  <!-- Trail path -->
+  <path d="M680,900 Q720,820 740,760 Q760,700 750,660"
+        stroke="#c4a870" stroke-width="28" fill="none" opacity="0.6" stroke-linecap="round"/>
+  <!-- Left cluster of trees -->
+  <g>
+    <rect x="115" y="520" width="18" height="180" fill="url(#trunk)"/>
+    <ellipse cx="124" cy="510" rx="55" ry="70" fill="url(#canopy)" opacity="0.9"/>
+    <rect x="175" y="540" width="14" height="160" fill="url(#trunk)"/>
+    <ellipse cx="182" cy="530" rx="42" ry="58" fill="url(#canopy)" opacity="0.85"/>
+  </g>
+  <!-- Right cluster -->
+  <g>
+    <rect x="1420" y="510" width="20" height="190" fill="url(#trunk)"/>
+    <ellipse cx="1430" cy="498" rx="60" ry="75" fill="url(#canopy)" opacity="0.9"/>
+    <rect x="1472" y="530" width="16" height="170" fill="url(#trunk)"/>
+    <ellipse cx="1480" cy="520" rx="48" ry="62" fill="url(#canopy)" opacity="0.85"/>
+  </g>
+  <!-- Campfire stones -->
+  <ellipse cx="750" cy="700" rx="30" ry="12" fill="#8a7660" opacity="0.8"/>
+  <!-- Campfire logs -->
+  <line x1="726" y1="700" x2="774" y2="696" stroke="#5a3a20" stroke-width="6" stroke-linecap="round"/>
+  <line x1="730" y1="704" x2="770" y2="698" stroke="#4a3018" stroke-width="5" stroke-linecap="round"/>
+  <!-- Campfire flames (static) -->
+  <path d="M744,692 Q748,678 750,670 Q752,678 756,692 Q753,686 750,690 Q747,686 744,692 Z"
+        fill="#e8a840" opacity="0.7"/>
+  <!-- Smoke plume -->
+  <path d="M750,668 Q748,640 752,610 Q755,580 750,548"
+        stroke="url(#smoke)" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <!-- Label -->
+  <text x="800" y="50" font-family="Georgia,serif" font-size="22" text-anchor="middle"
+        fill="#6b5a3a" opacity="0.35" font-style="italic">campsite — mid layer</text>
 </svg>

@@ -1,4 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <rect width="1600" height="900" fill="#e7d8b8"/>
-  <text x="800" y="100" font-family="serif" font-size="40" text-anchor="middle" fill="#5a4a30">CAMPSITE &#x2014; BACK LAYER (placeholder)</text>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d6c9a8"/>
+      <stop offset="60%" stop-color="#e8d9b8"/>
+      <stop offset="100%" stop-color="#c9b890"/>
+    </linearGradient>
+    <linearGradient id="hills" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a6a4a"/>
+      <stop offset="100%" stop-color="#5a4a30"/>
+    </linearGradient>
+  </defs>
+  <!-- Sky -->
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <!-- Distant hills -->
+  <path d="M0,560 Q200,480 400,520 Q600,560 800,500 Q1000,440 1200,490 Q1400,540 1600,510 L1600,900 L0,900 Z"
+        fill="url(#hills)" opacity="0.55"/>
+  <!-- Far tree line (silhouette) -->
+  <g fill="#6b5a3a" opacity="0.45">
+    <path d="M80,520 L90,480 L100,520 Z"/>
+    <path d="M90,525 L100,475 L110,525 Z"/>
+    <path d="M105,522 L115,468 L125,522 Z"/>
+    <path d="M250,510 L260,462 L270,510 Z"/>
+    <path d="M260,515 L272,458 L284,515 Z"/>
+    <path d="M470,505 L482,455 L494,505 Z"/>
+    <path d="M700,518 L712,465 L724,518 Z"/>
+    <path d="M712,514 L725,460 L738,514 Z"/>
+    <path d="M950,508 L963,454 L976,508 Z"/>
+    <path d="M963,512 L977,458 L991,512 Z"/>
+    <path d="M1180,515 L1193,458 L1206,515 Z"/>
+    <path d="M1400,512 L1413,460 L1426,512 Z"/>
+    <path d="M1412,508 L1426,454 L1440,508 Z"/>
+    <path d="M1500,520 L1512,470 L1524,520 Z"/>
+  </g>
+  <!-- Ground base -->
+  <path d="M0,600 Q400,570 800,585 Q1200,600 1600,580 L1600,900 L0,900 Z"
+        fill="#a8956a" opacity="0.4"/>
+  <!-- Label (dev only) -->
+  <text x="800" y="50" font-family="Georgia,serif" font-size="22" text-anchor="middle"
+        fill="#6b5a3a" opacity="0.35" font-style="italic">campsite — back layer</text>
 </svg>

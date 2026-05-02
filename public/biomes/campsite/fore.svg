@@ -1,4 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <rect width="1600" height="900" fill="#bfa974"/>
-  <text x="800" y="100" font-family="serif" font-size="40" text-anchor="middle" fill="#5a4a30">CAMPSITE &#x2014; FORE LAYER (placeholder)</text>
+  <defs>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a8c4a"/>
+      <stop offset="100%" stop-color="#5a6c32"/>
+    </linearGradient>
+    <linearGradient id="logGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a5a30"/>
+      <stop offset="100%" stop-color="#5a3a18"/>
+    </linearGradient>
+  </defs>
+  <!-- Ground foreground -->
+  <path d="M0,800 Q400,770 800,782 Q1200,795 1600,775 L1600,900 L0,900 Z"
+        fill="url(#grass)"/>
+  <!-- Log seat left of fire -->
+  <ellipse cx="630" cy="788" rx="70" ry="18" fill="url(#logGrad)"/>
+  <ellipse cx="630" cy="778" rx="70" ry="18" fill="#8a6a3a"/>
+  <!-- Tree-ring detail on log end -->
+  <ellipse cx="560" cy="783" rx="18" ry="18" fill="#7a5a2a"/>
+  <ellipse cx="560" cy="783" rx="12" ry="12" fill="#8a6a3a"/>
+  <ellipse cx="560" cy="783" rx="6" ry="6" fill="#7a5a2a"/>
+  <!-- Rocks near fire -->
+  <ellipse cx="720" cy="792" rx="20" ry="12" fill="#9a8a70"/>
+  <ellipse cx="780" cy="795" rx="16" ry="10" fill="#8a7a60"/>
+  <ellipse cx="700" cy="798" rx="14" ry="8" fill="#a09080"/>
+  <!-- Foreground grass tufts left -->
+  <g fill="#6a7a3a" opacity="0.8">
+    <path d="M40,820 Q44,795 48,820 Q42,808 40,820 Z"/>
+    <path d="M55,825 Q60,798 64,825 Q58,812 55,825 Z"/>
+    <path d="M130,818 Q135,792 139,818 Q133,805 130,818 Z"/>
+    <path d="M220,822 Q225,796 229,822 Q223,809 220,822 Z"/>
+    <path d="M310,816 Q315,790 319,816 Q313,803 310,816 Z"/>
+  </g>
+  <!-- Foreground grass tufts right -->
+  <g fill="#6a7a3a" opacity="0.8">
+    <path d="M1300,820 Q1305,793 1309,820 Q1303,807 1300,820 Z"/>
+    <path d="M1380,817 Q1385,791 1389,817 Q1383,804 1380,817 Z"/>
+    <path d="M1450,823 Q1455,797 1459,823 Q1453,810 1450,823 Z"/>
+    <path d="M1530,819 Q1535,793 1539,819 Q1533,806 1530,819 Z"/>
+  </g>
+  <!-- Wildflower dots -->
+  <g fill="#c8a840" opacity="0.7">
+    <circle cx="180" cy="810" r="4"/>
+    <circle cx="290" cy="815" r="3"/>
+    <circle cx="1340" cy="812" r="4"/>
+    <circle cx="1490" cy="814" r="3"/>
+  </g>
+  <!-- Label -->
+  <text x="800" y="50" font-family="Georgia,serif" font-size="22" text-anchor="middle"
+        fill="#6b5a3a" opacity="0.35" font-style="italic">campsite — fore layer</text>
 </svg>
