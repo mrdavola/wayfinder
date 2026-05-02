@@ -43,4 +43,20 @@ describe('<BiomeScene>', () => {
     const future = document.querySelectorAll('button.hotspot[data-state="future"]');
     expect(future.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('renders an <img> at the guide hotspot when quest.character_image_url is set', () => {
+    const questWithPortrait = { ...quest, character_image_url: 'https://cdn.fal.ai/portrait.png' };
+    render(<BiomeScene quest={questWithPortrait} stages={stages} studentSession={session} />);
+    // guide hotspot container is aria-hidden; use { hidden: true } to reach inside it
+    const img = screen.getByRole('img', { name: 'Your field guide', hidden: true });
+    expect(img.tagName.toLowerCase()).toBe('img');
+    expect(img).toHaveAttribute('src', 'https://cdn.fal.ai/portrait.png');
+  });
+
+  it('renders CharacterPortrait SVG fallback at the guide hotspot when character_image_url is null', () => {
+    render(<BiomeScene quest={quest} stages={stages} studentSession={session} />);
+    // guide hotspot container is aria-hidden; use { hidden: true } to reach inside it
+    const svg = screen.getByRole('img', { name: 'Your field guide', hidden: true });
+    expect(svg.tagName.toLowerCase()).toBe('svg');
+  });
 });

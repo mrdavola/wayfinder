@@ -4,7 +4,7 @@ import { getBiome } from '../../biomes';
 import ParallaxScene from './ParallaxScene';
 import Hotspot from './Hotspot';
 import AmbientLayer from './AmbientLayer';
-import FieldFigure from './FieldFigure';
+import CharacterPortrait from './CharacterPortrait';
 import HotspotOverlay from './HotspotOverlay';
 import { WorldStateProvider, useWorldState } from './WorldStateContext';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -78,13 +78,11 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }
             style={{ left: guideHotspot.x, top: guideHotspot.y }}
             aria-hidden="true"
           >
-            <FieldFigure
-              skinTone="medium"
-              hairTone="dark"
-              outfit="field"
-              mood="happy"
+            <CharacterPortrait
+              imageUrl={quest?.character_image_url || null}
               size={72}
               label="Your field guide"
+              figureProps={{ skinTone: 'medium', hairTone: 'dark', outfit: 'field', mood: 'happy' }}
             />
           </div>
         )}
