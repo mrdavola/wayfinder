@@ -31,8 +31,8 @@ export default function Specimen({
       data-size={size}
       data-pin={pin === 'none' ? undefined : pin}
       style={{
-        '--specimen-jitter': `${jitter}deg`,
         ...style,
+        '--specimen-jitter': `${jitter}deg`,
       }}
       {...rest}
     >
