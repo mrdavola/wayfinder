@@ -4,7 +4,16 @@
 -- Students view BiomePage without auth. This SECURITY DEFINER
 -- function lets the anon key fetch fellow group members for a
 -- quest so they appear as hotspots in the world.
--- Returns only name and avatar_emoji — no contact info.
+--
+-- Security design decisions (intentional):
+-- 1. student_id is returned so the client can filter out the
+--    current student from their own teammate list. It is an
+--    internal UUID, not a name or contact detail.
+-- 2. Any anonymous caller who knows a valid quest_id UUID can
+--    invoke this function (no school/enrollment check). UUIDs
+--    are not enumerable in practice; this is an acceptable
+--    tradeoff for unauthenticated student world access.
+--    Apply rate-limiting at the API gateway for extra safety.
 
 BEGIN;
 

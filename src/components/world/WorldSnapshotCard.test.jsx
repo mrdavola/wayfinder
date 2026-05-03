@@ -34,4 +34,14 @@ describe('<WorldSnapshotCard>', () => {
     const { container } = render(<WorldSnapshotCard quest={null} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it('respects an explicit biome_id when set', () => {
+    const { container } = render(<WorldSnapshotCard quest={{ biome_id: 'lab', career_pathway: 'engineering' }} />);
+    expect(container.firstChild).toHaveAttribute('data-biome', 'lab');
+  });
+
+  it('falls back to campsite for cabin biome_id (cabin is hub, not quest biome)', () => {
+    const { container } = render(<WorldSnapshotCard quest={{ biome_id: 'cabin' }} />);
+    expect(container.firstChild).toHaveAttribute('data-biome', 'campsite');
+  });
 });
