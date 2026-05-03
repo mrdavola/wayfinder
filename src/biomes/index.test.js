@@ -19,4 +19,16 @@ describe('biomes registry', () => {
   it('returns undefined for unknown biome', () => {
     expect(getBiome('mars')).toBeUndefined();
   });
+
+  it('lists the cabin biome', () => {
+    expect(listBiomes()).toContain('cabin');
+  });
+
+  it('returns a valid config for cabin', () => {
+    const cfg = getBiome('cabin');
+    expect(cfg).toBeDefined();
+    const r = validateBiomeConfig(cfg);
+    expect(r.ok).toBe(true);
+    expect(r.errors).toEqual([]);
+  });
 });
