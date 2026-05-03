@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <rect width="1600" height="900" fill="#e8dcc8"/>
+  <rect width="1600" height="14" fill="#8b6840"/>
+  <rect y="800" width="1600" height="100" fill="#c9a96e" opacity=".45"/>
+  <text x="800" y="100" font-family="serif" font-size="40" text-anchor="middle" fill="#8b6840" opacity=".4">CABIN — BACK LAYER (placeholder)</text>
+</svg>

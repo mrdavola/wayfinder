@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <rect width="1600" height="900" fill="transparent"/>
+  <rect x="40" y="30" width="380" height="320" rx="4" fill="#d4b896" opacity=".6"/>
+  <rect x="1180" y="30" width="380" height="320" rx="4" fill="#c9a96e" opacity=".5"/>
+  <text x="800" y="500" font-family="serif" font-size="36" text-anchor="middle" fill="#8b6840" opacity=".35">CABIN — MID LAYER (placeholder)</text>
+</svg>
