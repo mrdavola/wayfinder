@@ -2950,6 +2950,23 @@ function StageCard({ stage, onComplete, questId, studentName, existingSubmission
             />
           : <FeedbackCard feedback={feedback} />
       )}
+      {feedback?.score >= 43 && feedback?.next_steps && (
+        <div style={{
+          marginTop: 12, padding: '14px 16px', borderRadius: 10,
+          background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+          border: '1.5px solid #6ee7b7',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <span style={{ fontSize: 15 }}>🔭</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Go Deeper
+            </span>
+          </div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#134e4a', lineHeight: 1.55, margin: 0 }}>
+            {feedback.next_steps}
+          </p>
+        </div>
+      )}
 
       {/* Revise & Resubmit (for legacy feedback without score, or mastery-passed stages) */}
       {isDone && feedback && !revising && feedback.score == null && (

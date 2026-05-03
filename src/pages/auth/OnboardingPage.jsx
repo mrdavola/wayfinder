@@ -147,7 +147,7 @@ export default function OnboardingPage() {
     || 'there';
 
   const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   // Step 1 state
@@ -185,7 +185,7 @@ export default function OnboardingPage() {
       return;
     }
     setError('');
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       if (!user?.id) throw new Error('Not signed in. Please refresh and try again.');
@@ -245,7 +245,7 @@ export default function OnboardingPage() {
       navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -541,16 +541,16 @@ export default function OnboardingPage() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading}
+                disabled={submitting}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  opacity: loading ? 0.7 : 1,
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.7 : 1,
+                  cursor: submitting ? 'not-allowed' : 'pointer',
                 }}
               >
-                {loading ? (
+                {submitting ? (
                   <>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                       style={{ animation: 'onboardSpin 0.8s linear infinite' }} aria-hidden="true">

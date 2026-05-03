@@ -8,6 +8,9 @@ vi.mock('@fal-ai/client', () => ({
   },
 }));
 
+// Provide a fake key so the early-return guard doesn't short-circuit tests
+vi.stubEnv('VITE_FAL_KEY', 'test-key');
+
 import { generatePortrait, generateDecorSlot } from './artGen';
 import { fal } from '@fal-ai/client';
 
@@ -20,9 +23,9 @@ describe('generatePortrait', () => {
     expect(url).toBe('https://cdn.fal.ai/portrait.png');
   });
 
-  it('throws when fal.ai returns no image', async () => {
+  it('returns null when fal.ai returns no image', async () => {
     fal.subscribe.mockResolvedValue({ data: { images: [] } });
-    await expect(generatePortrait('campsite')).rejects.toThrow('No image URL');
+    await expect(generatePortrait('campsite')).resolves.toBeNull();
   });
 
   it('calls fal-ai/nano-banana-2 model', async () => {
@@ -70,6 +73,14 @@ describe('generatePortrait', () => {
     fal.subscribe.mockResolvedValue({ data: { images: [{ url: 'https://cdn.fal.ai/x.png' }] } });
     await expect(generatePortrait('campsite', null)).resolves.toBe('https://cdn.fal.ai/x.png');
   });
+
+  it('returns null when VITE_FAL_KEY is absent', async () => {
+    vi.stubEnv('VITE_FAL_KEY', '');
+    const url = await generatePortrait('campsite');
+    expect(url).toBeNull();
+    expect(fal.subscribe).not.toHaveBeenCalled();
+    vi.stubEnv('VITE_FAL_KEY', 'test-key');
+  });
 });
 
 describe('generateDecorSlot', () => {
@@ -93,8 +104,16 @@ describe('generateDecorSlot', () => {
     expect(prompt).toContain('campsite');
   });
 
-  it('throws when fal.ai returns no image', async () => {
+  it('returns null when fal.ai returns no image', async () => {
     fal.subscribe.mockResolvedValue({ data: { images: [] } });
-    await expect(generateDecorSlot('bulletin_note', 'campsite', '')).rejects.toThrow('No image URL');
+    await expect(generateDecorSlot('bulletin_note', 'campsite', '')).resolves.toBeNull();
+  });
+
+  it('returns null when VITE_FAL_KEY is absent', async () => {
+    vi.stubEnv('VITE_FAL_KEY', '');
+    const result = await generateDecorSlot('bulletin_note', 'campsite', 'test');
+    expect(result).toBeNull();
+    expect(fal.subscribe).not.toHaveBeenCalled();
+    vi.stubEnv('VITE_FAL_KEY', 'test-key');
   });
 });

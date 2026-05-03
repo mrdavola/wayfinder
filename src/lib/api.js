@@ -2306,6 +2306,16 @@ export const submissionFeedback = {
     return { data: data || [], error };
   },
 
+  // Guide-only: load all feedback for every student in a quest
+  listAllForQuest: async (questId) => {
+    const { data, error } = await supabase
+      .from('submission_feedback')
+      .select('id, stage_id, student_name, score, feedback_text, hints, attempt_number, created_at')
+      .eq('quest_id', questId)
+      .order('created_at', { ascending: false });
+    return { data: data || [], error };
+  },
+
   add: async ({ submissionId, questId, stageId, studentName, feedbackText, skillsDemonstrated, encouragement, nextSteps, score, hints, attemptNumber }) => {
     return supabase.from('submission_feedback').insert({
       submission_id: submissionId || null,

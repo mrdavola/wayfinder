@@ -11,7 +11,7 @@ import SpeakButton from '../components/ui/SpeakButton';
 import EnterWorldButton from '../components/immersive/EnterWorldButton';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ai, guidePlaybook as guidePlaybookApi, landmarksApi, communityProjects } from '../lib/api';
+import { ai, guidePlaybook as guidePlaybookApi, landmarksApi, communityProjects, submissionFeedback as feedbackApi } from '../lib/api';
 import TreasureMap from '../components/map/TreasureMap';
 import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 const ImmersiveWorldView = lazy(() => import('../components/immersive/ImmersiveWorldView'));
@@ -501,8 +501,17 @@ const TYPE_COLORS = {
   file: 'var(--graphite)',
 };
 
-function SubmissionEntry({ sub }) {
+function scoreBadgeColor(score) {
+  if (score >= 43) return { bg: '#dcfce7', text: '#166534' };
+  if (score >= 35) return { bg: '#d1fae5', text: '#065f46' };
+  if (score >= 26) return { bg: '#fef9c3', text: '#92400e' };
+  if (score >= 16) return { bg: '#ffedd5', text: '#9a3412' };
+  return { bg: '#fee2e2', text: '#991b1b' };
+}
+
+function SubmissionEntry({ sub, feedback }) {
   const [expanded, setExpanded] = useState(false);
+  const [fbExpanded, setFbExpanded] = useState(false);
   const color = TYPE_COLORS[sub.submission_type] || 'var(--graphite)';
   const timestamp = new Date(sub.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -521,6 +530,14 @@ function SubmissionEntry({ sub }) {
         }}>
           {sub.submission_type}
         </span>
+        {feedback?.score != null && (() => {
+          const { bg, text } = scoreBadgeColor(feedback.score);
+          return (
+            <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, background: bg, color: text, padding: '2px 6px', borderRadius: 4 }}>
+              {feedback.score}/50
+            </span>
+          );
+        })()}
         <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--pencil)', fontFamily: 'var(--font-mono)' }}>
           {timestamp}
         </span>
@@ -561,12 +578,34 @@ function SubmissionEntry({ sub }) {
           {sub.file_name || 'Download file'}
         </a>
       )}
+
+      {feedback && (
+        <div style={{ marginTop: 8, borderTop: '1px dashed var(--pencil)', paddingTop: 6 }}>
+          <button
+            onClick={() => setFbExpanded(v => !v)}
+            style={{ fontSize: 10, color: 'var(--graphite)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'var(--font-body)' }}
+          >
+            <ChevronDown size={10} style={{ transform: fbExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 120ms' }} />
+            AI Feedback
+          </button>
+          {fbExpanded && (
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--graphite)', lineHeight: 1.5 }}>
+              {feedback.feedback_text && <p style={{ margin: '0 0 4px' }}>{feedback.feedback_text}</p>}
+              {feedback.hints && (
+                <p style={{ margin: 0, fontStyle: 'italic', color: 'var(--lab-blue)' }}>
+                  Tip: {feedback.hints}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ===================== STAGE CARD =====================
-function StageCard({ stage, onComplete, completing, onNavigateToSim, submissions = [] }) {
+function StageCard({ stage, onComplete, completing, onNavigateToSim, submissions = [], stageFeedback = {} }) {
   const [helpText, setHelpText] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpLoading, setHelpLoading] = useState(false);
@@ -792,7 +831,7 @@ function StageCard({ stage, onComplete, completing, onNavigateToSim, submissions
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {submissions.map((sub) => (
-              <SubmissionEntry key={sub.id} sub={sub} />
+              <SubmissionEntry key={sub.id} sub={sub} feedback={stageFeedback[sub.student_name]} />
             ))}
           </div>
         </div>
@@ -1179,7 +1218,7 @@ function GuidePlaybookPanel({ questId, quest, stages, onClose }) {
 }
 
 // ===================== PROGRESS SIDEBAR =====================
-function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, onClose, questId }) {
+function ProgressSidebar({ stages, quest, reflections = [], stageSubmissions = {}, isOverlay = false, onClose, questId }) {
   const completedCount = stages.filter((s) => s.status === 'completed').length;
   const totalCount = stages.length;
   const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -1259,7 +1298,9 @@ function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, o
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--graphite)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
             Stages
           </div>
-          {stages.map((stage) => (
+          {stages.map((stage) => {
+            const subCount = (stageSubmissions[stage.id] || []).length;
+            return (
             <div key={stage.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <div style={{
                 width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
@@ -1269,12 +1310,22 @@ function ProgressSidebar({ stages, quest, reflections = [], isOverlay = false, o
                 fontFamily: 'var(--font-body)', fontSize: 'var(--text-xs)',
                 color: stage.status === 'locked' ? 'var(--pencil)' : 'var(--ink)',
                 fontWeight: stage.status === 'active' ? 600 : 400,
-                lineHeight: 1.4,
+                lineHeight: 1.4, flex: 1,
               }}>
                 {stage.title}
               </span>
+              {subCount > 0 && (
+                <span style={{
+                  fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                  background: 'rgba(27,73,101,0.1)', color: 'var(--lab-blue)',
+                  padding: '1px 5px', borderRadius: 3,
+                }}>
+                  {subCount}
+                </span>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Student submissions */}
@@ -1435,6 +1486,7 @@ export default function QuestMap() {
   const [mapLandmarks, setMapLandmarks] = useState([]);
 
   const [stageSubmissions, setStageSubmissions] = useState({}); // keyed by stage_id
+  const [stageFeedback, setStageFeedback] = useState({}); // keyed by stage_id → {student_name → {score, feedback_text, hints}}
 
   const [shareCopied, setShareCopied] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
@@ -1500,14 +1552,29 @@ export default function QuestMap() {
       const firstActive = sorted.find((s) => s.status === 'active');
       if (firstActive) setActiveCard(firstActive.id);
 
-      // Load student submissions for this quest
-      const { data: subs } = await supabase.rpc('get_stage_submissions', { p_quest_id: id });
+      // Load student submissions + AI feedback for this quest (parallel)
+      const [{ data: subs }, { data: fbRows }] = await Promise.all([
+        supabase.rpc('get_stage_submissions', { p_quest_id: id }),
+        feedbackApi.listAllForQuest(id),
+      ]);
+
       const subsMap = {};
       (subs || []).forEach((s) => {
         if (!subsMap[s.stage_id]) subsMap[s.stage_id] = [];
         subsMap[s.stage_id].push(s);
       });
       setStageSubmissions(subsMap);
+
+      // Build feedback map: stage_id → student_name → latest feedback row
+      const fbMap = {};
+      (fbRows || []).forEach((fb) => {
+        if (!fbMap[fb.stage_id]) fbMap[fb.stage_id] = {};
+        // listAllForQuest orders by created_at DESC; first hit per student is the latest
+        if (!fbMap[fb.stage_id][fb.student_name]) {
+          fbMap[fb.stage_id][fb.student_name] = fb;
+        }
+      });
+      setStageFeedback(fbMap);
 
       setLoading(false);
     };
@@ -1627,14 +1694,23 @@ export default function QuestMap() {
       .select('*').eq('quest_id', id).order('created_at');
     setReflections(updatedReflections || []);
 
-    // Refresh submissions
-    const { data: subs } = await supabase.rpc('get_stage_submissions', { p_quest_id: id });
+    // Refresh submissions + feedback
+    const [{ data: subs }, { data: fbRows }] = await Promise.all([
+      supabase.rpc('get_stage_submissions', { p_quest_id: id }),
+      feedbackApi.listAllForQuest(id),
+    ]);
     const subsMap = {};
     (subs || []).forEach((s) => {
       if (!subsMap[s.stage_id]) subsMap[s.stage_id] = [];
       subsMap[s.stage_id].push(s);
     });
     setStageSubmissions(subsMap);
+    const fbMap = {};
+    (fbRows || []).forEach((fb) => {
+      if (!fbMap[fb.stage_id]) fbMap[fb.stage_id] = {};
+      if (!fbMap[fb.stage_id][fb.student_name]) fbMap[fb.stage_id][fb.student_name] = fb;
+    });
+    setStageFeedback(fbMap);
 
     setCompleting(null);
     setActiveCard(null);
@@ -1967,6 +2043,7 @@ export default function QuestMap() {
                   completing={completing}
                   onNavigateToSim={handleEnterSim}
                   submissions={stageSubmissions[activeStage.id] || []}
+                  stageFeedback={stageFeedback[activeStage.id] || {}}
                 />
               )}
 
@@ -2034,6 +2111,7 @@ export default function QuestMap() {
             stages={stages}
             quest={quest}
             reflections={reflections}
+            stageSubmissions={stageSubmissions}
             isOverlay={isMobile}
             onClose={() => setSidebarOpen(false)}
             questId={id}

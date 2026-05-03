@@ -21,6 +21,7 @@ const DECOR_SUBJECT = {
  * @returns {Promise<string>}  CDN URL of the generated portrait
  */
 export async function generatePortrait(biomeId = 'campsite', extraHint = '') {
+  if (!import.meta.env.VITE_FAL_KEY) return null;
   const subject = GUIDE_SUBJECT[biomeId] ?? GUIDE_SUBJECT.campsite;
   const hint    = String(extraHint || '').trim();
   const prompt  = buildArtPrompt(hint ? `${subject}, ${hint}` : subject);
@@ -31,12 +32,11 @@ export async function generatePortrait(biomeId = 'campsite', extraHint = '') {
       input: { prompt, image_size: 'portrait_4_3', num_images: 1 },
     });
   } catch (err) {
-    throw new Error(`fal.ai portrait request failed (biome: ${biomeId}): ${err.message}`);
+    console.warn(`fal.ai portrait request failed (biome: ${biomeId}):`, err.message);
+    return null;
   }
 
-  const url = result?.data?.images?.[0]?.url;
-  if (!url) throw new Error('No image URL returned from fal.ai');
-  return url;
+  return result?.data?.images?.[0]?.url ?? null;
 }
 
 /**
@@ -46,6 +46,7 @@ export async function generatePortrait(biomeId = 'campsite', extraHint = '') {
  * @returns {Promise<{url: string, prompt: string}>}
  */
 export async function generateDecorSlot(slot, biomeId = 'campsite', questTitle = '') {
+  if (!import.meta.env.VITE_FAL_KEY) return null;
   const subject = DECOR_SUBJECT[slot] ?? `a decorative element for a ${biomeId} biome`;
   const hint    = String(questTitle || '').trim();
   const prompt  = buildArtPrompt(hint ? `${subject}, related to "${hint}"` : subject);
@@ -56,10 +57,11 @@ export async function generateDecorSlot(slot, biomeId = 'campsite', questTitle =
       input: { prompt, image_size: 'square', num_images: 1 },
     });
   } catch (err) {
-    throw new Error(`fal.ai decor request failed (slot: ${slot}): ${err.message}`);
+    console.warn(`fal.ai decor request failed (slot: ${slot}):`, err.message);
+    return null;
   }
 
   const url = result?.data?.images?.[0]?.url;
-  if (!url) throw new Error('No image URL returned from fal.ai');
+  if (!url) return null;
   return { url, prompt };
 }
