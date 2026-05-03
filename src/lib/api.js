@@ -4091,7 +4091,7 @@ export async function loadCabinData(studentId) {
 
     supabase
       .from('student_skills')
-      .select('id, name:skills(name), category:skills(category), mastery_level')
+      .select('id, proficiency, skills(name, category)')
       .eq('student_id', studentId),
 
     supabase
@@ -4110,10 +4110,12 @@ export async function loadCabinData(studentId) {
 
     supabase
       .from('parent_access')
-      .select('id, notes, updated_at')
+      .select('id, expectations, child_loves, parent_name, relationship, onboarded_at, created_at')
       .eq('student_id', studentId)
-      .order('updated_at', { ascending: false }),
+      .order('onboarded_at', { ascending: false }),
   ]);
+
+  if (membershipRes.error) throw new Error(`loadCabinData: memberships — ${membershipRes.error.message}`);
 
   const questIds = (membershipRes.data || []).map(m => m.quest_id);
   let allQuests = [];
@@ -4128,18 +4130,19 @@ export async function loadCabinData(studentId) {
   const projects          = allQuests.filter(q => q.status !== 'completed');
   const completedProjects = allQuests
     .filter(q => q.status === 'completed')
-    .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))
+    .sort((a, b) => new Date(b.completed_at ?? 0) - new Date(a.completed_at ?? 0))
     .slice(0, 8);
 
   const skills = (skillsRes.data || []).map(s => ({
-    ...s,
-    name: s.name?.name ?? s.name,
-    category: s.category?.category ?? s.category,
+    id: s.id,
+    proficiency: s.proficiency,
+    name: s.skills?.name,
+    category: s.skills?.category,
   }));
 
   const guideMessages    = (guideRes.data    || []).map(m => ({ ...m, source: 'guide',    sortKey: m.created_at }));
   const feedbackMessages = (feedbackRes.data || []).map(m => ({ ...m, source: 'feedback', sortKey: m.created_at }));
-  const parentMessages   = (parentRes.data   || []).map(m => ({ ...m, source: 'parent',   sortKey: m.updated_at }));
+  const parentMessages   = (parentRes.data   || []).map(m => ({ ...m, source: 'parent',   sortKey: m.onboarded_at ?? m.created_at }));
   const messages = [...guideMessages, ...feedbackMessages, ...parentMessages]
     .sort((a, b) => new Date(b.sortKey) - new Date(a.sortKey));
 

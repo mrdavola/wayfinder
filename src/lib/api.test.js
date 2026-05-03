@@ -35,8 +35,8 @@ const MOCK_QUESTS = [
 ];
 
 const MOCK_SKILLS = [
-  { id: 'sk1', name: 'Observation', category: 'science', mastery_level: 3 },
-  { id: 'sk2', name: 'Teamwork',    category: 'social',  mastery_level: 1 },
+  { id: 'sk1', proficiency: 'proficient', skills: { name: 'Observation', category: 'core' } },
+  { id: 'sk2', proficiency: 'emerging',   skills: { name: 'Teamwork',    category: 'soft' } },
 ];
 
 const MOCK_MESSAGES = [
@@ -84,7 +84,7 @@ describe('loadCabinData', () => {
 
   it('merges messages from all three sources', async () => {
     const feedbackMsg = { id: 'fb1', warm_feedback: 'Nice!', created_at: '2026-04-28T00:00:00Z', source: 'feedback' };
-    const parentMsg   = { id: 'pa1', notes: 'Proud of you', updated_at: '2026-04-27T00:00:00Z', source: 'parent' };
+    const parentMsg   = { id: 'pa1', expectations: 'Build confidence', child_loves: 'animals and art', parent_name: 'Sam', relationship: 'parent', onboarded_at: '2026-04-27T00:00:00Z', created_at: '2026-04-26T00:00:00Z', source: 'parent' };
 
     supabase.from.mockImplementation((table) => {
       if (table === 'quest_group_members') return makeChain({ data: [], error: null });
