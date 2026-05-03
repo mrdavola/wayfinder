@@ -61,6 +61,7 @@ function BiomePageWorld({ questId }) {
   const { quest, stages, loading, error, refreshStages } = useBiomeQuest(questId);
   const studentSession = useMemo(() => getStudentSession() || {}, []);
   const [feedback, setFeedback] = useState([]);
+  const [teammates, setTeammates] = useState([]);
 
   useEffect(() => {
     if (!questId) return;
@@ -81,6 +82,18 @@ function BiomePageWorld({ questId }) {
     return () => { cancelled = true; };
   }, [questId, studentSession.studentId, studentSession.studentName]);
 
+  useEffect(() => {
+    if (!questId) return;
+    let cancelled = false;
+    supabase.rpc('get_quest_teammates', { p_quest_id: questId }).then(({ data, error: err }) => {
+      if (cancelled || err) return;
+      const raw = Array.isArray(data) ? data : [];
+      const currentId = studentSession.studentId || null;
+      setTeammates(currentId ? raw.filter(m => m.student_id !== currentId) : raw);
+    });
+    return () => { cancelled = true; };
+  }, [questId, studentSession.studentId]);
+
   if (loading) return <LoadingScreen />;
   if (error || !quest) return <ErrorScreen message={error?.message} />;
 
@@ -90,6 +103,7 @@ function BiomePageWorld({ questId }) {
       stages={stages}
       studentSession={studentSession}
       feedback={feedback}
+      teammates={teammates}
       onStageComplete={refreshStages}
     />
   );
