@@ -13,8 +13,13 @@ function renderAt(url) {
 }
 
 describe('useViewMode', () => {
-  it('defaults to world when no query param', () => {
+  it('defaults to list when no query param (world view is opt-in for now)', () => {
     renderAt('/q/abc');
+    expect(screen.getByTestId('mode')).toHaveTextContent('list|true|false');
+  });
+
+  it('returns world when view=world', () => {
+    renderAt('/q/abc?view=world');
     expect(screen.getByTestId('mode')).toHaveTextContent('world|false|true');
   });
 
@@ -23,8 +28,8 @@ describe('useViewMode', () => {
     expect(screen.getByTestId('mode')).toHaveTextContent('list|true|false');
   });
 
-  it('falls back to world for unknown values', () => {
+  it('falls back to list for unknown values', () => {
     renderAt('/q/abc?view=zebra');
-    expect(screen.getByTestId('mode')).toHaveTextContent('world|false|true');
+    expect(screen.getByTestId('mode')).toHaveTextContent('list|true|false');
   });
 });

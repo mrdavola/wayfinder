@@ -9,7 +9,7 @@ import {
   Pause, Play, Maximize2, SwitchCamera, ArrowLeft, PenLine,
   Volume2, VolumeX, Lightbulb, Camera, Link2, FileUp, Clock,
   LayoutGrid, Paintbrush, Presentation,
-  ListOrdered, ClipboardList, CheckSquare, Columns,
+  ListOrdered, ClipboardList, CheckSquare, Columns, Mountain,
 } from 'lucide-react';
 import SpeakButton from '../../components/ui/SpeakButton';
 import { supabase } from '../../lib/supabase';
@@ -4608,6 +4608,24 @@ export default function StudentQuestPage() {
           >
             <Map size={13} />
             <span className="sq-topbar-badge">{/* hidden on mobile */}Notes</span>
+          </button>
+          <button
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set('view', 'world');
+              window.location.href = url.toString();
+            }}
+            title="Try the immersive world view (preview)"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '5px 8px', borderRadius: 6,
+              border: '1px solid var(--pencil)', background: 'transparent',
+              fontSize: 11, color: 'var(--ink)', cursor: 'pointer',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            <Mountain size={13} />
+            <span className="sq-topbar-badge">World</span>
           </button>
         </div>
       </header>

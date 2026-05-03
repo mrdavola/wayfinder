@@ -150,7 +150,7 @@ export default function DemoPage() {
   const biomeId = BIOMES.some(b => b.id === params.get('biome')) ? params.get('biome') : 'campsite';
   const phase   = PHASES.some(p => p.id === params.get('phase'))   ? params.get('phase')   : 'fresh';
   const team    = TEAM_PRESETS.some(t => t.id === params.get('team')) ? params.get('team') : 'group';
-  const view    = VIEW_PRESETS.some(v => v.id === params.get('view')) ? params.get('view') : 'world';
+  const view    = VIEW_PRESETS.some(v => v.id === params.get('view')) ? params.get('view') : 'list';
 
   const setParam = useCallback((key, value) => {
     const next = new URLSearchParams(params);
