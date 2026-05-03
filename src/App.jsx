@@ -4,10 +4,11 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { getStudentSession } from './lib/studentSession';
 
-// Eagerly loaded (landing + auth — needed immediately)
+// Eagerly loaded (landing — first paint for new visitors)
 import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/auth/LoginPage';
-import SignupPage from './pages/auth/SignupPage';
+// Auth pages are behind a button click, so lazy-load them to shrink the initial bundle.
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
 
 // Lazy-loaded pages
 const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage'));
@@ -41,6 +42,7 @@ const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage'));
 const WorldRenderer = lazy(() => import('./pages/student/WorldRenderer'));
 const BiomePage = lazy(() => import('./pages/student/BiomePage.jsx'));
 const CabinScene = lazy(() => import('./components/world/CabinScene'));
+const BiomeDevPreview = lazy(() => import('./pages/dev/BiomeDevPreview.jsx'));
 
 import './index.css';
 
@@ -124,6 +126,14 @@ export default function App() {
             <Route path="/community" element={<ProtectedRoute><CommunityRepository /></ProtectedRoute>} />
             <Route path="/moderation" element={<ProtectedRoute><ModerationPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+
+            {/* Dev-only biome preview routes — gated by Vite's build-time DEV flag */}
+            {import.meta.env.DEV && (
+              <>
+                <Route path="/dev/biome" element={<BiomeDevPreview />} />
+                <Route path="/dev/biome/:biomeId" element={<BiomeDevPreview />} />
+              </>
+            )}
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
