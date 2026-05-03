@@ -4,6 +4,12 @@ import WallMapPanel         from './panels/WallMapPanel';
 import SpecimenCabinetPanel from './panels/SpecimenCabinetPanel';
 import BulletinBoardPanel   from './panels/BulletinBoardPanel';
 
+const DIALOG_LABELS = {
+  wallMap: 'Wall Map',
+  specimenCabinet: 'Specimen Cabinet',
+  bulletinBoard: 'Bulletin Board',
+};
+
 function CabinContent({ role, projects, completedProjects, skills, messages, onMarkRead }) {
   switch (role) {
     case 'wallMap':
@@ -38,7 +44,7 @@ export default function CabinOverlay({
       data-role={role}
       role="dialog"
       aria-modal="true"
-      aria-label={role}
+      aria-label={DIALOG_LABELS[role] ?? role}
     >
       <div
         className="hotspot-overlay__backdrop cabin-overlay__backdrop"
