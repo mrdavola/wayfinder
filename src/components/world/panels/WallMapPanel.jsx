@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-const BIOME_LABELS = { campsite: 'Campsite', lab: 'Lab', workshop: 'Workshop' };
+const BIOME_LABELS = { campsite: 'Campsite', lab: 'Lab', workshop: 'Workshop', unassigned: 'Unassigned' };
 const BIOME_ORDER  = ['campsite', 'lab', 'workshop'];
 
 function projectHref(project) {
@@ -34,7 +34,7 @@ export default function WallMapPanel({ projects, completedProjects }) {
   const byBiome = {};
   const unassigned = [];
   for (const p of projects) {
-    if (p.biome_id && BIOME_LABELS[p.biome_id]) {
+    if (p.biome_id) {
       if (!byBiome[p.biome_id]) byBiome[p.biome_id] = [];
       byBiome[p.biome_id].push(p);
     } else {
@@ -48,16 +48,7 @@ export default function WallMapPanel({ projects, completedProjects }) {
         <BiomeGroup key={id} biomeId={id} projects={byBiome[id]} />
       ))}
       {unassigned.length > 0 && (
-        <div className="wmp-group">
-          <h3 className="wmp-group-label">Unassigned</h3>
-          <ul className="wmp-list">
-            {unassigned.map(p => (
-              <li key={p.id} className="wmp-item">
-                <Link to={projectHref(p)} className="wmp-link">{p.title}</Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <BiomeGroup biomeId="unassigned" projects={unassigned} />
       )}
     </div>
   );
