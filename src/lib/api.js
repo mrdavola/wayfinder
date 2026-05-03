@@ -4078,3 +4078,70 @@ export const embeddings = {
 
 // Named exports for world scene utilities
 export { generateWorldImage, uploadWorldScene };
+
+// ===================== CABIN HUB DATA =====================
+export async function loadCabinData(studentId) {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [membershipRes, skillsRes, guideRes, feedbackRes, parentRes] = await Promise.all([
+    supabase
+      .from('quest_group_members')
+      .select('quest_id')
+      .eq('student_id', studentId),
+
+    supabase
+      .from('student_skills')
+      .select('id, name:skills(name), category:skills(category), mastery_level')
+      .eq('student_id', studentId),
+
+    supabase
+      .from('guide_messages')
+      .select('id, content, created_at, read_at, quest_id, role')
+      .eq('student_id', studentId)
+      .is('read_at', null)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('submission_feedback')
+      .select('id, warm_feedback, cool_feedback, created_at, quest_id')
+      .eq('student_id', studentId)
+      .gte('created_at', thirtyDaysAgo)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('parent_access')
+      .select('id, notes, updated_at')
+      .eq('student_id', studentId)
+      .order('updated_at', { ascending: false }),
+  ]);
+
+  const questIds = (membershipRes.data || []).map(m => m.quest_id);
+  let allQuests = [];
+  if (questIds.length > 0) {
+    const { data } = await supabase
+      .from('quests')
+      .select('id, title, status, biome_id, completed_at, career_pathway')
+      .in('id', questIds);
+    allQuests = data || [];
+  }
+
+  const projects          = allQuests.filter(q => q.status !== 'completed');
+  const completedProjects = allQuests
+    .filter(q => q.status === 'completed')
+    .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))
+    .slice(0, 8);
+
+  const skills = (skillsRes.data || []).map(s => ({
+    ...s,
+    name: s.name?.name ?? s.name,
+    category: s.category?.category ?? s.category,
+  }));
+
+  const guideMessages    = (guideRes.data    || []).map(m => ({ ...m, source: 'guide',    sortKey: m.created_at }));
+  const feedbackMessages = (feedbackRes.data || []).map(m => ({ ...m, source: 'feedback', sortKey: m.created_at }));
+  const parentMessages   = (parentRes.data   || []).map(m => ({ ...m, source: 'parent',   sortKey: m.updated_at }));
+  const messages = [...guideMessages, ...feedbackMessages, ...parentMessages]
+    .sort((a, b) => new Date(b.sortKey) - new Date(a.sortKey));
+
+  return { projects, completedProjects, skills, messages };
+}
