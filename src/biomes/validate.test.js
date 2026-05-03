@@ -61,7 +61,7 @@ describe('validateBiomeConfig', () => {
     const cabinCfg = {
       id: 'cabin',
       layers: { back: 'b.svg', mid: 'm.svg', fore: 'f.svg' },
-      ambient: [],
+      ambient: ['hearthFlicker'],
       hotspots: [
         { role: 'wallMap',         x: '20%', y: '40%' },
         { role: 'specimenCabinet', x: '75%', y: '30%' },

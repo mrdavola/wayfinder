@@ -12,4 +12,5 @@ export const cabin = {
     { role: 'specimenCabinet', x: '76%', y: '28%' },
     { role: 'bulletinBoard',   x: '45%', y: '62%' },
   ],
+  decor: [],
 };

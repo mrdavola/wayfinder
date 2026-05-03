@@ -24,6 +24,10 @@ describe('biomes registry', () => {
     expect(listBiomes()).toContain('cabin');
   });
 
+  it('lists exactly the two registered biomes', () => {
+    expect(listBiomes()).toHaveLength(2);
+  });
+
   it('returns a valid config for cabin', () => {
     const cfg = getBiome('cabin');
     expect(cfg).toBeDefined();

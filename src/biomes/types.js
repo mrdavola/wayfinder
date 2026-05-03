@@ -15,10 +15,13 @@
  * @property {number} [stageIndex]      required when role === 'stage'
  * @property {string} [tactile]         GLB filename (Phase 3)
  *
+ * @typedef {Object} DecorConfig
+ *
  * @typedef {Object} BiomeConfig
  * @property {BiomeId} id
  * @property {BiomeLayers} layers
  * @property {string[]} ambient         ambient-motion preset ids
  * @property {HotspotConfig[]} hotspots
+ * @property {DecorConfig[]} [decor]
  */
 export {};
