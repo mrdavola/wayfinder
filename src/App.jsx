@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import CabinScene from './components/world/CabinScene';
 import { getStudentSession } from './lib/studentSession';
 
 // Eagerly loaded (landing + auth — needed immediately)
@@ -41,6 +40,7 @@ const CommunityRepository = lazy(() => import('./pages/CommunityRepository'));
 const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage'));
 const WorldRenderer = lazy(() => import('./pages/student/WorldRenderer'));
 const BiomePage = lazy(() => import('./pages/student/BiomePage.jsx'));
+const CabinScene = lazy(() => import('./components/world/CabinScene'));
 
 import './index.css';
 
