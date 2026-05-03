@@ -1,12 +1,12 @@
 /**
- * @typedef {'campsite'|'lab'|'workshop'} BiomeId
+ * @typedef {'campsite'|'lab'|'workshop'|'cabin'} BiomeId
  *
  * @typedef {Object} BiomeLayers
  * @property {string} back
  * @property {string} mid
  * @property {string} fore
  *
- * @typedef {'trailheadSign'|'stage'|'guide'|'bulletinSubmit'|'mailbox'|'challenger'|'reflection'|'stretch'|'teammate'|'parentLetter'} HotspotRole
+ * @typedef {'trailheadSign'|'stage'|'guide'|'bulletinSubmit'|'mailbox'|'challenger'|'reflection'|'stretch'|'teammate'|'parentLetter'|'wallMap'|'specimenCabinet'|'bulletinBoard'} HotspotRole
  *
  * @typedef {Object} HotspotConfig
  * @property {HotspotRole} role

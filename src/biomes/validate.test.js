@@ -56,4 +56,32 @@ describe('validateBiomeConfig', () => {
     expect(r.ok).toBe(false);
     expect(r.errors[0]).toMatch(/x/);
   });
+
+  it('accepts cabin as a valid biome id', () => {
+    const cabinCfg = {
+      id: 'cabin',
+      layers: { back: 'b.svg', mid: 'm.svg', fore: 'f.svg' },
+      ambient: [],
+      hotspots: [
+        { role: 'wallMap',         x: '20%', y: '40%' },
+        { role: 'specimenCabinet', x: '75%', y: '30%' },
+        { role: 'bulletinBoard',   x: '45%', y: '60%' },
+      ],
+    };
+    const r = validateBiomeConfig(cabinCfg);
+    expect(r.ok).toBe(true);
+    expect(r.errors).toEqual([]);
+  });
+
+  it('rejects wallMap role on a non-cabin config (validator is role-agnostic)', () => {
+    // wallMap is valid regardless of biome id — it's the config author's responsibility
+    // to only use hub roles on hub configs. The validator just checks membership.
+    const r = validateBiomeConfig({
+      id: 'cabin',
+      layers: { back: 'b.svg', mid: 'm.svg', fore: 'f.svg' },
+      ambient: [],
+      hotspots: [{ role: 'wallMap', x: '20%', y: '40%' }],
+    });
+    expect(r.ok).toBe(true);
+  });
 });

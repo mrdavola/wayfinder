@@ -1,7 +1,8 @@
-const VALID_BIOME_IDS = new Set(['campsite', 'lab', 'workshop']);
+const VALID_BIOME_IDS = new Set(['campsite', 'lab', 'workshop', 'cabin']);
 const VALID_ROLES = new Set([
   'trailheadSign', 'stage', 'guide', 'bulletinSubmit', 'mailbox',
   'challenger', 'reflection', 'stretch', 'teammate', 'parentLetter',
+  'wallMap', 'specimenCabinet', 'bulletinBoard',
 ]);
 const PCT = /^\d+(\.\d+)?%$/;
 
