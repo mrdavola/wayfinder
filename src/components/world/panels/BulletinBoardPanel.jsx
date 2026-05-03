@@ -21,7 +21,7 @@ function pinFor(source) {
   return 'none';
 }
 
-export default function BulletinBoardPanel({ messages, onMarkRead }) {
+export default function BulletinBoardPanel({ messages = [], onMarkRead = () => {} }) {
   if (messages.length === 0) {
     return (
       <div className="bbp-empty">
@@ -44,7 +44,7 @@ export default function BulletinBoardPanel({ messages, onMarkRead }) {
               pin={pinFor(msg.source)}
               className="bbp-card"
               data-source={msg.source}
-              onClick={isGuide ? () => onMarkRead(msg.id) : undefined}
+              onClick={isGuide ? () => onMarkRead?.(msg.id) : undefined}
               style={{ cursor: isGuide ? 'pointer' : 'default' }}
             >
               <div className="bbp-card-source">{sourceLabel(msg.source)}</div>
