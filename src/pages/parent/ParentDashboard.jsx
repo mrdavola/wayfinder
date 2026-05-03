@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, BookOpen, Star, Clock, ArrowRight, Plus, X, PenLine } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import DiagonallyLogoIcon from '../../components/icons/DiagonallyLogo';
+import WorldSnapshotCard from '../../components/world/WorldSnapshotCard';
 
 const T = {
   ink: '#1A1A2E', paper: '#FAF8F5', parchment: '#F0EDE6',
@@ -412,8 +413,10 @@ function DashboardView({ data, token, onOutcomesUpdate }) {
               return (
                 <div key={q.id} style={{
                   background: T.chalk, borderRadius: 12, border: `1px solid ${T.parchment}`,
-                  padding: '16px 18px',
+                  padding: 0, overflow: 'hidden',
                 }}>
+                  <WorldSnapshotCard quest={q} />
+                  <div style={{ padding: '14px 18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: T.ink }}>
                       {q.title}
@@ -439,6 +442,7 @@ function DashboardView({ data, token, onOutcomesUpdate }) {
                     <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: T.graphite }}>
                       {q.stages_done}/{q.stages_total}
                     </span>
+                  </div>
                   </div>
                 </div>
               );
