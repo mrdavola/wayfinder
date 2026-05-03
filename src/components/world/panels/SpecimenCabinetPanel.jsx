@@ -9,7 +9,7 @@ function tierFor(proficiency) {
 
 const FILL_PCT = { earned: 100, progress: 50, locked: 0 };
 
-export default function SpecimenCabinetPanel({ skills }) {
+export default function SpecimenCabinetPanel({ skills = [] }) {
   if (skills.length === 0) {
     return (
       <div className="scp-empty">
@@ -28,8 +28,8 @@ export default function SpecimenCabinetPanel({ skills }) {
         {skills.map(s => {
           const tier = tierFor(s.proficiency);
           return (
-            <li key={s.id} className="scp-jar" data-tier={tier} title={s.name}>
-              <div className="scp-jar-fill" style={{ height: `${FILL_PCT[tier]}%` }} />
+            <li key={s.id} className="scp-jar" data-tier={tier} title={s.name} aria-label={`${s.name}: ${tier}`}>
+              <div className="scp-jar-fill" style={{ height: `${FILL_PCT[tier] ?? 0}%` }} />
               <span className="scp-jar-label">{s.name}</span>
             </li>
           );
