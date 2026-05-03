@@ -1,0 +1,42 @@
+.cabin-scene {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.cabin-scene__artifacts {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  gap: 12px;
+  padding: 0 24px 8px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.cabin-scene__artifact {
+  pointer-events: auto;
+  font-size: 11px;
+}
+
+.cabin-scene__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-family: var(--font-body);
+  color: var(--graphite);
+  font-size: 14px;
+}
+
+.cabin-scene__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+  font-family: var(--font-body);
+}
