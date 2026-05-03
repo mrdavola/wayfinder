@@ -109,6 +109,82 @@ function ReflectionPanel({ quest, stage, studentSession }) {
   );
 }
 
+function HubPanel({ quest, role, body, items }) {
+  const titles = {
+    wallMap:         'Field Map — your projects',
+    specimenCabinet: 'Cabinet — your skills',
+    bulletinBoard:   'Bulletin Board — messages',
+  };
+  return (
+    <div className="ho-panel">
+      <PropHeader role={role} quest={quest} />
+      <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>{titles[role] || 'Cabin'}</h2>
+      <p className="ho-body">{body}</p>
+      {items && items.length > 0 && (
+        <div className="ho-feedback-list" style={{ marginTop: 12 }}>
+          {items.map((it, i) => (
+            <Specimen key={i} id={`hub-${role}-${i}`} pin={i % 2 === 0 ? 'pin' : 'tape'} size="md"
+              style={{ marginBottom: 10, width: '100%', boxSizing: 'border-box' }}>
+              <strong style={{ fontSize: 12, fontFamily: 'var(--font-body)' }}>{it.title}</strong>
+              {it.subtitle && (
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--graphite)', fontFamily: 'var(--font-body)' }}>
+                  {it.subtitle}
+                </p>
+              )}
+            </Specimen>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WallMapPanel({ quest }) {
+  return (
+    <HubPanel
+      quest={quest}
+      role="wallMap"
+      body="A map of every project you've taken on — open, paused, or finished. Tap a pin to revisit."
+      items={[
+        { title: 'How can our cafeteria reduce food waste?', subtitle: 'Active · Stage 2 of 3' },
+        { title: 'What lives in our schoolyard pond?',         subtitle: 'Paused · Stage 1' },
+        { title: 'Storytelling with shadows',                  subtitle: 'Completed · last term' },
+      ]}
+    />
+  );
+}
+
+function SpecimenCabinetPanel({ quest }) {
+  return (
+    <HubPanel
+      quest={quest}
+      role="specimenCabinet"
+      body="Each jar is a skill you've collected through your work. Open one to see the projects that earned it."
+      items={[
+        { title: 'Field observation',  subtitle: 'Earned in 2 projects' },
+        { title: 'Interviewing',       subtitle: 'Earned in 1 project' },
+        { title: 'Iterative design',   subtitle: 'Growing — 3 more samples to mastery' },
+        { title: 'Data analysis',      subtitle: 'New — first sample collected' },
+      ]}
+    />
+  );
+}
+
+function BulletinBoardPanel({ quest }) {
+  return (
+    <HubPanel
+      quest={quest}
+      role="bulletinBoard"
+      body="Notes from your guide, parent, and teammates. Read them when you have a quiet moment."
+      items={[
+        { title: 'Note from your guide',     subtitle: 'I loved your interview write-up — let\'s pick a prototype path on Friday.' },
+        { title: 'Letter from home',         subtitle: 'Dad says he\'s proud of how you handled the messy second draft.' },
+        { title: 'Reminder',                  subtitle: 'Stage 3 deliverable due in 4 days.' },
+      ]}
+    />
+  );
+}
+
 function ChatPanel({ quest, stage, studentSession, onClose, onStageComplete, role }) {
   const session = {
     studentName: studentSession?.studentName,
@@ -150,6 +226,12 @@ function OverlayContent({ role, quest, stage, studentSession, feedback, teammate
       return <BulletinPanel quest={quest} />;
     case 'teammate':
       return <TeammatePanel teammate={teammate} />;
+    case 'wallMap':
+      return <WallMapPanel quest={quest} />;
+    case 'specimenCabinet':
+      return <SpecimenCabinetPanel quest={quest} />;
+    case 'bulletinBoard':
+      return <BulletinBoardPanel quest={quest} />;
     default:
       return <p className="ho-empty">Coming soon.</p>;
   }
@@ -161,6 +243,12 @@ export default function HotspotOverlay({ role, quest, stage, studentSession, fee
   useEffect(() => {
     sheetRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   return (
     <div className="hotspot-overlay" data-role={role} role="dialog" aria-modal="true" aria-labelledby="ho-dialog-title">
