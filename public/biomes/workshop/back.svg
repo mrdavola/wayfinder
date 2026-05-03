@@ -1,4 +1,75 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <rect width="1600" height="900" fill="#d4bc8c"/>
-  <text x="800" y="100" font-family="serif" font-size="40" text-anchor="middle" fill="#4a3010">WORKSHOP — BACK LAYER (placeholder)</text>
+  <defs>
+    <linearGradient id="ws-wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#d8c69a"/>
+      <stop offset="100%" stop-color="#b39a6a"/>
+    </linearGradient>
+    <linearGradient id="ws-floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#8a6a40"/>
+      <stop offset="100%" stop-color="#5a4020"/>
+    </linearGradient>
+    <pattern id="planks" x="0" y="0" width="160" height="20" patternUnits="userSpaceOnUse">
+      <rect width="160" height="20" fill="url(#ws-floor)"/>
+      <line x1="0" y1="20" x2="160" y2="20" stroke="#3d2a18" stroke-width="0.8" opacity="0.5"/>
+      <line x1="80" y1="0" x2="80" y2="20" stroke="#3d2a18" stroke-width="0.5" opacity="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- Wall -->
+  <rect width="1600" height="640" fill="url(#ws-wall)"/>
+
+  <!-- Wooden beam across top -->
+  <rect width="1600" height="40" fill="#5a3a18" opacity="0.85"/>
+  <rect y="40" width="1600" height="6" fill="#3d2a18" opacity="0.6"/>
+
+  <!-- Tool pegboard, upper left -->
+  <g transform="translate(120,140)">
+    <rect width="320" height="280" fill="#c4a870" stroke="#5a3a18" stroke-width="6"/>
+    <!-- Hammer outline -->
+    <g stroke="#3d2a18" stroke-width="2" fill="none" opacity="0.9">
+      <rect x="40"  y="40" width="14" height="80"/>
+      <rect x="30"  y="30" width="34" height="20"/>
+    </g>
+    <!-- Saw outline -->
+    <g stroke="#3d2a18" stroke-width="2" fill="none" opacity="0.9">
+      <path d="M120,40 L260,40 L260,75 L120,55 Z"/>
+      <line x1="260" y1="50" x2="290" y2="60" stroke-width="3"/>
+    </g>
+    <!-- Wrench outline -->
+    <g stroke="#3d2a18" stroke-width="2" fill="none" opacity="0.9">
+      <rect x="50"  y="160" width="14" height="90"/>
+      <circle cx="57" cy="160" r="14"/>
+      <circle cx="57" cy="250" r="10"/>
+    </g>
+    <!-- Pliers outline -->
+    <g stroke="#3d2a18" stroke-width="2" fill="none" opacity="0.9">
+      <path d="M150,160 L160,200 L150,240"/>
+      <path d="M180,160 L170,200 L180,240"/>
+    </g>
+  </g>
+
+  <!-- Blueprint pinned to right wall -->
+  <g transform="translate(1080,160)">
+    <rect width="360" height="260" fill="#4a6a8a" stroke="#3a5070" stroke-width="6"/>
+    <g stroke="#dfe6cc" stroke-width="1.5" fill="none" opacity="0.85">
+      <rect x="60"  y="60"  width="120" height="80"/>
+      <rect x="60"  y="60"  width="60"  height="80"/>
+      <line x1="60"  y1="100" x2="180" y2="100"/>
+      <circle cx="240" cy="80" r="24"/>
+      <line x1="216" y1="80"  x2="264" y2="80"/>
+      <line x1="240" y1="56"  x2="240" y2="104"/>
+      <path d="M60,180 L240,180 L300,200"/>
+      <text x="80" y="220" font-family="monospace" font-size="14" fill="#dfe6cc" opacity="0.7">PROTO–01</text>
+    </g>
+  </g>
+
+  <!-- Window with shop floor view -->
+  <g transform="translate(580,160)">
+    <rect width="320" height="240" fill="#dfe6cc" stroke="#5a3a18" stroke-width="6"/>
+    <line x1="160" y1="0" x2="160" y2="240" stroke="#5a3a18" stroke-width="3"/>
+    <circle cx="120" cy="100" r="32" fill="#f6e3b0" opacity="0.55"/>
+  </g>
+
+  <!-- Floor planks -->
+  <rect y="640" width="1600" height="260" fill="url(#planks)"/>
 </svg>

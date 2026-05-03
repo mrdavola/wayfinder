@@ -1,6 +1,91 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <rect width="1600" height="900" fill="transparent"/>
-  <rect x="40" y="30" width="380" height="320" rx="4" fill="#d4b896" opacity=".6"/>
-  <rect x="1180" y="30" width="380" height="320" rx="4" fill="#c9a96e" opacity=".5"/>
-  <text x="800" y="500" font-family="serif" font-size="36" text-anchor="middle" fill="#8b6840" opacity=".35">CABIN — MID LAYER (placeholder)</text>
+  <defs>
+    <linearGradient id="cab-wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#7a5a30"/>
+      <stop offset="100%" stop-color="#5a3a18"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Bookshelf left -->
+  <g transform="translate(80,470)">
+    <rect width="240" height="220" fill="url(#cab-wood)" stroke="#3d2a18" stroke-width="3"/>
+    <rect y="56"  width="240" height="6" fill="#3d2a18"/>
+    <rect y="118" width="240" height="6" fill="#3d2a18"/>
+    <rect y="180" width="240" height="6" fill="#3d2a18"/>
+    <!-- Books row 1 -->
+    <g>
+      <rect x="14"  y="14" width="20" height="40" fill="#7a3a30"/>
+      <rect x="36"  y="10" width="22" height="44" fill="#5a4a30"/>
+      <rect x="60"  y="16" width="18" height="38" fill="#3d5a28"/>
+      <rect x="80"  y="12" width="20" height="42" fill="#4a6a8a"/>
+      <rect x="102" y="14" width="22" height="40" fill="#7a5a30"/>
+      <rect x="126" y="10" width="20" height="44" fill="#5a3a18"/>
+      <rect x="148" y="16" width="18" height="38" fill="#7a3a30"/>
+      <rect x="168" y="12" width="22" height="42" fill="#3d5a28"/>
+      <rect x="192" y="14" width="20" height="40" fill="#4a6a8a"/>
+      <rect x="214" y="16" width="18" height="38" fill="#7a5a30"/>
+    </g>
+    <!-- Books row 2 -->
+    <g>
+      <rect x="14"  y="74" width="22" height="42" fill="#5a4a30"/>
+      <rect x="38"  y="76" width="20" height="40" fill="#7a3a30"/>
+      <rect x="60"  y="72" width="20" height="44" fill="#3d5a28"/>
+      <rect x="82"  y="74" width="22" height="42" fill="#4a6a8a"/>
+      <rect x="106" y="78" width="18" height="38" fill="#7a5a30"/>
+      <rect x="126" y="74" width="22" height="42" fill="#5a3a18"/>
+      <rect x="150" y="76" width="20" height="40" fill="#7a3a30"/>
+      <!-- Lying-down books -->
+      <rect x="180" y="100" width="50" height="14" fill="#5a4a30"/>
+      <rect x="180" y="86" width="50" height="14" fill="#3d5a28"/>
+    </g>
+    <!-- Books row 3 -->
+    <g>
+      <rect x="14"  y="136" width="20" height="42" fill="#3d5a28"/>
+      <rect x="36"  y="138" width="22" height="40" fill="#5a3a18"/>
+      <rect x="60"  y="134" width="20" height="44" fill="#7a3a30"/>
+      <!-- Lantern on shelf -->
+      <g transform="translate(120,124)">
+        <rect x="6" y="12" width="20" height="38" fill="#3a3024"/>
+        <path d="M0,12 L32,12 L28,4 L4,4 Z" fill="#3a3024"/>
+        <path d="M14,4 L18,4 L18,0 L14,0 Z" fill="#3a3024"/>
+        <rect x="9" y="16" width="14" height="30" fill="#fde4a0" opacity="0.85"/>
+        <ellipse cx="16" cy="32" rx="4" ry="8" fill="#f4c060" opacity="0.85"/>
+      </g>
+      <rect x="180" y="138" width="22" height="40" fill="#4a6a8a"/>
+      <rect x="204" y="136" width="20" height="42" fill="#7a5a30"/>
+    </g>
+  </g>
+
+  <!-- Armchair right of hearth -->
+  <g transform="translate(1080,540)">
+    <rect width="180" height="180" rx="14" fill="#7a3a2a" stroke="#5a2a1a" stroke-width="3"/>
+    <rect x="0"   y="60" width="180" height="100" rx="10" fill="#9a4a3a" opacity="0.85"/>
+    <rect x="-20" y="60" width="32"  height="120" rx="8" fill="#7a3a2a"/>
+    <rect x="168" y="60" width="32"  height="120" rx="8" fill="#7a3a2a"/>
+    <ellipse cx="90" cy="64" rx="50" ry="8" fill="#5a2a1a" opacity="0.55"/>
+  </g>
+
+  <!-- Side table with teacup -->
+  <g transform="translate(1320,640)">
+    <rect width="120" height="14" fill="url(#cab-wood)"/>
+    <rect x="10"  y="14" width="6" height="60" fill="url(#cab-wood)"/>
+    <rect x="104" y="14" width="6" height="60" fill="url(#cab-wood)"/>
+    <!-- Teacup -->
+    <ellipse cx="50" cy="-2" rx="22" ry="6" fill="#d8c8a0"/>
+    <rect x="28" y="-10" width="44" height="12" rx="2" fill="#e6d6b0" stroke="#7a684a" stroke-width="1"/>
+    <path d="M72,-7 Q86,-3 72,2" stroke="#7a684a" stroke-width="2" fill="none"/>
+  </g>
+
+  <!-- Rug under chair -->
+  <ellipse cx="1180" cy="780" rx="220" ry="28" fill="#7a3a2a" opacity="0.45"/>
+
+  <!-- Cork board (mid wall, will be hotspot anchor for bulletinBoard) -->
+  <g transform="translate(380,180)" opacity="0.92">
+    <rect width="220" height="160" fill="#c4a870" stroke="#5a3a18" stroke-width="6"/>
+    <!-- pinned papers -->
+    <rect x="20" y="20" width="60" height="50" fill="#f4ebd4" transform="rotate(-3 20 20)"/>
+    <rect x="100" y="14" width="60" height="50" fill="#dfe6cc" transform="rotate(2 100 14)"/>
+    <rect x="40"  y="86" width="70" height="48" fill="#f4ebd4" transform="rotate(-1 40 86)"/>
+    <rect x="130" y="80" width="60" height="56" fill="#fde4a0" transform="rotate(4 130 80)"/>
+  </g>
 </svg>

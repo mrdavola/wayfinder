@@ -1,4 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <rect width="1600" height="900" fill="#a88a50"/>
-  <text x="800" y="100" font-family="serif" font-size="40" text-anchor="middle" fill="#2a1000">WORKSHOP — FORE LAYER (placeholder)</text>
+  <!-- Wood shavings scattered on floor -->
+  <g fill="#c8a870" opacity="0.7">
+    <ellipse cx="240"  cy="850" rx="14" ry="3" transform="rotate(-20 240 850)"/>
+    <ellipse cx="360"  cy="860" rx="10" ry="2.5" transform="rotate(15 360 860)"/>
+    <ellipse cx="500"  cy="855" rx="12" ry="3" transform="rotate(-25 500 855)"/>
+    <ellipse cx="1180" cy="858" rx="14" ry="3" transform="rotate(20 1180 858)"/>
+    <ellipse cx="1320" cy="850" rx="11" ry="2.5" transform="rotate(-12 1320 850)"/>
+  </g>
+  <g fill="#8a6a3a" opacity="0.6">
+    <ellipse cx="320"  cy="870" rx="10" ry="2" transform="rotate(10 320 870)"/>
+    <ellipse cx="700"  cy="868" rx="12" ry="2.5" transform="rotate(-18 700 868)"/>
+    <ellipse cx="1080" cy="868" rx="11" ry="2.5" transform="rotate(8 1080 868)"/>
+  </g>
 </svg>

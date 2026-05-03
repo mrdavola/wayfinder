@@ -43,6 +43,7 @@ const WorldRenderer = lazy(() => import('./pages/student/WorldRenderer'));
 const BiomePage = lazy(() => import('./pages/student/BiomePage.jsx'));
 const CabinScene = lazy(() => import('./components/world/CabinScene'));
 const BiomeDevPreview = lazy(() => import('./pages/dev/BiomeDevPreview.jsx'));
+const DemoPage = lazy(() => import('./pages/demo/DemoPage.jsx'));
 
 import './index.css';
 
@@ -126,6 +127,9 @@ export default function App() {
             <Route path="/community" element={<ProtectedRoute><CommunityRepository /></ProtectedRoute>} />
             <Route path="/moderation" element={<ProtectedRoute><ModerationPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+
+            {/* Public demo — showcase the biome scene system without auth or DB */}
+            <Route path="/demo" element={<DemoPage />} />
 
             {/* Dev-only biome preview routes — gated by Vite's build-time DEV flag */}
             {import.meta.env.DEV && (

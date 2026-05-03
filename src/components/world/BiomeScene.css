@@ -5,9 +5,13 @@
   overflow: hidden;
 }
 
+/* Legacy compat — kept for any code path still using the old wrapper class */
 .biome-scene__figure {
   position: absolute;
   transform: translate(-50%, -100%);
   pointer-events: none;
   z-index: 2;
 }
+
+/* Trail path sits below figures and hotspots */
+.biome-scene .trail-path { z-index: 1; }

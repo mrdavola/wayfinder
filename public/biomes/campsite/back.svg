@@ -1,41 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#d6c9a8"/>
-      <stop offset="60%" stop-color="#e8d9b8"/>
-      <stop offset="100%" stop-color="#c9b890"/>
+      <stop offset="0%"  stop-color="#e9dfc2"/>
+      <stop offset="55%" stop-color="#f3e8c8"/>
+      <stop offset="100%" stop-color="#e0cf9e"/>
     </linearGradient>
-    <linearGradient id="hills" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#7a6a4a"/>
-      <stop offset="100%" stop-color="#5a4a30"/>
+    <linearGradient id="far-hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#9a8868"/>
+      <stop offset="100%" stop-color="#7d6a48"/>
+    </linearGradient>
+    <linearGradient id="mid-hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#86714c"/>
+      <stop offset="100%" stop-color="#5e4d2e"/>
     </linearGradient>
   </defs>
+
   <!-- Sky -->
   <rect width="1600" height="900" fill="url(#sky)"/>
-  <!-- Distant hills -->
-  <path d="M0,560 Q200,480 400,520 Q600,560 800,500 Q1000,440 1200,490 Q1400,540 1600,510 L1600,900 L0,900 Z"
-        fill="url(#hills)" opacity="0.55"/>
-  <!-- Far tree line (silhouette) -->
-  <g fill="#6b5a3a" opacity="0.45">
-    <path d="M80,520 L90,480 L100,520 Z"/>
-    <path d="M90,525 L100,475 L110,525 Z"/>
-    <path d="M105,522 L115,468 L125,522 Z"/>
-    <path d="M250,510 L260,462 L270,510 Z"/>
-    <path d="M260,515 L272,458 L284,515 Z"/>
-    <path d="M470,505 L482,455 L494,505 Z"/>
-    <path d="M700,518 L712,465 L724,518 Z"/>
-    <path d="M712,514 L725,460 L738,514 Z"/>
-    <path d="M950,508 L963,454 L976,508 Z"/>
-    <path d="M963,512 L977,458 L991,512 Z"/>
-    <path d="M1180,515 L1193,458 L1206,515 Z"/>
-    <path d="M1400,512 L1413,460 L1426,512 Z"/>
-    <path d="M1412,508 L1426,454 L1440,508 Z"/>
-    <path d="M1500,520 L1512,470 L1524,520 Z"/>
+
+  <!-- Soft sun -->
+  <circle cx="1180" cy="180" r="70" fill="#f6e3b0" opacity="0.55"/>
+  <circle cx="1180" cy="180" r="40" fill="#f9ecc6" opacity="0.85"/>
+
+  <!-- Distant mountain ridge -->
+  <path d="M0,520 L180,400 L320,470 L460,360 L640,460 L820,380 L980,470 L1180,400 L1380,470 L1600,420 L1600,900 L0,900 Z"
+        fill="url(#far-hill)" opacity="0.55"/>
+
+  <!-- Closer rolling hills -->
+  <path d="M0,610 Q220,540 460,580 Q700,620 940,560 Q1180,500 1400,560 Q1500,580 1600,560 L1600,900 L0,900 Z"
+        fill="url(#mid-hill)" opacity="0.7"/>
+
+  <!-- Far tree silhouettes along ridge -->
+  <g fill="#5e4f30" opacity="0.55">
+    <path d="M120,560 L132,512 L144,560 Z"/>
+    <path d="M138,562 L150,506 L162,562 Z"/>
+    <path d="M310,558 L322,510 L334,558 Z"/>
+    <path d="M520,548 L534,498 L548,548 Z"/>
+    <path d="M540,552 L554,500 L568,552 Z"/>
+    <path d="M780,546 L795,494 L810,546 Z"/>
+    <path d="M1020,540 L1034,490 L1048,540 Z"/>
+    <path d="M1240,548 L1255,494 L1270,548 Z"/>
+    <path d="M1450,552 L1465,500 L1480,552 Z"/>
+    <path d="M1470,556 L1486,502 L1502,556 Z"/>
   </g>
-  <!-- Ground base -->
-  <path d="M0,600 Q400,570 800,585 Q1200,600 1600,580 L1600,900 L0,900 Z"
-        fill="#a8956a" opacity="0.4"/>
-  <!-- Label (dev only) -->
-  <text x="800" y="50" font-family="Georgia,serif" font-size="22" text-anchor="middle"
-        fill="#6b5a3a" opacity="0.35" font-style="italic">campsite — back layer</text>
 </svg>

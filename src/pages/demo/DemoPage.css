@@ -1,0 +1,129 @@
+.demo-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.demo-toolbar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  max-width: calc(100vw - 24px);
+  background: rgba(244, 235, 212, 0.95);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(122, 104, 74, 0.45);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(40, 28, 14, 0.2);
+  font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.demo-toolbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+  border-right: 1px solid rgba(122, 104, 74, 0.3);
+}
+.demo-toolbar__badge {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--compass-gold, #d6a64d);
+  color: var(--ink, #2a1f15);
+  padding: 3px 7px;
+  border-radius: 3px;
+}
+.demo-toolbar__name {
+  font-family: var(--font-display, 'Instrument Serif', Georgia, serif);
+  font-size: 14px;
+  color: var(--ink, #2a1f15);
+}
+
+.demo-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.demo-select__label {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--graphite, #4a3f33);
+  opacity: 0.75;
+}
+.demo-select__chips {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(122, 104, 74, 0.1);
+  border-radius: 8px;
+}
+.demo-chip {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--graphite, #4a3f33);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.demo-chip:hover { background: rgba(122, 104, 74, 0.12); }
+.demo-chip--on {
+  background: var(--paper, #fbf6e7);
+  color: var(--ink, #2a1f15);
+  box-shadow: 0 1px 2px rgba(40, 28, 14, 0.12);
+  font-weight: 500;
+}
+
+.demo-toolbar__hint {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  color: var(--graphite, #4a3f33);
+  opacity: 0.65;
+  padding-left: 8px;
+  border-left: 1px solid rgba(122, 104, 74, 0.25);
+  white-space: nowrap;
+}
+.demo-toolbar__hint kbd {
+  font-family: inherit;
+  font-size: 10px;
+  background: rgba(122, 104, 74, 0.14);
+  border: 1px solid rgba(122, 104, 74, 0.32);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin: 0 1px;
+}
+
+/* Mobile: stack the toolbar on two lines */
+@media (max-width: 760px) {
+  .demo-toolbar {
+    bottom: 10px;
+    left: 8px;
+    right: 8px;
+    transform: none;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .demo-toolbar__brand {
+    padding-right: 8px;
+  }
+  .demo-toolbar__name { display: none; }
+  .demo-toolbar__hint { display: none; }
+  .demo-select { flex: 1 1 auto; }
+  .demo-select__label { font-size: 8.5px; }
+  .demo-chip { font-size: 11px; padding: 4px 7px; }
+}

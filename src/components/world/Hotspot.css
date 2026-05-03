@@ -1,53 +1,154 @@
 .hotspot {
   position: absolute;
-  transform: translate(-50%, -50%);
-  width: 56px;
-  height: 56px;
-  border: 2px dashed var(--graphite, #4a3f33);
-  border-radius: 50%;
-  background: rgba(255, 246, 220, 0.45);
-  cursor: pointer;
+  transform: translate(-50%, -100%);
+  background: transparent;
+  border: 0;
   padding: 0;
-  display: grid;
-  place-items: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  filter: drop-shadow(0 4px 6px rgba(40, 28, 14, 0.18));
+  transition: transform 200ms ease-out, filter 200ms ease-out;
+  z-index: 3;
+}
+.hotspot:hover:not([aria-disabled='true']) {
+  transform: translate(-50%, -100%) translateY(-3px);
+  filter: drop-shadow(0 8px 10px rgba(40, 28, 14, 0.28));
 }
 .hotspot:focus-visible {
-  outline: 3px solid var(--compass-gold, #d6a64d);
-  outline-offset: 2px;
+  outline: none;
 }
-.hotspot[data-state='future'] {
-  opacity: 0.45;
+.hotspot:focus-visible .hotspot__prop {
+  outline: 3px solid var(--compass-gold, #d6a64d);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.hotspot[aria-disabled='true'] {
   cursor: not-allowed;
-  border-style: dotted;
+  filter: drop-shadow(0 2px 3px rgba(40, 28, 14, 0.12));
+  opacity: 0.78;
 }
 .hotspot[data-state='completed'] {
-  opacity: 0.7;
+  filter: drop-shadow(0 4px 6px rgba(40, 28, 14, 0.18)) saturate(1.05);
 }
+
+.hotspot__prop {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+.hotspot__prop > svg {
+  display: block;
+}
+
+/* Pulse halo at the BASE of the prop */
 .hotspot__pulse {
-  width: 12px;
-  height: 12px;
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: var(--specimen-red, #b8443a);
-  box-shadow: 0 0 0 0 rgba(184, 68, 58, 0.6);
+  background: var(--compass-gold, #d6a64d);
+  opacity: 0.85;
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 0 rgba(214, 166, 77, 0.5);
   animation: hotspot-pulse 2.4s ease-in-out infinite;
 }
-.hotspot[data-state='future'] .hotspot__pulse,
-.hotspot[data-state='completed'] .hotspot__pulse { animation: none; }
+.hotspot[data-state='future']    .hotspot__pulse { display: none; }
+.hotspot[data-state='completed'] .hotspot__pulse {
+  background: #3d5a28;
+  animation: none;
+  opacity: 0.6;
+}
+.hotspot[data-role='guide']     .hotspot__pulse,
+.hotspot[data-role='teammate']  .hotspot__pulse { display: none; }
 
 @keyframes hotspot-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(184,68,58,0.6); }
-  50%      { box-shadow: 0 0 0 12px rgba(184,68,58,0);   }
+  0%, 100% { box-shadow: 0 0 0 0   rgba(214,166,77,0.55); }
+  50%      { box-shadow: 0 0 0 14px rgba(214,166,77,0);   }
 }
+
+/* Visible name tag (parchment label) */
+.hotspot__tag {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink, #2a1f15);
+  background: rgba(244, 235, 212, 0.94);
+  border: 1px solid rgba(122, 104, 74, 0.5);
+  padding: 3px 9px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hotspot[data-state='future'] .hotspot__tag {
+  background: rgba(244, 235, 212, 0.78);
+  color: var(--graphite, #4a3f33);
+}
+.hotspot[data-state='completed'] .hotspot__tag {
+  background: rgba(214, 240, 200, 0.88);
+  border-color: rgba(60, 90, 40, 0.4);
+}
+.hotspot[data-role='trailheadSign'] .hotspot__tag { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .hotspot__pulse { animation: none; }
+  .hotspot, .hotspot:hover { transition: none; }
 }
 
 .hotspot--igniting {
   animation: hotspot-ignite 800ms ease-out forwards;
 }
 @keyframes hotspot-ignite {
-  0%   { box-shadow: 0 0 0 0   rgba(214,166,77,0.9);  border-color: var(--compass-gold, #d6a64d); }
-  30%  { box-shadow: 0 0 0 24px rgba(214,166,77,0.5); border-color: var(--compass-gold, #d6a64d); }
-  100% { box-shadow: 0 0 0 0   rgba(214,166,77,0);    border-color: var(--graphite, #4a3f33); }
+  0%   { filter: drop-shadow(0 0 0 rgba(214,166,77,0.9)); }
+  30%  { filter: drop-shadow(0 0 24px rgba(214,166,77,0.85)); }
+  100% { filter: drop-shadow(0 4px 6px rgba(40,28,14,0.18)); }
+}
+
+/* Mobile: scale props down hard, hide most labels, and tuck non-essential roles
+   behind smaller, lower-opacity props so 9 hotspots can coexist on a 390px viewport.
+   The journey (stage cairns + guide + player) remains primary. */
+@media (max-width: 640px) {
+  .hotspot__prop > svg {
+    transform: scale(0.5);
+    transform-origin: 50% 100%;
+  }
+  .hotspot[data-role='stage'] .hotspot__prop > svg,
+  .hotspot[data-role='teammate'] .hotspot__prop > svg {
+    transform: scale(0.6);
+  }
+  .hotspot__tag {
+    font-size: 9px;
+    padding: 2px 5px;
+    max-width: 96px;
+    border-radius: 3px;
+  }
+  /* Service props lose their tags to reduce visual noise */
+  .hotspot[data-role='mailbox'] .hotspot__tag,
+  .hotspot[data-role='bulletinSubmit'] .hotspot__tag,
+  .hotspot[data-role='bulletinBoard'] .hotspot__tag,
+  .hotspot[data-role='reflection'] .hotspot__tag,
+  .hotspot[data-role='challenger'] .hotspot__tag,
+  .hotspot[data-role='stretch'] .hotspot__tag,
+  .hotspot[data-role='parentLetter'] .hotspot__tag,
+  .hotspot[data-role='wallMap'] .hotspot__tag,
+  .hotspot[data-role='specimenCabinet'] .hotspot__tag {
+    display: none;
+  }
+  /* Truncate stage labels harder on mobile so 3 cairns fit side-by-side */
+  .hotspot[data-role='stage'] .hotspot__tag {
+    max-width: 78px;
+    font-size: 8.5px;
+  }
 }

@@ -1,4 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-  <rect width="1600" height="900" fill="#8da89f"/>
-  <text x="800" y="100" font-family="serif" font-size="40" text-anchor="middle" fill="#1a2a20">LAB — FORE LAYER (placeholder)</text>
+  <defs>
+    <linearGradient id="rug" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#7a3a2a"/>
+      <stop offset="100%" stop-color="#5a2a1a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Floor rug -->
+  <ellipse cx="800" cy="850" rx="620" ry="60" fill="url(#rug)" opacity="0.55"/>
+  <ellipse cx="800" cy="850" rx="540" ry="40" fill="none" stroke="#c8a840" stroke-width="2" opacity="0.4"/>
+  <ellipse cx="800" cy="850" rx="460" ry="28" fill="none" stroke="#c8a840" stroke-width="1.5" opacity="0.3"/>
 </svg>
