@@ -73,7 +73,7 @@ describe('validateBiomeConfig', () => {
     expect(r.errors).toEqual([]);
   });
 
-  it('rejects wallMap role on a non-cabin config (validator is role-agnostic)', () => {
+  it('accepts wallMap role without enforcing biome-role pairing (validator is role-agnostic)', () => {
     // wallMap is valid regardless of biome id — it's the config author's responsibility
     // to only use hub roles on hub configs. The validator just checks membership.
     const r = validateBiomeConfig({
