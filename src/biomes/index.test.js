@@ -24,12 +24,36 @@ describe('biomes registry', () => {
     expect(listBiomes()).toContain('cabin');
   });
 
-  it('lists exactly the two registered biomes', () => {
-    expect(listBiomes()).toHaveLength(2);
+  it('lists the lab biome', () => {
+    expect(listBiomes()).toContain('lab');
+  });
+
+  it('lists the workshop biome', () => {
+    expect(listBiomes()).toContain('workshop');
+  });
+
+  it('lists exactly the four registered biomes', () => {
+    expect(listBiomes()).toHaveLength(4);
   });
 
   it('returns a valid config for cabin', () => {
     const cfg = getBiome('cabin');
+    expect(cfg).toBeDefined();
+    const r = validateBiomeConfig(cfg);
+    expect(r.ok).toBe(true);
+    expect(r.errors).toEqual([]);
+  });
+
+  it('returns a valid config for lab', () => {
+    const cfg = getBiome('lab');
+    expect(cfg).toBeDefined();
+    const r = validateBiomeConfig(cfg);
+    expect(r.ok).toBe(true);
+    expect(r.errors).toEqual([]);
+  });
+
+  it('returns a valid config for workshop', () => {
+    const cfg = getBiome('workshop');
     expect(cfg).toBeDefined();
     const r = validateBiomeConfig(cfg);
     expect(r.ok).toBe(true);
