@@ -246,6 +246,9 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback, 
           teammate={activeHotspot.teammateData ?? null}
           onClose={zoomOut}
           onStageComplete={handleStageComplete}
+          onOpenChat={() => {
+            if (guideHotspot) handleActivate(guideHotspot);
+          }}
         />
       )}
     </div>

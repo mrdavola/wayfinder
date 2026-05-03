@@ -9,6 +9,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import './DemoPage.css';
 import BiomeScene from '../../components/world/BiomeScene';
+import DemoListView from './DemoListView';
 
 const BIOMES = [
   { id: 'campsite', label: 'Campsite',  blurb: 'Outdoor expedition — open-ended projects' },
@@ -27,6 +28,11 @@ const PHASES = [
 const TEAM_PRESETS = [
   { id: 'solo',  label: 'Solo' },
   { id: 'group', label: 'Group' },
+];
+
+const VIEW_PRESETS = [
+  { id: 'world', label: 'World' },
+  { id: 'list',  label: 'List'  },
 ];
 
 const MOCK_QUESTS = {
@@ -144,6 +150,7 @@ export default function DemoPage() {
   const biomeId = BIOMES.some(b => b.id === params.get('biome')) ? params.get('biome') : 'campsite';
   const phase   = PHASES.some(p => p.id === params.get('phase'))   ? params.get('phase')   : 'fresh';
   const team    = TEAM_PRESETS.some(t => t.id === params.get('team')) ? params.get('team') : 'group';
+  const view    = VIEW_PRESETS.some(v => v.id === params.get('view')) ? params.get('view') : 'world';
 
   const setParam = useCallback((key, value) => {
     const next = new URLSearchParams(params);
@@ -159,7 +166,7 @@ export default function DemoPage() {
   // Hide the controls toolbar via "?ui=off" so screenshots stay clean
   const uiHidden = params.get('ui') === 'off';
 
-  // Quick keyboard shortcuts: 1-4 switch biome, q/w/e/r switch phase
+  // Quick keyboard shortcuts: 1-4 switch biome, q/w/e/r switch phase, v toggles view
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -167,34 +174,44 @@ export default function DemoPage() {
       if (biomeKey >= 0) setParam('biome', BIOMES[biomeKey].id);
       const phaseKey = ['q', 'w', 'e', 'r'].indexOf(e.key.toLowerCase());
       if (phaseKey >= 0) setParam('phase', PHASES[phaseKey].id);
+      if (e.key.toLowerCase() === 'v') setParam('view', view === 'world' ? 'list' : 'world');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setParam]);
+  }, [setParam, view]);
 
   return (
     <div className="demo-page">
-      <BiomeScene
-        quest={quest}
-        stages={stages}
-        studentSession={SESSION}
-        feedback={[]}
-        teammates={teammates}
-        onStageComplete={() => {}}
-        forceBiome={biomeId}
-      />
+      {view === 'list' ? (
+        <DemoListView
+          quest={quest}
+          stages={stages}
+          teammates={teammates}
+        />
+      ) : (
+        <BiomeScene
+          quest={quest}
+          stages={stages}
+          studentSession={SESSION}
+          feedback={[]}
+          teammates={teammates}
+          onStageComplete={() => {}}
+          forceBiome={biomeId}
+        />
+      )}
 
       {!uiHidden && <DemoControls
         biomeId={biomeId}
         phase={phase}
         team={team}
+        view={view}
         setParam={setParam}
       />}
     </div>
   );
 }
 
-function DemoControls({ biomeId, phase, team, setParam }) {
+function DemoControls({ biomeId, phase, team, view, setParam }) {
   const [open, setOpen] = useState(false);
   const currentBiome = BIOMES.find(b => b.id === biomeId);
   if (!open) {
@@ -207,7 +224,7 @@ function DemoControls({ biomeId, phase, team, setParam }) {
         aria-expanded="false"
       >
         <span className="demo-pill__badge">demo</span>
-        <span>{currentBiome?.label || 'Demo'}</span>
+        <span>{currentBiome?.label || 'Demo'}{view === 'list' ? ' · List' : ''}</span>
         <span className="demo-pill__chev" aria-hidden="true">▾</span>
       </button>
     );
@@ -217,7 +234,7 @@ function DemoControls({ biomeId, phase, team, setParam }) {
       <div className="demo-toolbar__head">
         <span className="demo-toolbar__title">
           <span className="demo-pill__badge" style={{ marginRight: 8 }}>demo</span>
-          Diagonally world
+          Diagonally
         </span>
         <button
           type="button"
@@ -226,6 +243,13 @@ function DemoControls({ biomeId, phase, team, setParam }) {
           aria-label="Close demo controls"
         >×</button>
       </div>
+
+      <DemoSelect
+        label="View"
+        value={view}
+        onChange={(v) => setParam('view', v)}
+        options={VIEW_PRESETS.map(v => ({ value: v.id, label: v.label }))}
+      />
 
       <DemoSelect
         label="Biome"
@@ -252,7 +276,7 @@ function DemoControls({ biomeId, phase, team, setParam }) {
       )}
 
       <div className="demo-toolbar__hint" aria-hidden="true">
-        <kbd>1</kbd>–<kbd>4</kbd> biome · <kbd>q</kbd>–<kbd>r</kbd> phase
+        <kbd>1</kbd>–<kbd>4</kbd> biome · <kbd>q</kbd>–<kbd>r</kbd> phase · <kbd>v</kbd> view
       </div>
     </div>
   );
