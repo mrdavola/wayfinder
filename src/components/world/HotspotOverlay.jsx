@@ -2,33 +2,39 @@ import { lazy, Suspense, useRef, useEffect } from 'react';
 import './HotspotOverlay.css';
 import Specimen from './Specimen';
 import CampfireChat from '../social/CampfireChat';
-import TactilePropViewer from './TactilePropViewer';
-import { getPropForRole } from '../../lib/tactileProps';
+import ProjectBanner from './ProjectBanner';
 import TeammatePanel from './panels/TeammatePanel';
 
 const WorldChat = lazy(() => import('./WorldChat'));
 
-function PropHeader({ role }) {
-  const propId = getPropForRole(role);
-  if (!propId) return null;
-  return <TactilePropViewer propId={propId} />;
+// Roles that benefit from a project-relevant illustrated banner at the top of
+// their overlay panel. Pure functional roles (chat, mailbox, journal) are
+// listed; the panel for each then layers its own content over the banner.
+const BANNER_ROLES = new Set([
+  'trailheadSign', 'stage', 'mailbox', 'bulletinSubmit', 'reflection', 'challenger',
+  'stretch', 'parentLetter',
+]);
+
+function PropHeader({ role, quest }) {
+  if (!quest || !BANNER_ROLES.has(role)) return null;
+  return <ProjectBanner quest={quest} role={role} />;
 }
 
 function TrailheadPanel({ quest }) {
   return (
     <div className="ho-panel">
-      <PropHeader role="trailheadSign" />
+      <PropHeader role="trailheadSign" quest={quest} />
       <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>{quest?.title}</h2>
       <p className="ho-body">{quest?.description}</p>
     </div>
   );
 }
 
-function StagePanel({ stage, onOpenChat, studentSession }) {
+function StagePanel({ quest, stage, onOpenChat, studentSession }) {
   if (!stage) return <p className="ho-empty">No stage data.</p>;
   return (
     <div className="ho-panel">
-      <PropHeader role="stage" />
+      <PropHeader role="stage" quest={quest} />
       <div className="ho-stage-badge" style={{ marginTop: 14 }}>Stage {stage.stage_number}</div>
       <h2 id="ho-dialog-title" className="ho-title">{stage.title}</h2>
       {stage.description && <p className="ho-body">{stage.description}</p>}
@@ -51,10 +57,10 @@ function StagePanel({ stage, onOpenChat, studentSession }) {
   );
 }
 
-function MailboxPanel({ feedback = [] }) {
+function MailboxPanel({ quest, feedback = [] }) {
   return (
     <div className="ho-panel">
-      <PropHeader role="mailbox" />
+      <PropHeader role="mailbox" quest={quest} />
       <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>Mailbox</h2>
       {feedback.length === 0 ? (
         <p className="ho-empty">No feedback letters yet. Submit work to get a response.</p>
@@ -76,10 +82,11 @@ function MailboxPanel({ feedback = [] }) {
   );
 }
 
-function BulletinPanel() {
+function BulletinPanel({ quest }) {
   return (
     <div className="ho-panel">
-      <h2 id="ho-dialog-title" className="ho-title">Submit Work</h2>
+      <PropHeader role="bulletinSubmit" quest={quest} />
+      <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>Submit Work</h2>
       <p className="ho-body">
         Pin your work to the bulletin board. Use the <strong>list view</strong> (↗ top-right) for the full submission uploader.
       </p>
@@ -90,7 +97,7 @@ function BulletinPanel() {
 function ReflectionPanel({ quest, stage, studentSession }) {
   return (
     <div className="ho-panel">
-      <PropHeader role="reflection" />
+      <PropHeader role="reflection" quest={quest} />
       <h2 id="ho-dialog-title" className="ho-title" style={{ marginTop: 14 }}>Reflection Journal</h2>
       <CampfireChat
         questId={quest?.id}
@@ -110,7 +117,7 @@ function ChatPanel({ quest, stage, studentSession, onClose, onStageComplete, rol
   };
   return (
     <div className="ho-panel ho-panel--chat">
-      <PropHeader role={role ?? 'guide'} />
+      <PropHeader role={role ?? 'guide'} quest={quest} />
       <Suspense fallback={<p className="ho-empty">Loading guide...</p>}>
         <WorldChat
           quest={quest}
@@ -130,7 +137,7 @@ function OverlayContent({ role, quest, stage, studentSession, feedback, teammate
     case 'trailheadSign':
       return <TrailheadPanel quest={quest} />;
     case 'stage':
-      return <StagePanel stage={stage} onOpenChat={onOpenChat} studentSession={studentSession} />;
+      return <StagePanel quest={quest} stage={stage} onOpenChat={onOpenChat} studentSession={studentSession} />;
     case 'guide':
       return <ChatPanel quest={quest} stage={stage} studentSession={studentSession} onClose={onClose} onStageComplete={onStageComplete} role="guide" />;
     case 'challenger':
@@ -138,9 +145,9 @@ function OverlayContent({ role, quest, stage, studentSession, feedback, teammate
     case 'reflection':
       return <ReflectionPanel quest={quest} stage={stage} studentSession={studentSession} />;
     case 'mailbox':
-      return <MailboxPanel feedback={feedback} />;
+      return <MailboxPanel quest={quest} feedback={feedback} />;
     case 'bulletinSubmit':
-      return <BulletinPanel />;
+      return <BulletinPanel quest={quest} />;
     case 'teammate':
       return <TeammatePanel teammate={teammate} />;
     default:

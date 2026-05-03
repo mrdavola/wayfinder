@@ -65,3 +65,67 @@ export async function generateDecorSlot(slot, biomeId = 'campsite', questTitle =
   if (!url) return null;
   return { url, prompt };
 }
+
+/**
+ * Subject hints for project-banner imagery, by role. Each describes a SCENE
+ * relevant to the role's UX surface (e.g. mailbox = pile of letters), tied
+ * back to the project title so the result reads as "this project".
+ */
+const ROLE_SUBJECTS = {
+  trailheadSign:  'an opening illustration that captures the project — its setting, its people, its central question',
+  bulletinSubmit: 'a flat-lay of a finished deliverable pinned to a corkboard — sketches, photos, notes',
+  bulletinBoard:  'a corkboard pinned with rich student work in progress',
+  reflection:     'a quiet reflective scene — journal pages, evening light, room to think',
+  mailbox:        'a flat-lay of incoming letters and feedback notes spread on a desk',
+  challenger:     'an illustration of a thoughtful conversation between two people debating ideas',
+  stretch:        'a side path branching off from the main trail — an invitation to go further',
+  parentLetter:   'a hand-written letter from home, opened on a wooden surface',
+};
+
+/**
+ * Generate a project-relevant banner image for a HotspotOverlay panel.
+ * Uses fal.ai if configured; returns null otherwise so the caller can
+ * render a deterministic text-card fallback.
+ *
+ * Self-check: validates the returned URL is reachable and the image has
+ * non-trivial dimensions before returning. Failed checks return null.
+ *
+ * @param {object} quest             quest record with title + driving_question
+ * @param {string} role              hotspot role
+ * @returns {Promise<string|null>}   image URL or null
+ */
+export async function generateProjectBanner(quest, role = 'trailheadSign') {
+  if (!import.meta.env.VITE_FAL_KEY) return null;
+  if (!quest?.title) return null;
+
+  const roleSubject = ROLE_SUBJECTS[role] || ROLE_SUBJECTS.trailheadSign;
+  const drivingQuestion = quest.driving_question || quest.description || '';
+  const subjectFull = `${roleSubject}; project title: "${quest.title}"; ` +
+    (drivingQuestion ? `driving question: "${drivingQuestion}". ` : '') +
+    'composition: wide landscape, clear focal subject, no text or letters.';
+  const prompt = buildArtPrompt(subjectFull);
+
+  let result;
+  try {
+    result = await fal.subscribe('fal-ai/nano-banana-2', {
+      input: { prompt, image_size: 'landscape_16_9', num_images: 1 },
+    });
+  } catch (err) {
+    console.warn(`fal.ai banner request failed (role: ${role}):`, err.message);
+    return null;
+  }
+
+  const url = result?.data?.images?.[0]?.url;
+  if (!url) return null;
+
+  // Self-check: image must be reachable and non-trivial in size.
+  try {
+    const head = await fetch(url, { method: 'HEAD' });
+    if (!head.ok) return null;
+    const contentLength = parseInt(head.headers.get('content-length') || '0', 10);
+    if (contentLength > 0 && contentLength < 4000) return null; // suspiciously tiny
+  } catch {
+    // CORS may block HEAD; let the <img> onerror handler decide instead.
+  }
+  return url;
+}

@@ -18,7 +18,9 @@ describe('<HotspotOverlay>', () => {
 
   it('shows quest title for trailheadSign role', () => {
     render(<HotspotOverlay {...baseProps} />);
-    expect(screen.getByText('Intro to Ecology')).toBeInTheDocument();
+    // Title appears in both the ProjectBanner fallback and the panel header,
+    // so use getAllByText to assert at least one match.
+    expect(screen.getAllByText('Intro to Ecology').length).toBeGreaterThan(0);
   });
 
   it('calls onClose when close button clicked', () => {

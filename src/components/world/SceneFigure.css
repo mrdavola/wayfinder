@@ -73,19 +73,26 @@
   .scene-figure--clickable, .scene-figure--clickable:hover { transition: none; }
 }
 
-/* Mobile: shrink figures, smaller tags, hide "you are here" eyebrow */
+/* Mobile: shrink figures via actual width (not transform) so layout bounds
+   shrink, smaller tags, hide "you are here" eyebrow. */
 @media (max-width: 640px) {
   .scene-figure > svg,
   .scene-figure > img {
-    transform: scale(0.7);
-    transform-origin: 50% 100%;
+    width: 30px;
+    height: auto;
   }
   .scene-figure__tag {
     font-size: 9px;
-    padding: 2px 5px;
-    max-width: 76px;
+    padding: 1px 4px;
+    max-width: 56px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .scene-figure__here { display: none; }
+  /* The player figure pins beside the active stage; on mobile, shrink it more
+     and let it sit a little lower so its tag never touches the trailhead/cairn. */
+  .scene-figure--player > svg,
+  .scene-figure--player > img {
+    width: 26px;
+  }
 }

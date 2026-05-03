@@ -5,55 +5,95 @@
   overflow: hidden;
 }
 
-.demo-toolbar {
+/* Floating control pill, top-right. Click to expand into the full toolbar.
+   Stays out of the way of every hotspot in every biome. */
+.demo-pill {
   position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  display: flex;
+  top: 16px;
+  right: 16px;
+  z-index: 60;
+  display: inline-flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px 16px;
-  max-width: calc(100vw - 24px);
+  gap: 6px;
+  padding: 6px 12px;
   background: rgba(244, 235, 212, 0.95);
   backdrop-filter: blur(6px);
   border: 1px solid rgba(122, 104, 74, 0.45);
-  border-radius: 14px;
-  box-shadow: 0 6px 24px rgba(40, 28, 14, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(40, 28, 14, 0.18);
   font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
-  flex-wrap: wrap;
-  justify-content: center;
+  font-size: 12px;
+  color: var(--ink, #2a1f15);
+  cursor: pointer;
 }
-
-.demo-toolbar__brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 12px;
-  border-right: 1px solid rgba(122, 104, 74, 0.3);
-}
-.demo-toolbar__badge {
+.demo-pill__badge {
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 8.5px;
+  font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   background: var(--compass-gold, #d6a64d);
   color: var(--ink, #2a1f15);
-  padding: 3px 7px;
+  padding: 2px 5px;
   border-radius: 3px;
 }
-.demo-toolbar__name {
+.demo-pill__chev {
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+/* Expanded toolbar */
+.demo-toolbar {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: rgba(244, 235, 212, 0.96);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(122, 104, 74, 0.45);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(40, 28, 14, 0.24);
+  font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+  animation: demo-pop-in 180ms cubic-bezier(0.34, 1.46, 0.64, 1) both;
+}
+@keyframes demo-pop-in {
+  from { transform: translateY(-6px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.demo-toolbar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(122, 104, 74, 0.25);
+}
+.demo-toolbar__title {
   font-family: var(--font-display, 'Instrument Serif', Georgia, serif);
   font-size: 14px;
   color: var(--ink, #2a1f15);
 }
+.demo-toolbar__close {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(122, 104, 74, 0.12);
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--ink, #2a1f15);
+}
+.demo-toolbar__close:hover { background: rgba(122, 104, 74, 0.22); }
 
 .demo-select {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 5px;
 }
 .demo-select__label {
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
@@ -61,12 +101,13 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--graphite, #4a3f33);
-  opacity: 0.75;
+  opacity: 0.8;
 }
 .demo-select__chips {
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
   background: rgba(122, 104, 74, 0.1);
   border-radius: 8px;
 }
@@ -81,7 +122,7 @@
   cursor: pointer;
   transition: background 120ms, color 120ms;
 }
-.demo-chip:hover { background: rgba(122, 104, 74, 0.12); }
+.demo-chip:hover { background: rgba(122, 104, 74, 0.15); }
 .demo-chip--on {
   background: var(--paper, #fbf6e7);
   color: var(--ink, #2a1f15);
@@ -94,9 +135,8 @@
   font-size: 10px;
   color: var(--graphite, #4a3f33);
   opacity: 0.65;
-  padding-left: 8px;
-  border-left: 1px solid rgba(122, 104, 74, 0.25);
-  white-space: nowrap;
+  padding-top: 6px;
+  border-top: 1px solid rgba(122, 104, 74, 0.18);
 }
 .demo-toolbar__hint kbd {
   font-family: inherit;
@@ -108,22 +148,13 @@
   margin: 0 1px;
 }
 
-/* Mobile: stack the toolbar on two lines */
+/* Mobile: pill becomes smaller, expanded toolbar full-width */
 @media (max-width: 760px) {
+  .demo-pill { top: 10px; right: 10px; }
   .demo-toolbar {
-    bottom: 10px;
-    left: 8px;
-    right: 8px;
-    transform: none;
-    padding: 8px 10px;
-    gap: 8px;
+    top: 50px;
+    right: 10px;
+    left: 10px;
+    width: auto;
   }
-  .demo-toolbar__brand {
-    padding-right: 8px;
-  }
-  .demo-toolbar__name { display: none; }
-  .demo-toolbar__hint { display: none; }
-  .demo-select { flex: 1 1 auto; }
-  .demo-select__label { font-size: 8.5px; }
-  .demo-chip { font-size: 11px; padding: 4px 7px; }
 }

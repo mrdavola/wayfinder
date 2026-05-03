@@ -1,7 +1,8 @@
 .hotspot-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  /* Sit above any persistent chat sidebars / floating UI in the host page */
+  z-index: 1000;
   display: flex;
   align-items: flex-end;
 }

@@ -147,17 +147,20 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback, 
 
   const guideOutfit = OUTFIT_BY_BIOME[cfg.id] ?? 'field';
 
-  // Player stands BESIDE the current stage cairn — offset by ~6% so the cairn stays visible.
-  // Choose a side based on stage index parity to avoid a column of figures stacking up.
+  // Player stands BESIDE-AND-BELOW the current stage cairn — offset enough that
+  // their bounding boxes never overlap on any tested viewport. Stage 1 leans
+  // right (away from the trailhead signpost); other stages lean left.
+  const stageNum = currentStage?.stageData?.stage_number;
   const playerX = currentStage
-    ? pctOffset(currentStage.x, currentStage.stageData?.stage_number % 2 === 0 ? 6 : -6)
+    ? pctOffset(currentStage.x, stageNum === 1 ? 9 : -9)
     : '50%';
   const playerY = currentStage
-    ? pctOffset(currentStage.y, 8)
+    ? pctOffset(currentStage.y, 14)
     : '70%';
 
   return (
     <div className="biome-scene" data-biome={cfg.id}>
+     <div className="biome-scene__frame">
       <ParallaxScene layers={cfg.layers} calmMode={systemReduced}>
         <AmbientLayer ambient={cfg.ambient} calmMode={systemReduced} />
 
@@ -231,6 +234,7 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback, 
         progress={progress}
         onExit={handleExitToList}
       />
+     </div>
 
       {activeHotspot && (
         <HotspotOverlay

@@ -12,8 +12,8 @@ export const cabin = {
   ambient: ['hearthFlicker'],
   hotspots: [
     { role: 'wallMap',         x: '14%', y: '38%' },   // left window — view your projects
-    { role: 'specimenCabinet', x: '13%', y: '78%' },   // bookshelf — review your skills
-    { role: 'bulletinBoard',   x: '30%', y: '38%' },   // cork board — check your messages
+    { role: 'specimenCabinet', x: '13%', y: '82%' },   // bookshelf — review your skills
+    { role: 'bulletinBoard',   x: '38%', y: '38%' },   // cork board — check your messages
   ],
   decor: [],
 };

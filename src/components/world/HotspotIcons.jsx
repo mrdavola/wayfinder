@@ -19,15 +19,62 @@ const isIndoor = (b) => b === 'lab' || b === 'workshop' || b === 'cabin';
 
 /* ─────────────────── TRAILHEAD ─────────────────── */
 
+function wrapTitle(title, maxLineChars = 16, maxLines = 3) {
+  // Word-wrap a long project title into up to N lines of M chars.
+  const words = String(title || 'Project').trim().split(/\s+/);
+  const lines = [];
+  let current = '';
+  for (const w of words) {
+    if (lines.length >= maxLines - 1 && (current + ' ' + w).length > maxLineChars) {
+      // last line: collapse remaining words and ellipsize
+      const rest = [current, w, ...words.slice(words.indexOf(w) + 1)].join(' ').trim();
+      lines.push(rest.length > maxLineChars ? rest.slice(0, maxLineChars - 1) + '…' : rest);
+      current = '';
+      break;
+    }
+    if (!current) {
+      current = w;
+    } else if ((current + ' ' + w).length <= maxLineChars) {
+      current += ' ' + w;
+    } else {
+      lines.push(current);
+      current = w;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.slice(0, maxLines);
+}
+
 function OutdoorTrailheadSign({ title }) {
+  // Width and height grow with line count so long titles get a taller plank.
+  const lines = wrapTitle(title, 16, 3);
+  const lineHeight = 13;
+  const padY = 10;
+  const plankHeight = lines.length * lineHeight + padY * 2;
+  const totalHeight = 40 + plankHeight + 60; // post-top + plank + post-below
+  const postTop = plankHeight; // post starts at the bottom of the plank
   return (
-    <svg width="120" height="140" viewBox="0 0 120 140" aria-hidden="true">
-      <rect x="54" y="40" width="12" height="100" fill={TRUNK}/>
-      <rect x="54" y="40" width="3"  height="100" fill={TRUNK_LT} opacity="0.6"/>
-      <path d="M2,30 L100,30 L114,46 L100,62 L2,62 Z" fill={TRUNK_LT} stroke={TRUNK} strokeWidth="2"/>
-      <text x="50" y="51" fontFamily="Georgia, serif" fontSize="13" textAnchor="middle"
-            fill={INK} fontStyle="italic">{title || 'Project'}</text>
-      <g transform="translate(60,90)" stroke={INK} strokeWidth="0.8" fill="none" opacity="0.55">
+    <svg width="124" height={totalHeight} viewBox={`0 0 124 ${totalHeight}`} aria-hidden="true">
+      {/* Post */}
+      <rect x="56" y={postTop} width="12" height={totalHeight - postTop} fill={TRUNK}/>
+      <rect x="56" y={postTop} width="3"  height={totalHeight - postTop} fill={TRUNK_LT} opacity="0.6"/>
+      {/* Plank */}
+      <path
+        d={`M2,4 L104,4 L118,${plankHeight / 2 + 4} L104,${plankHeight} L2,${plankHeight} Z`}
+        fill={TRUNK_LT} stroke={TRUNK} strokeWidth="2"
+      />
+      {/* Title text — one tspan per wrapped line */}
+      <text
+        x="52" y={padY + 11}
+        fontFamily="Georgia, serif" fontSize="11" textAnchor="middle"
+        fill={INK} fontStyle="italic"
+      >
+        {lines.map((line, i) => (
+          <tspan key={i} x="52" dy={i === 0 ? 0 : lineHeight}>{line}</tspan>
+        ))}
+      </text>
+      {/* Compass rose carving on post */}
+      <g transform={`translate(62, ${postTop + 28})`} stroke={INK} strokeWidth="0.8" fill="none" opacity="0.55">
         <circle r="6"/><line x1="0" y1="-6" x2="0" y2="6"/><line x1="-6" y1="0" x2="6" y2="0"/>
       </g>
     </svg>

@@ -116,17 +116,30 @@
   100% { filter: drop-shadow(0 4px 6px rgba(40,28,14,0.18)); }
 }
 
-/* Mobile: scale props down hard, hide most labels, and tuck non-essential roles
-   behind smaller, lower-opacity props so 9 hotspots can coexist on a 390px viewport.
-   The journey (stage cairns + guide + player) remains primary. */
+/* Tablet (640–960): stage cairns sit ~20% apart so their long labels collide.
+   Cap the stage tag width and shrink the font slightly so 3 stages fit. */
+@media (min-width: 641px) and (max-width: 960px) {
+  .hotspot[data-role='stage'] .hotspot__tag {
+    max-width: 130px;
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+/* Mobile: shrink prop SVGs by setting actual width (not transform) so layout
+   bounding boxes shrink too. Hide most labels; the journey (stage cairns +
+   guide + player) stays readable. */
 @media (max-width: 640px) {
   .hotspot__prop > svg {
-    transform: scale(0.5);
-    transform-origin: 50% 100%;
+    width: 38px;
+    height: auto;
   }
   .hotspot[data-role='stage'] .hotspot__prop > svg,
   .hotspot[data-role='teammate'] .hotspot__prop > svg {
-    transform: scale(0.6);
+    width: 44px;
+  }
+  .hotspot[data-role='trailheadSign'] .hotspot__prop > svg {
+    width: 56px;
   }
   .hotspot__tag {
     font-size: 9px;
@@ -148,7 +161,8 @@
   }
   /* Truncate stage labels harder on mobile so 3 cairns fit side-by-side */
   .hotspot[data-role='stage'] .hotspot__tag {
-    max-width: 78px;
-    font-size: 8.5px;
+    max-width: 64px;
+    font-size: 8px;
+    padding: 1px 4px;
   }
 }

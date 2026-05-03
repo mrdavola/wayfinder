@@ -184,42 +184,76 @@ export default function DemoPage() {
         forceBiome={biomeId}
       />
 
-      {!uiHidden && (
-        <div className="demo-toolbar" role="region" aria-label="Demo controls">
-          <div className="demo-toolbar__brand">
-            <span className="demo-toolbar__badge">demo</span>
-            <span className="demo-toolbar__name">Diagonally world</span>
-          </div>
+      {!uiHidden && <DemoControls
+        biomeId={biomeId}
+        phase={phase}
+        team={team}
+        setParam={setParam}
+      />}
+    </div>
+  );
+}
 
+function DemoControls({ biomeId, phase, team, setParam }) {
+  const [open, setOpen] = useState(false);
+  const currentBiome = BIOMES.find(b => b.id === biomeId);
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="demo-pill"
+        onClick={() => setOpen(true)}
+        aria-label="Open demo controls"
+        aria-expanded="false"
+      >
+        <span className="demo-pill__badge">demo</span>
+        <span>{currentBiome?.label || 'Demo'}</span>
+        <span className="demo-pill__chev" aria-hidden="true">▾</span>
+      </button>
+    );
+  }
+  return (
+    <div className="demo-toolbar" role="region" aria-label="Demo controls">
+      <div className="demo-toolbar__head">
+        <span className="demo-toolbar__title">
+          <span className="demo-pill__badge" style={{ marginRight: 8 }}>demo</span>
+          Diagonally world
+        </span>
+        <button
+          type="button"
+          className="demo-toolbar__close"
+          onClick={() => setOpen(false)}
+          aria-label="Close demo controls"
+        >×</button>
+      </div>
+
+      <DemoSelect
+        label="Biome"
+        value={biomeId}
+        onChange={(v) => setParam('biome', v)}
+        options={BIOMES.map(b => ({ value: b.id, label: b.label, hint: b.blurb }))}
+      />
+
+      {biomeId !== 'cabin' && (
+        <>
           <DemoSelect
-            label="Biome"
-            value={biomeId}
-            onChange={(v) => setParam('biome', v)}
-            options={BIOMES.map(b => ({ value: b.id, label: b.label, hint: b.blurb }))}
+            label="Phase"
+            value={phase}
+            onChange={(v) => setParam('phase', v)}
+            options={PHASES.map(p => ({ value: p.id, label: p.label, hint: p.help }))}
           />
-
-          {biomeId !== 'cabin' && (
-            <>
-              <DemoSelect
-                label="Phase"
-                value={phase}
-                onChange={(v) => setParam('phase', v)}
-                options={PHASES.map(p => ({ value: p.id, label: p.label, hint: p.help }))}
-              />
-              <DemoSelect
-                label="Team"
-                value={team}
-                onChange={(v) => setParam('team', v)}
-                options={TEAM_PRESETS.map(t => ({ value: t.id, label: t.label }))}
-              />
-            </>
-          )}
-
-          <div className="demo-toolbar__hint" aria-hidden="true">
-            <kbd>1</kbd>–<kbd>4</kbd> biome · <kbd>q</kbd>–<kbd>r</kbd> phase
-          </div>
-        </div>
+          <DemoSelect
+            label="Team"
+            value={team}
+            onChange={(v) => setParam('team', v)}
+            options={TEAM_PRESETS.map(t => ({ value: t.id, label: t.label }))}
+          />
+        </>
       )}
+
+      <div className="demo-toolbar__hint" aria-hidden="true">
+        <kbd>1</kbd>–<kbd>4</kbd> biome · <kbd>q</kbd>–<kbd>r</kbd> phase
+      </div>
     </div>
   );
 }

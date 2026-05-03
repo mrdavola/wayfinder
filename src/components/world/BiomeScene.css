@@ -3,6 +3,18 @@
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  /* Frame the scene at a sane max-width on ultrawide so positioned hotspots
+     keep their relative spacing instead of stretching apart. The padding is
+     filled by a soft cream backdrop matching the parchment world. */
+  background: var(--paper, #fbf6e7);
+}
+.biome-scene__frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+  overflow: hidden;
 }
 
 /* Legacy compat — kept for any code path still using the old wrapper class */
