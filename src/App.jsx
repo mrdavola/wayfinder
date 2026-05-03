@@ -1,7 +1,9 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import CabinScene from './components/world/CabinScene';
+import { getStudentSession } from './lib/studentSession';
 
 // Eagerly loaded (landing + auth — needed immediately)
 import LandingPage from './pages/LandingPage';
@@ -42,6 +44,23 @@ const BiomePage = lazy(() => import('./pages/student/BiomePage.jsx'));
 
 import './index.css';
 
+function StationRoute() {
+  const navigate = useNavigate();
+  const [studentId, setStudentId] = useState(null);
+
+  useEffect(() => {
+    const s = getStudentSession();
+    if (!s?.studentId) {
+      navigate('/student/login', { replace: true });
+      return;
+    }
+    setStudentId(s.studentId);
+  }, [navigate]);
+
+  if (!studentId) return null;
+  return <CabinScene studentId={studentId} />;
+}
+
 function PageLoader() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'var(--font-body)' }}>
@@ -70,7 +89,8 @@ export default function App() {
             <Route path="/q/:id" element={<BiomePage />} />
             <Route path="/join/:code" element={<LearnerIntakeForm />} />
             <Route path="/student/login" element={<StudentLogin />} />
-            <Route path="/student" element={<CampHub />} />
+            <Route path="/station" element={<StationRoute />} />
+            <Route path="/student" element={<Navigate to="/station" replace />} />
             <Route path="/student/legacy" element={<StudentHome />} />
             <Route path="/student/project/new" element={<StudentProjectBuilder />} />
             <Route path="/student/explore/:explorationId" element={<ExploreSkillPage />} />
