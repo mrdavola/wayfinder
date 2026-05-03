@@ -9,6 +9,7 @@ import CharacterPortrait from './CharacterPortrait';
 import HotspotOverlay from './HotspotOverlay';
 import { WorldStateProvider, useWorldState } from './WorldStateContext';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { computeTeammatePositions } from '../../lib/teammatePositions';
 
 const ROLE_LABELS = {
   trailheadSign:  'Driving question — tap to read',
@@ -35,7 +36,7 @@ function resolveHotspots(configHotspots, stages) {
   });
 }
 
-function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }) {
+function SceneInner({ quest, stages, studentSession, onStageComplete, feedback, teammates = [] }) {
   const cfg = getBiome(suggestBiome(quest)) ?? getBiome('campsite');
   const systemReduced = useReducedMotion();
   const { zoomedHotspot, zoomTo, zoomOut } = useWorldState();
@@ -47,8 +48,23 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }
     [cfg.hotspots, stages]
   );
 
+  const resolvedWithTeammates = useMemo(() => {
+    const positions = computeTeammatePositions(teammates.length);
+    const tmHotspots = teammates.map((tm, i) => ({
+      role: 'teammate',
+      x: positions[i]?.x ?? '60%',
+      y: positions[i]?.y ?? '74%',
+      configIndex: resolved.length + i,
+      state: 'active',
+      stageData: null,
+      label: `Talk to ${tm.name || 'Teammate'}`,
+      teammateData: tm,
+    }));
+    return [...resolved, ...tmHotspots];
+  }, [resolved, teammates]);
+
   useEffect(() => () => clearTimeout(igniteTimer.current), []);
-  const activeHotspot = resolved.find(h => zoomedHotspot === `${h.role}-${h.configIndex}`);
+  const activeHotspot = resolvedWithTeammates.find(h => zoomedHotspot === `${h.role}-${h.configIndex}`);
   const guideHotspot = cfg.hotspots.find(h => h.role === 'guide');
 
   const handleActivate = useCallback((h) => {
@@ -88,14 +104,14 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }
           </div>
         )}
 
-        {resolved.map((h) => (
+        {resolvedWithTeammates.map((h) => (
           <Hotspot
             key={`${h.role}-${h.configIndex}`}
             id={`${h.role}-${h.configIndex}`}
             role={h.role}
             x={h.x}
             y={h.y}
-            label={h.role === 'stage' && h.stageData ? h.stageData.title : ROLE_LABELS[h.role] ?? h.role}
+            label={h.label ?? (h.role === 'stage' && h.stageData ? h.stageData.title : ROLE_LABELS[h.role] ?? h.role)}
             state={h.state}
             igniting={igniting === h.configIndex}
             onActivate={() => handleActivate(h)}
@@ -110,6 +126,7 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }
           stage={activeHotspot.stageData}
           studentSession={studentSession}
           feedback={feedback}
+          teammate={activeHotspot.teammateData ?? null}
           onClose={zoomOut}
           onStageComplete={handleStageComplete}
         />
@@ -118,7 +135,7 @@ function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }
   );
 }
 
-export default function BiomeScene({ quest, stages, studentSession, feedback = [], onStageComplete }) {
+export default function BiomeScene({ quest, stages, studentSession, feedback = [], teammates = [], onStageComplete }) {
   return (
     <WorldStateProvider>
       <SceneInner
@@ -126,6 +143,7 @@ export default function BiomeScene({ quest, stages, studentSession, feedback = [
         stages={stages}
         studentSession={studentSession}
         feedback={feedback}
+        teammates={teammates}
         onStageComplete={onStageComplete}
       />
     </WorldStateProvider>

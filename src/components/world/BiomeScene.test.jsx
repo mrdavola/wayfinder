@@ -80,4 +80,30 @@ describe('<BiomeScene>', () => {
     const backLayer = container.querySelector('[data-layer="back"]');
     expect(backLayer).toHaveAttribute('src', expect.stringContaining('/biomes/campsite/'));
   });
+
+  it('renders a teammate hotspot when teammates prop is provided', () => {
+    const teammates = [{ student_id: 'sid2', name: 'Jordan', role: 'Lead', avatar_emoji: '🦊' }];
+    render(<BiomeScene quest={quest} stages={stages} studentSession={session} teammates={teammates} />);
+    const teammateBtn = document.querySelector('button.hotspot[data-role="teammate"]');
+    expect(teammateBtn).toBeTruthy();
+  });
+
+  it('teammate hotspot has accessible name with teammate name', () => {
+    const teammates = [{ student_id: 'sid2', name: 'Jordan', role: '', avatar_emoji: null }];
+    render(<BiomeScene quest={quest} stages={stages} studentSession={session} teammates={teammates} />);
+    const teammateBtn = document.querySelector('button.hotspot[data-role="teammate"]');
+    expect(teammateBtn?.getAttribute('aria-label')).toContain('Jordan');
+  });
+
+  it('renders no teammate hotspots when teammates is empty', () => {
+    render(<BiomeScene quest={quest} stages={stages} studentSession={session} teammates={[]} />);
+    const tmBtns = document.querySelectorAll('button.hotspot[data-role="teammate"]');
+    expect(tmBtns).toHaveLength(0);
+  });
+
+  it('renders no teammate hotspots when teammates prop is omitted', () => {
+    render(<BiomeScene quest={quest} stages={stages} studentSession={session} />);
+    const tmBtns = document.querySelectorAll('button.hotspot[data-role="teammate"]');
+    expect(tmBtns).toHaveLength(0);
+  });
 });
