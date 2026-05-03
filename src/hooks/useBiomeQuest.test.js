@@ -96,8 +96,10 @@ describe('useBiomeQuest', () => {
 
     mockSingle.mockResolvedValue({ data: makeQuest([]), error: null });
     await result.current.refreshStages();
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for quest to become non-null — unambiguous signal the refresh succeeded
+    // (avoids a race where loading===false from the prior failed state fires too early)
+    await waitFor(() => expect(result.current.quest).not.toBeNull());
     expect(result.current.error).toBeNull();
-    expect(result.current.quest).not.toBeNull();
+    expect(result.current.loading).toBe(false);
   });
 });
