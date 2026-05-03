@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, School, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -133,8 +133,14 @@ const GRADE_BANDS = [
 ];
 
 export default function OnboardingPage() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && profile?.onboarding_complete) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [profile, loading, navigate]);
 
   const firstName = profile?.full_name?.split(' ')[0]
     || user?.user_metadata?.full_name?.split(' ')[0]

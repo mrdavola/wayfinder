@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   Compass,
   Route,
@@ -194,6 +195,18 @@ function QuestMapIllustration() {
 
 /* ─── Landing Page ───────────────────────────────────────────────────────── */
 export default function LandingPage() {
+  const { user, profile, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    if (user && profile?.onboarding_complete) {
+      navigate('/dashboard', { replace: true });
+    } else if (user && profile !== null && !profile?.onboarding_complete) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, profile, loading, navigate]);
+
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
