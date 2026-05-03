@@ -4,6 +4,7 @@ import Specimen from './Specimen';
 import CampfireChat from '../social/CampfireChat';
 import TactilePropViewer from './TactilePropViewer';
 import { getPropForRole } from '../../lib/tactileProps';
+import TeammatePanel from './panels/TeammatePanel';
 
 const WorldChat = lazy(() => import('./WorldChat'));
 
@@ -124,7 +125,7 @@ function ChatPanel({ quest, stage, studentSession, onClose, onStageComplete, rol
   );
 }
 
-function OverlayContent({ role, quest, stage, studentSession, feedback, onClose, onStageComplete, onOpenChat }) {
+function OverlayContent({ role, quest, stage, studentSession, feedback, teammate, onClose, onStageComplete, onOpenChat }) {
   switch (role) {
     case 'trailheadSign':
       return <TrailheadPanel quest={quest} />;
@@ -140,12 +141,14 @@ function OverlayContent({ role, quest, stage, studentSession, feedback, onClose,
       return <MailboxPanel feedback={feedback} />;
     case 'bulletinSubmit':
       return <BulletinPanel />;
+    case 'teammate':
+      return <TeammatePanel teammate={teammate} />;
     default:
       return <p className="ho-empty">Coming soon.</p>;
   }
 }
 
-export default function HotspotOverlay({ role, quest, stage, studentSession, feedback = [], onClose, onStageComplete, onOpenChat = () => {} }) {
+export default function HotspotOverlay({ role, quest, stage, studentSession, feedback = [], teammate = null, onClose, onStageComplete, onOpenChat = () => {} }) {
   const sheetRef = useRef(null);
 
   useEffect(() => {
@@ -171,6 +174,7 @@ export default function HotspotOverlay({ role, quest, stage, studentSession, fee
             stage={stage}
             studentSession={studentSession}
             feedback={feedback}
+            teammate={teammate}
             onClose={onClose}
             onStageComplete={onStageComplete}
             onOpenChat={onOpenChat}
