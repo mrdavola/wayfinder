@@ -57,9 +57,8 @@ function SceneInner({ studentId }) {
     return () => { cancelled = true; };
   }, [studentId]);
 
-  const handleActivate = useCallback((role) => {
-    zoomTo(role);
-  }, [zoomTo]);
+  // No useCallback wrapper needed — zoomTo is already stable, and the inline
+  // arrow on Hotspot defeats memoization anyway.
 
   const handleMarkRead = useCallback((messageId) => {
     setData((prev) => ({
@@ -74,8 +73,9 @@ function SceneInner({ studentId }) {
   if (error) {
     return (
       <div className="cabin-scene__error">
-        <p>Couldn’t load your cabin.</p>
+        <p>Couldn’t load your station.</p>
         <p style={{ fontSize: 12, color: 'var(--graphite)' }}>{error}</p>
+        <a href="?view=list" className="btn btn-secondary">Back to list view</a>
       </div>
     );
   }
@@ -97,7 +97,7 @@ function SceneInner({ studentId }) {
             y={h.y}
             label={ROLE_LABELS[h.role] ?? h.role}
             state="active"
-            onActivate={() => handleActivate(h.role)}
+            onActivate={() => zoomTo(h.role)}
           />
         ))}
 

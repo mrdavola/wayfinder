@@ -13,6 +13,35 @@ const ELEMENTS = {
       </svg>
     </div>
   ),
+  hearthFlicker: () => (
+    <div data-ambient="hearthFlicker" className="ambient-hearth-wrap" aria-hidden="true">
+      <svg viewBox="0 0 60 50" width="60" height="50" className="ambient-hearth">
+        {/* warm glow pool */}
+        <ellipse cx="30" cy="44" rx="26" ry="6" fill="#d97a2a" opacity="0.25" className="ambient-hearth-glow"/>
+        {/* logs */}
+        <rect x="8"  y="38" width="44" height="6" rx="2" fill="#5a3a20" opacity="0.85"/>
+        <rect x="14" y="33" width="32" height="5" rx="2" fill="#704828" opacity="0.8"/>
+        {/* outer flame */}
+        <path
+          d="M30,40 Q18,28 22,16 Q26,22 30,18 Q34,22 38,16 Q42,28 30,40 Z"
+          fill="#f0a050"
+          opacity="0.85"
+          className="ambient-hearth-flame ambient-hearth-flame--outer"
+        />
+        {/* inner flame */}
+        <path
+          d="M30,38 Q24,30 26,22 Q28,26 30,24 Q32,26 34,22 Q36,30 30,38 Z"
+          fill="#f8d070"
+          opacity="0.95"
+          className="ambient-hearth-flame ambient-hearth-flame--inner"
+        />
+        {/* embers */}
+        <circle cx="20" cy="42" r="1.2" fill="#ffb060" opacity="0.9" className="ambient-hearth-ember ambient-hearth-ember--a"/>
+        <circle cx="42" cy="42" r="1"   fill="#ffd080" opacity="0.85" className="ambient-hearth-ember ambient-hearth-ember--b"/>
+        <circle cx="30" cy="44" r="0.9" fill="#ff9040" opacity="0.9" className="ambient-hearth-ember ambient-hearth-ember--c"/>
+      </svg>
+    </div>
+  ),
   leafFall: () => (
     <div data-ambient="leafFall" className="ambient-leaves-wrap" aria-hidden="true">
       {[0, 1, 2, 3].map(i => (
