@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import './BiomeScene.css';
 import { getBiome } from '../../biomes';
+import { suggestBiome } from '../../biomes/suggest';
 import ParallaxScene from './ParallaxScene';
 import Hotspot from './Hotspot';
 import AmbientLayer from './AmbientLayer';
@@ -35,7 +36,7 @@ function resolveHotspots(configHotspots, stages) {
 }
 
 function SceneInner({ quest, stages, studentSession, onStageComplete, feedback }) {
-  const cfg = getBiome(quest?.biome_id || 'campsite') ?? getBiome('campsite');
+  const cfg = getBiome(suggestBiome(quest)) ?? getBiome('campsite');
   const systemReduced = useReducedMotion();
   const { zoomedHotspot, zoomTo, zoomOut } = useWorldState();
   const [igniting, setIgniting] = useState(null);

@@ -59,4 +59,25 @@ describe('<BiomeScene>', () => {
     const svg = screen.getByRole('img', { name: 'Your field guide', hidden: true });
     expect(svg.tagName.toLowerCase()).toBe('svg');
   });
+
+  it('auto-suggests lab biome for biology career_pathway when biome_id is absent', () => {
+    const labQuest = { id: 'q2', title: 'Ecosystems', career_pathway: 'biology', character_image_url: null };
+    const { container } = render(<BiomeScene quest={labQuest} stages={stages} studentSession={session} />);
+    const backLayer = container.querySelector('[data-layer="back"]');
+    expect(backLayer).toHaveAttribute('src', expect.stringContaining('/biomes/lab/'));
+  });
+
+  it('auto-suggests workshop biome for engineering career_pathway when biome_id is absent', () => {
+    const workshopQuest = { id: 'q3', title: 'Build It', career_pathway: 'engineering', character_image_url: null };
+    const { container } = render(<BiomeScene quest={workshopQuest} stages={stages} studentSession={session} />);
+    const backLayer = container.querySelector('[data-layer="back"]');
+    expect(backLayer).toHaveAttribute('src', expect.stringContaining('/biomes/workshop/'));
+  });
+
+  it('defaults to campsite when quest has no biome_id or career_pathway', () => {
+    const bareQuest = { id: 'q4', title: 'Unknown', character_image_url: null };
+    const { container } = render(<BiomeScene quest={bareQuest} stages={stages} studentSession={session} />);
+    const backLayer = container.querySelector('[data-layer="back"]');
+    expect(backLayer).toHaveAttribute('src', expect.stringContaining('/biomes/campsite/'));
+  });
 });
