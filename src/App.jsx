@@ -38,6 +38,8 @@ const MasteryMap = lazy(() => import('./pages/MasteryMap'));
 const CommunityRepository = lazy(() => import('./pages/CommunityRepository'));
 const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage'));
 const WorldRenderer = lazy(() => import('./pages/student/WorldRenderer'));
+const Campsite3DPreview = lazy(() => import('./pages/dev/Campsite3DPreview'));
+const WorldDemo = lazy(() => import('./pages/dev/WorldDemo'));
 
 import './index.css';
 
@@ -67,6 +69,8 @@ export default function App() {
             {/* Student-facing routes — no auth required */}
             <Route path="/world/:id" element={<WorldRenderer />} />
             <Route path="/q/:id" element={<StudentQuestPage />} />
+            <Route path="/dev/campsite" element={<Campsite3DPreview />} />
+            <Route path="/dev/world" element={<WorldDemo />} />
             <Route path="/join/:code" element={<LearnerIntakeForm />} />
             <Route path="/student/login" element={<StudentLogin />} />
             <Route path="/student" element={<CampHub />} />

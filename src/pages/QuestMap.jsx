@@ -15,6 +15,9 @@ import { ai, guidePlaybook as guidePlaybookApi, landmarksApi, communityProjects 
 import TreasureMap from '../components/map/TreasureMap';
 import DiagonallyLogoIcon from '../components/icons/DiagonallyLogo';
 const ImmersiveWorldView = lazy(() => import('../components/immersive/ImmersiveWorldView'));
+// Guide-side preview of the campfire-explorer 3D map. Lazy: only the guides
+// who flip the toggle pay the three.js bundle cost.
+const Campsite3D = lazy(() => import('../components/map/Campsite3D'));
 
 // ===================== CONSTANTS =====================
 const NODE_SPACING = 140;
@@ -1427,6 +1430,16 @@ export default function QuestMap() {
   const [activeCard, setActiveCard] = useState(null);
   const [journalOpen, setJournalOpen] = useState(false);
   const [completing, setCompleting] = useState(null);
+  // Map style toggle — persisted per browser so a guide doesn't have to flip
+  // it every time they open a project. Defaults to the current 2D treasure map.
+  const [mapStyle, setMapStyle] = useState(() => {
+    try { return localStorage.getItem('wayfinder_map_style') === '3d' ? '3d' : '2d'; }
+    catch { return '2d'; }
+  });
+  const setMapStylePersist = (s) => {
+    setMapStyle(s);
+    try { localStorage.setItem('wayfinder_map_style', s); } catch {}
+  };
   const [confettiNode, setConfettiNode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1916,13 +1929,52 @@ export default function QuestMap() {
             )}
 
             {/* Trail Map — full width above stage card */}
-            <div style={{ width: '100%' }}>
-              <TreasureMap
-                stages={stages}
-                landmarks={mapLandmarks}
-                activeCard={activeCard}
-                onNodeClick={handleNodeClick}
-              />
+            <div style={{ width: '100%', position: 'relative' }}>
+              {/* Map style toggle (guide-only preview of the 3D campfire map) */}
+              <div style={{
+                position: 'absolute', top: 8, right: 8, zIndex: 3,
+                display: 'inline-flex', borderRadius: 999,
+                background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(6px)',
+                border: '1px solid rgba(0,0,0,0.08)', padding: 3, gap: 2,
+                fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 0.4,
+              }}>
+                {[
+                  { key: '2d', label: 'trail map' },
+                  { key: '3d', label: 'campsite 3D' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setMapStylePersist(key)}
+                    style={{
+                      appearance: 'none', cursor: 'pointer',
+                      padding: '5px 10px', borderRadius: 999, border: 'none',
+                      background: mapStyle === key ? 'var(--ink)' : 'transparent',
+                      color: mapStyle === key ? 'var(--paper)' : 'var(--ink)',
+                      fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {mapStyle === '3d' ? (
+                <Suspense fallback={<div style={{ height: 320, borderRadius: 12, background: 'rgba(27,73,101,0.05)' }} />}>
+                  <Campsite3D
+                    stages={stages}
+                    activeCard={activeCard}
+                    onNodeClick={handleNodeClick}
+                    studentName={(quest?.assigned_students?.[0]?.first_name) || 'explorer'}
+                    height={360}
+                  />
+                </Suspense>
+              ) : (
+                <TreasureMap
+                  stages={stages}
+                  landmarks={mapLandmarks}
+                  activeCard={activeCard}
+                  onNodeClick={handleNodeClick}
+                />
+              )}
             </div>
 
             {/* Card column */}

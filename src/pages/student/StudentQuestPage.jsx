@@ -34,6 +34,9 @@ import BranchingMap from '../../components/map/BranchingMap';
 import { stageBranches, studentPaths, uploadSubmissionFile } from '../../lib/api';
 import EnterWorldButton from '../../components/immersive/EnterWorldButton';
 import VideoEmbed from '../../components/ui/VideoEmbed';
+// Lazy: only pulled in when ?map=3d is active, so three.js (~600KB gz) doesn't
+// land on every learner who opens a project.
+const Campsite3D            = lazy(() => import('../../components/map/Campsite3D'));
 // Creation tools: lazy-loaded so a learner only downloads the one they're using
 // for the current stage. Saves ~40-70KB gzipped on the initial chunk.
 const CanvasBoard           = lazy(() => import('../../components/creation/CanvasBoard'));
@@ -3844,16 +3847,22 @@ export default function StudentQuestPage() {
     loadChallenges();
   }, [stages, studentProfile?.id]);
 
-  // Play ambient sound for active stage's landmark
+  // Play ambient sound for active stage's landmark.
+  // When the 3D campsite map is enabled (?map=3d), default to a campfire
+  // crackle if the active stage has no landmark sound of its own.
+  const is3DMap = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('map') === '3d';
   useEffect(() => {
     if (!activeCard) { stopSound(); return; }
     const landmark = mapLandmarks.find(l => l.stage_id === activeCard);
     if (landmark?.ambient_sound) {
       playSound(landmark.ambient_sound);
+    } else if (is3DMap) {
+      playSound('campfire');
     } else {
       stopSound();
     }
-  }, [activeCard, mapLandmarks, soundEnabled]);
+  }, [activeCard, mapLandmarks, soundEnabled, is3DMap]);
 
   // Client-side safety filter for student messages
   const UNSAFE_PATTERNS = /\b(kill|murder|suicide|bomb|weapon|gun|shoot|drug|cocaine|heroin|meth|sex|porn|nude|naked|rape|assault|hate|racist|slur)\b/i;
@@ -4747,6 +4756,17 @@ export default function StudentQuestPage() {
                 handleNodeClick(stage.id);
               }}
             />
+          ) : is3DMap ? (
+            <Suspense fallback={<div style={{ height: 320, borderRadius: 12, background: 'rgba(27,73,101,0.05)' }} />}>
+              <Campsite3D
+                stages={stages}
+                activeCard={activeCard}
+                onNodeClick={handleNodeClick}
+                studentName={studentName}
+                studentEmoji={studentProfile?.avatar_emoji}
+                recentlyCompleted={confetti ? activeCard : null}
+              />
+            </Suspense>
           ) : (
             <TreasureMap
               stages={stages}
